@@ -169,6 +169,23 @@ For each task:
    Staging is the checkpoint. The next task's delta is then measured against the
    index, so each review sees only what is new.
 
+## Between tasks, shed what you no longer need
+
+Task boundaries are the safe place to compact, and a twenty-task Run needs them.
+
+After recording a task, drop its details from working context: the diff you
+already inspected, the findings you already closed, the file contents you already
+acted on, the Worker's reasoning. Keep the plan's remaining tasks, open findings,
+the conventions in `notes`, and the current phase.
+
+Record before you drop. `run.json` gets `currentTaskId` and `completedTaskIds`;
+`implementation.md` gets the task's row. A task that completed but was not
+recorded is a task that will be done twice, and the second attempt will conflict
+with the first.
+
+Never compact mid-task or mid-review-round. Finish the unit, record it, then
+shed.
+
 ## Adapt as you go
 
 The plan's task sizes were an estimate made before any code existed. Correct them

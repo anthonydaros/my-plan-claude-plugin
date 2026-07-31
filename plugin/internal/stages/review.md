@@ -167,6 +167,12 @@ session with the current subject, only pending findings, changed paths, and new
 evidence. Rotation is not failure and never triggers plan rewriting or another
 approval.
 
+Rotate the Coordinator's own context the same way. The Finding Ledger is on disk;
+closed findings, resolved rounds, and the diffs you already read do not need to
+stay in your head. Carry the open findings and the current subject hash forward
+and let the rest go. A Coordinator that runs out of context mid-loop strands a
+Run that was otherwise finishing normally.
+
 A Worker timeout preserves the diff, logs, and finding state, then resumes in the
 same worktree.
 

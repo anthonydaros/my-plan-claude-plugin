@@ -147,6 +147,41 @@ work is safe on its branch. That is a finished Run, not a failure.
   hashes: freezing `{{specHash}}` as a literal string binds approval to nothing
   and every downstream check silently passes against garbage.
 
+## Surviving a long Run
+
+A Run with twenty tasks, each with its own review and remediation, will outlive
+your context window. That is expected, and it must not end the Run.
+
+**Keep `run.json` current, always.** Update it at every phase transition, after
+every task completes, and before anything long. It is the only thing that knows
+where the Run is. Everything else in your context is convenience.
+
+The rule: at any moment, a fresh session reading `run.json` and the Run artifacts
+must be able to continue. If that is not true right now, you have state in your
+head that belongs on disk. Write it down before doing anything else.
+
+**Compact before you are forced to.** When context is filling, do it at a task
+boundary rather than mid-task:
+
+1. Write the current state to `run.json`.
+2. Update `implementation.md` with what has completed.
+3. Drop from your working context: completed task details, closed findings,
+   full file contents you have already acted on, and Worker transcripts.
+4. Keep: the goal, the approved spec hash, the plan's remaining tasks, open
+   findings, the conventions in `notes`, and the current phase.
+
+Never compact in the middle of a task, a review round, or an integration
+sequence. Finish the unit, record it, then compact.
+
+**Nothing is re-approved after compaction.** The approval lives in
+`approvedSpecHash`, not in the conversation. A compacted or rotated session
+continues under the same authority; asking the user to approve again because you
+lost the thread is a defect, not caution.
+
+If the Architecture Memory has grown past its threshold, that is a different
+compaction, handled in `project.md`. Do not conflate them: one keeps a document
+readable, this one keeps the Run alive.
+
 ## Be brief, everywhere
 
 This applies to what you say and to what you write. It is not a style preference:
