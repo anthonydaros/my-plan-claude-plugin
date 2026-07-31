@@ -3,3 +3,4 @@
 # Creation context, kept local. The published repository ships only the plugin.
 /docs/
 /CONTEXT.md
+CLAUDE.md
