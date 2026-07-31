@@ -34,19 +34,63 @@ interrupting you.
 
 ## Install
 
+Two moments, and they are not the same thing. You install the plugin once, for
+yourself. You initialize each repository the first time you use it there.
+
+### Once, for your machine
+
 ```bash
 /plugin marketplace add anthonydaros/my-plan-claude-plugin
 /plugin install my-plan@my-plan
 ```
 
+That is the whole global install. The commands now exist in every repository you
+open, and nothing has touched a repository yet.
+
+### Once per repository
+
+Open the repository you want to work in and run:
+
 ```
 /my-plan-install
 ```
 
-Setup checks what you have, tells you exactly how to fix what is missing, and
-resumes where it stopped.
+It reads the repository and records what it verified: stack, package manager,
+real module boundaries, the build, test, lint, and type-check commands that
+actually exist, default branch, remotes, CI. It asks only what the code cannot
+answer.
 
-**Required:** Claude Code 2.1.216+, Git, Context7
+Two files stay behind: the repository's verified facts at
+`.claude/skills/my-plan-project/`, and its current architecture at
+`docs/my-plan/SEAM.md`. Your `CLAUDE.md`, `AGENTS.md`, skills, and documentation
+are never modified.
+
+The first run on a given machine also does the part that is not about any
+repository: probing what you have, selecting the backend, and recording your
+preferences outside your repositories. Later repositories skip straight to the
+repository part.
+
+**You can skip this step.** `/my-plan-start` runs the same setup when it finds
+none, so a repository never needs a separate install command. The difference is
+only where those two files land. Run install and they are written to your
+checkout, because you asked for them. Let `/my-plan-start` do it and they arrive
+in the worktree after you approve the spec, so your checkout stays untouched
+while you are still deciding.
+
+### Repair, reconfigure, migrate
+
+| Command | What it does |
+|---------|--------------|
+| `/my-plan-install repair` | Re-probes and fixes what is missing or broken. Keeps the answers you already gave |
+| `/my-plan-install reconfigure` | Keeps the verified facts, re-asks the preferences |
+| `/my-plan-install migrate` | Moves managed files to the current schema. Stops on an edit it does not recognize instead of overwriting it |
+
+Setup resumes, it never restarts. Install a missing prerequisite, run it again,
+and it continues from where it stopped without re-asking anything.
+
+### What it needs
+
+**Required:** Claude Code 2.1.216+, Git 2.28+, Context7
 **Optional:** Codex CLI, GitHub CLI, Playwright
 
 Missing Codex is fine. The whole flow runs on Claude alone.
@@ -60,7 +104,7 @@ Missing Codex is fine. The whole flow runs on Claude alone.
 | `/my-plan-start <goal>` | One goal, from question to pushed code |
 | `/my-plan-start` | Resumes. Asks which run only if several match |
 | `/my-plan-audit` | Read-only findings. Accept a scope and it delivers them |
-| `/my-plan-install` | Setup, repair, reconfigure |
+| `/my-plan-install` | Initialize a repository. Also repair, reconfigure, migrate |
 
 If another command already owns a name, the full form always works:
 `/my-plan:my-plan-start`.
