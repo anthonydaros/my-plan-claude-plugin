@@ -29,11 +29,18 @@ dependency.
 
 Depends on: {{dependencies}}
 
-| Task ID | What changes | Paths | Check |
-|---------|--------------|-------|-------|
+| Task ID | What changes | Paths | Depends on | Check |
+|---------|--------------|-------|------------|-------|
 
 Each task states the current state, the intended modification, and the check that
 proves it done.
+
+Tasks are sized for the model that will build it: a handful of files, one idea,
+verifiable alone, buildable, and complete without knowledge the handoff does not
+carry. A large goal becomes many small tasks, never one big one.
+
+`Depends on` lists only real dependencies. Tasks with no dependency and disjoint
+paths run in parallel; everything else runs in order.
 
 ## Write set
 
@@ -54,8 +61,10 @@ Which existing tests are affected and which new checks the work requires.
 | Risk | Impact | Mitigation in this plan |
 |------|--------|-------------------------|
 
-## Batches
+## Execution order
 
-The cohesive units implementation will run, in order. Each batch leaves the
-worktree buildable and never separates a contract from its implementation and
-wiring.
+The sequence the tasks run in, with the independent ones grouped where they can
+run at the same time. Each task leaves the worktree buildable and never separates
+a contract from its implementation and wiring.
+
+Every delivery is reviewed as it arrives, so this order is also the review order.

@@ -95,16 +95,46 @@ namespaced per Run: a fixed database, a fixed port, an emulator, a deployment
 target. Those cannot be isolated by a worktree and are handled with a lease during
 implementation.
 
-## Batches
+## Tasks are sized for the writer, not for the reader
 
-Split the plan into the smallest cohesive batches that leave the worktree
-buildable.
+The models that write code hold a limited working context and degrade over a long
+session. A task that is obvious to a planner reading the whole specification can
+be impossible for a writer that only receives that task.
 
-- Never separate a contract from its implementation and its wiring. That batch is
-  not buildable and its micro-gate is meaningless.
-- Smaller batches for novel, architectural, security, data, or payment work.
-- One batch for a small low-risk plan. Splitting trivial work into ceremony wastes
-  a Run.
+So the unit of work is not "a feature". It is the smallest change that:
+
+- Touches a handful of files, not a subsystem.
+- Carries one idea. If describing it needs the word "and" twice, it is two tasks.
+- Can be verified on its own by a check the task itself names.
+- Leaves the worktree buildable.
+- Needs no knowledge the handoff does not carry. Assume the writer has never seen
+  this repository and will not see the other tasks.
+
+A large goal becomes many small tasks. Never one task that says "build the
+feature": that is the single most reliable way to get plausible code that does not
+work. Write the sequence out, however long it gets. A plan with twenty precise
+tasks beats a plan with three ambitious ones.
+
+Never separate a contract from its implementation and its wiring: that task is not
+buildable on its own and its check proves nothing. Cohesion decides where the line
+falls; size decides how many lines there are.
+
+Genuinely trivial work stays one task. Splitting a two-line change into ceremony
+wastes a Run.
+
+## Order and parallelism
+
+Declare real dependencies per task, and only real ones.
+
+- **Sequential** when a task needs the output, the types, or the conventions
+  another task establishes. Foundations first: a contract before its consumers, a
+  migration before the code that reads it.
+- **Parallel** when tasks touch disjoint paths and neither needs the other's
+  result. Independent writers can run at once, one per path. Never two writers on
+  the same file.
+
+A task that only "feels" like it should come later is not a dependency. False
+sequencing turns a parallel plan into a slow one for no safety gained.
 
 ## Plan review
 

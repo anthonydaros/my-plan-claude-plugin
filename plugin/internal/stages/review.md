@@ -47,10 +47,19 @@ with `role: "reviewer"` and the right `mode`:
 
 | Mode | Scope |
 |------|-------|
+| `plan-check` | A plan, before any code exists |
 | `audit` | No Run diff. The repository as it stands |
-| `initial` | The complete Review Subject, first pass |
-| `incremental` | Only pending findings and the delta since the last subject hash |
+| `incremental` | One task's delivery, or the delta since the last subject hash plus any pending findings |
+| `initial` | The complete Review Subject, first pass over the whole change |
 | `final` | The complete Review Subject, once more, before delivery |
+
+Most review in a Run is `incremental`, one task at a time as each is delivered.
+That is deliberate: a small diff reviewed while the writer still holds its context
+costs one cheap correction, and the same defect found ten tasks later costs a
+large diff against a session that has moved on.
+
+`initial` and `final` still see everything. Per-task review catches local defects;
+only a full pass catches what emerges between tasks.
 
 Artifacts depend on the mode. Send what exists, never a path to a file that does
 not:
@@ -100,6 +109,12 @@ Approval requires zero open blockers. It does not require zero findings.
 
 1. Valid blockers go back to the implementation Worker, never to the reviewer that
    found them. Reviewers do not repair their own findings.
+
+   Send them **one at a time**, or one tightly related group at a time. Never hand
+   a writer the whole list. A writer given twelve findings fixes the first few
+   properly and pattern-matches the rest, and the next review round has to work
+   out which is which. Confirm one closed, then send the next.
+
 2. Rerun the affected part of the Validation Gate.
 3. Delta review: `incremental` mode, pending findings and the changed paths only.
 4. Repeat until no blockers remain.

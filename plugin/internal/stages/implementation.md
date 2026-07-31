@@ -1,47 +1,55 @@
 # Stage: Implementation
 
 Build the reviewed plan in the isolated worktree, prove it works, and deliver it.
-Covers batching, the Validation Gate, commit, integration, and push.
+Covers task execution, the Validation Gate, commit, integration, and push.
 
 No user gate exists in this stage. The approved specification already authorized
 all of it. Asking for permission you already have is a defect, not caution.
 
-## Batches
+## Tasks
 
-Work the batches the plan defined. Adapt as you go: clean mechanical work may grow
-the next batch, correction-heavy work shrinks it and gets explicit notes.
+The plan's tasks are the unit of work. Run one task at a time, or several in
+parallel when the plan marks them independent and their paths are disjoint. Never
+hand a writer several sequential tasks at once, however small they look: the point
+of small tasks is that the writer only ever holds one.
 
-For each batch:
+For each task:
 
 1. **Assign.** Build a handoff matching
    `${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json` with
-   `role: "implementer"`, `mode: "build"`, this batch's task IDs, the write set,
+   `role: "implementer"`, `mode: "build"`, this task's ID, the write set,
    artifact paths and hashes, and the micro-gate commands. Pass the handoff path,
    never the documents themselves.
 
    Claude-only: the `my-plan-implementer` agent, Sonnet. Hybrid: Luna via Codex,
    workspace-write sandbox, per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
 
-2. **Reuse the session.** Keep the same implementation Worker across batches so
-   verified conventions and correction notes carry forward. Reset only at a batch
-   boundary, and only when the session is demonstrably confused or repeating
-   corrected mistakes. Resetting a working session throws away everything it
-   learned about the repository.
+   The handoff must be self-sufficient. The writer has not read the plan and will
+   not read the other tasks. Anything it needs to know that is not in the
+   repository goes in the handoff or in `notes`.
+
+2. **Reuse the session, within reason.** Keep the same implementation Worker
+   across tasks so verified conventions and correction notes carry forward.
+
+   Reset at a task boundary when the session is demonstrably confused, repeating
+   corrected mistakes, or has simply run long. These models degrade over a long
+   session, and a fresh session with good notes outperforms a tired one with full
+   history. Resetting mid-task throws away context that was still working.
 
 3. **Verify the claim.** Validate the returned result against
    `${CLAUDE_PLUGIN_ROOT}/internal/contracts/build-result.schema.json`. Then check
    `changedPaths` against the real Git diff and the approved write set. A Worker's
    report of what it changed is a claim; Git is the evidence. A path outside the
-   write set stops the batch.
+   write set stops the task.
 
-4. **When a batch comes back `blocked`.** Never re-dispatch the same handoff to
+4. **When a task comes back `blocked`.** Never re-dispatch the same handoff to
    the same Worker and hope. Diagnose first, then act:
 
    | Cause | Response |
    |-------|----------|
    | The handoff was missing context the Worker needed | Fix the handoff, re-dispatch in the same session |
    | The task needs more reasoning than the model has | Escalate one step up the fallback table |
-   | The batch was too large to hold at once | Split it and reassign |
+   | The task was too large to hold at once | Split it and reassign. Then check whether its siblings are oversized too |
    | The plan itself is wrong | Return to planning with the evidence |
    | `needsDecision: true` | A product question. It goes to the user, not to another Worker |
 
@@ -49,19 +57,57 @@ For each batch:
    the design, not in the attempt. Route it upward instead of patching a fourth
    time.
 
-5. **Inspect the delta.** Review only this batch's delta against the
-   specification, plan, project skill, and Architecture Memory. Correct verified
-   problems before assigning the next batch. A problem carried into the next batch
-   multiplies.
-
-6. **Micro-gate.** Run the fastest relevant lint, type-check, compile, or build
+5. **Micro-gate.** Run the fastest relevant lint, type-check, compile, or build
    check. Not the full suite; that is the Validation Gate's job.
 
-7. **Stage and record.** Stage only paths this batch and this Run own. Never
-   `git add -A`. Confirm completed plan checkboxes against the actual diff, then
+6. **Review the delivery, now.** Do not wait for the last task.
+
+   First inspect the delta yourself against the specification, plan, project
+   skill, and Architecture Memory. Then dispatch the independent reviewer in
+   `incremental` mode over just this task's diff.
+
+   Reviewing each delivery as it arrives is what keeps the writer's job small. A
+   defect found now costs one small correction against code the writer just wrote.
+   The same defect found after ten tasks arrives as a large diff, against context
+   the writer no longer holds, in a session that has already degraded.
+
+7. **Remediate before moving on.** Send verified findings back to the writer
+   sequentially, not as a batch.
+
+   One finding, or one tightly related group, per correction round. Confirm it
+   closed, then send the next. A writer handed twelve findings at once fixes the
+   first few properly and pattern-matches the rest, and the review round after
+   that has to sort out which is which.
+
+   Do not assign the next task until this one's findings are closed or explicitly
+   dispositioned. A problem carried forward multiplies: the next task builds on
+   it, and the correction stops being local.
+
+   For parallel tasks, each has its own review and remediation. Do not merge
+   their findings into one queue; the writers are different sessions.
+
+8. **Stage and record.** Stage only paths this task and this Run own. Never
+   `git add -A`. Confirm the completed plan checkbox against the actual diff, then
    update `implementation.md`, rendering it from
    `${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/implementation.md.tpl` on
-   the first batch.
+   the first task.
+
+   Staging is the checkpoint. The next task's delta is then measured against the
+   index, so each review sees only what is new.
+
+## Adapt as you go
+
+The plan's task sizes were an estimate made before any code existed. Correct them
+with what actually happens.
+
+A task that came back clean, first try, with no findings, suggests the next one
+can be slightly larger. A task that needed three correction rounds, came back
+`blocked` as too large, or produced findings about things the writer could not
+have known, means the remaining tasks are too big. Split them before assigning,
+not after they fail.
+
+Record the change in `notes` so the writer inherits the convention rather than
+rediscovering it.
 
 ## Shared resources
 
@@ -73,15 +119,18 @@ Take a resource lease around the window where that resource is actually in use,
 and release it as soon as the work is done. Never hold one across a whole phase,
 and never hold one while a model is reasoning.
 
-## After the last batch
+## After the last task
 
-Review the complete feature diff before the Validation Gate, looking for what
-per-batch inspection cannot see:
+Per-task review catches local defects. It cannot catch what emerges between tasks,
+because no single delivery contains it.
 
-- Cross-batch drift: the same concept implemented two ways.
-- Duplicated helpers introduced independently in different batches.
-- Inconsistent naming across batch boundaries.
-- Dead code left behind by a later batch.
+So review the complete feature diff before the Validation Gate, looking for:
+
+- Drift: the same concept implemented two ways in different tasks.
+- Duplicated helpers introduced independently by writers that could not see each
+  other's work.
+- Inconsistent naming across task boundaries.
+- Dead code left behind by a later task.
 - Files that were never supposed to be there.
 
 ## Codex fallback

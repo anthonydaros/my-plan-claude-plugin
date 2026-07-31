@@ -16,8 +16,8 @@ Contains no agent transcripts.
 
 ## Completed tasks
 
-| Task ID | Batch | Changed paths | Verified against |
-|---------|-------|---------------|------------------|
+| Task ID | Changed paths | Review outcome | Verified against |
+|---------|---------------|----------------|------------------|
 
 `Verified against` is the Git evidence that the reported paths are the real ones.
 
@@ -29,8 +29,9 @@ specification revision, not here.
 
 ## Corrections
 
-Problems found during batch delta inspection and how they were fixed, so the same
-mistake does not repeat in a later batch.
+Problems found while reviewing each delivery and how they were fixed, so the same
+mistake does not repeat in a later task. Note any task that had to be split, and
+whether the remaining tasks were resized because of it.
 
 ## Backend transitions
 
@@ -39,6 +40,6 @@ time. Preserved work is listed explicitly.
 
 ## Final diff review
 
-Cross-batch drift, duplicated helpers, inconsistent naming, dead code, and
+Drift between tasks, duplicated helpers, inconsistent naming, dead code, and
 unintended files checked before the Validation Gate. State what was found or state
 that nothing was.

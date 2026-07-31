@@ -75,7 +75,7 @@
     },
     "notes": {
       "type": "string",
-      "description": "Material deviations and conventions worth carrying to the next batch. Not a transcript."
+      "description": "Material deviations and conventions worth carrying to the next task. Not a transcript."
     }
   }
 }
