@@ -7,6 +7,18 @@ Every rule in the stage modules still holds: bounded handoffs, contract-shaped
 results, read-only reviewers, and a writer that never reviews its own work. This
 file only describes the transport.
 
+## Model names
+
+`Sol` and `Luna` are role names, not model IDs. Resolve them once during setup by
+asking Codex what it actually offers, and record the resolved IDs in the Working
+Profile. Pass the resolved ID as `-c model="<id>"`, never the role name.
+
+Codex model IDs change between releases, so a pinned ID in this file would be
+wrong within months and fail as an unknown model rather than degrade. If a
+recorded ID stops resolving, re-probe at the next Run boundary and update the
+profile; if nothing suitable is offered, that is a failed capability probe and the
+backend falls back to `claude-only`.
+
 ## Capability probe
 
 Hybrid is selected only when every one of these works: `exec`, `exec resume`,
@@ -40,7 +52,7 @@ The implementation role is identical except `--sandbox workspace-write`.
 |------|-----------------|
 | `--json` | Emits the JSONL event stream on stdout. The thread ID comes from it |
 | `--sandbox` | The tool boundary for the role. Read-only for every reviewer |
-| `-C` | The Run's worktree. Never the primary checkout |
+| `-C` | Where the Worker operates: the Run's worktree after approval. Before approval, and for an audit, no worktree exists and this is the primary checkout, made safe by `--sandbox read-only` rather than by isolation |
 | `--output-schema` | Host-enforced structured output, pointed at the role's contract in `contracts/` |
 | `-o` | Writes the Worker's final message to a file: the result to validate |
 | `</dev/null` | Closes stdin so Codex does not wait on it |

@@ -71,50 +71,20 @@ If another command already owns a name, the full form always works:
 
 ```mermaid
 flowchart TD
-    S["<b>/my-plan-start</b> your goal"] --> SCAN["Read the repository"]
-    SCAN --> Q{"Can the code<br/>answer it?"}
-    Q -->|"no, ask"| ASKQ["One question,<br/>with a recommendation"]
-    ASKQ --> Q
-    Q -->|"yes, all clear"| SPEC["Spec"]
-    SPEC --> APPR{"You approve"}
-    APPR -->|"change the scope"| SPEC
+    A["Your goal"] --> B["Questions<br/><i>one at a time</i>"]
+    B --> C{"You approve<br/>the spec"}
+    C ==> D["Plan<br/><i>many small tasks</i>"]
+    D ==> E["Every task<br/><i>write, check, review, fix<br/>until clean</i>"]
+    E ==> F["Full review<br/><i>until clean</i>"]
+    F ==> G["Validate, changelog,<br/>commit, push"]
 
-    APPR ==>|"yes"| PLAN["Plan: many small tasks"]
-    PLAN --> PR{"Plan review"}
-    PR -->|"findings"| PLAN
-
-    PR ==>|"clean"| T["Next task"]
-    T --> W["Write<br/><i>one task, alone or in parallel</i>"]
-    W --> G["Checks"]
-    G --> RV{"Review<br/>this delivery"}
-    RV -->|"one finding at a time"| FIX["Fix"]
-    FIX --> G
-    RV -->|"clean, tasks left"| T
-
-    RV ==>|"clean, none left"| FULL{"Full review<br/><i>the whole change</i>"}
-    FULL -->|"findings"| REM["Fix"]
-    REM --> FULL
-
-    FULL ==>|"clean"| VAL["Validation gate"]
-    VAL --> CL["Changelog"]
-    CL --> CM["Commit"]
-    CM --> PUSH["Push"]
-    PUSH --> DONE(["Done"])
-    PUSH -.->|"if a deploy target exists"| HOLD(["Held for<br/>your approval"])
-
-    classDef gate fill:#1b5e3f,stroke:#2d8a5f,color:#ffffff,font-weight:bold
-    classDef stop fill:#6b4423,stroke:#a06a35,color:#ffffff
-    classDef done fill:#1b5e3f,stroke:#2d8a5f,color:#ffffff
-    class APPR gate
-    class DONE done
-    class HOLD stop
+    classDef gate fill:#1b5e3f,stroke:#2d8a5f,color:#fff,font-weight:bold
+    class C gate
 ```
 
-Three loops carry the work: **questions** until nothing material is open,
-**write, check, review, fix** for every single task, and **full review, fix**
-over the whole change before anything ships.
-
-The bold path is the happy one. You appear once, at the green box.
+You are asked once, at the green box. Everything after runs on its own: each task
+is reviewed the moment it lands and fixed before the next one starts, then the
+whole change is reviewed again before anything is committed.
 
 ---
 

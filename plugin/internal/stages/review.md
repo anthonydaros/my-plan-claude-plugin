@@ -76,7 +76,7 @@ not:
 
 | Mode | Artifacts |
 |------|-----------|
-| `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run |
+| `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
 | `initial`, `incremental`, `final` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
 
 Pass the handoff path. Never concatenate documents into the prompt; reviewers read
@@ -210,6 +210,15 @@ Render `audit.md` from
 `${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/audit.md.tpl`. Show a concise
 recommended scope, ordered, and say what is deliberately left out.
 
-An affirmative reply converts accepted findings into a Working Spec and enters
-planning. No second command. A non-affirmative reply is feedback: revise and ask
-again. Nothing changes until the user affirms.
+An affirmative reply on the recommended scope converts the accepted findings into
+a Working Spec. Render it, show its Approval Summary, and take the ordinary
+affirmative that freezes it as `approvedSpecHash`. Only then enter planning.
+
+One command, two confirmations. Accepting a list of findings is not the same as
+approving the specification written from them, and planning binds to a
+specification hash. Entering planning straight from the findings leaves
+`approvedSpecHash` unset, and every downstream check verifies against a hash that
+was never produced.
+
+A non-affirmative reply is feedback: revise and ask again. Nothing changes until
+the user affirms.

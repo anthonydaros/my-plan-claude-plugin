@@ -9,20 +9,41 @@ Entered only after `approvedSpecHash` matches the current specification.
 
 Approval authorizes repository mutation. Set up isolation first.
 
-1. Fetch and resolve the latest default-branch base. Record the exact base SHA.
-2. Create a Run-unique temporary branch and an external worktree at that SHA.
-   Short path, outside both the source repository and the plugin cache.
-3. In Workspace Mode, one worktree per affected repository.
-4. In Greenfield Mode, revalidate before mutating anything: the directory must
-   still be empty and the approved Git identity must still be active. Time passed
-   between discovery and approval, and `git init` over a directory someone has
-   since put files into is not the operation the user approved. Any new file
-   aborts the mutation and goes back to the user as evidence, exactly as a
-   non-empty directory would have during discovery.
+In an existing repository:
 
-   Then initialize Git with `main`, create the minimal empty Bootstrap Commit, and
-   create the branch and worktree from it. The Bootstrap Commit contains no
-   scaffold and no feature code.
+1. Fetch and resolve the latest default-branch base. Record the exact base SHA. A
+   repository with no remote skips the fetch; local `main` is the base.
+2. Create a Run-unique temporary branch, named `my-plan/<run-id>`, and an external
+   worktree at that SHA under `<stateRoot>/worktrees/<repo-key>/<run-short>/`.
+3. In Workspace Mode, one worktree per affected repository.
+
+In Greenfield Mode, steps 1 to 3 do not apply: there is no repository to fetch
+from and no base to resolve. Start at step 4, which creates all of it.
+
+4. In Greenfield Mode, revalidate before mutating anything: the directory must
+   still be empty, and the Git identity must still be the one recorded in the
+   specification. Time passed between discovery and approval, and `git init` over
+   a directory someone has since put files into is not the operation the user
+   approved. Any new file aborts the mutation and goes back to the user as
+   evidence, exactly as a non-empty directory would have during discovery.
+
+   Greenfield discovery records the Git identity in the specification's decision
+   register, because an empty directory has no repository to read one from. If the
+   configured identity differs from the recorded one, stop and ask: committing
+   under an identity the user did not approve is not recoverable by editing a
+   file.
+
+   Then:
+
+   ```sh
+   git init -b main            # requires Git 2.28+, verified during setup
+   git commit --allow-empty -m "Initialize repository"
+   git rev-parse HEAD          # this is baseSha
+   git worktree add -b my-plan/<run-id> <worktree-path> <baseSha>
+   ```
+
+   The Bootstrap Commit is empty by construction: no scaffold, no feature code, no
+   configuration. Everything else is materialized inside the worktree afterwards.
 
 Worktree creation takes a short atomic repository lock. Release it immediately. A
 lock is never held while a model reasons.
@@ -38,9 +59,18 @@ Render `plan.md` from
 Dispatch the `my-plan-planner` agent, Opus, in both backends. Fable does discovery
 and review; it does not plan.
 
-Build a handoff with `role: "planner"`, `mode: "plan-write"`, and artifact paths and
-hashes for the approved specification, the Architecture Memory, the project skill,
-and the discovery record. Its write set is the single `plan.md` path.
+Build a handoff with `role: "planner"`, `mode: "plan-write"`, and artifact paths
+and hashes for whichever of these exist: the approved specification, the discovery
+record, the Architecture Memory, and the project skill. Its write set is the
+single `plan.md` path.
+
+In Greenfield Mode the last two do not exist yet, and that is expected: they are
+created inside the worktree after this. Send what exists. Never send a path to a
+file that is not there, and never omit one that is.
+
+Copy any pre-approval artifact the Worker needs into the worktree before
+dispatching, and point the handoff at the copy. A Worker confined to the worktree,
+which every Codex Worker is, cannot read a Run artifacts path outside it.
 
 Record each normative fact once. Reference the specification, Architecture Memory,
 project skill, research record, and contracts by path. Do not copy their contents

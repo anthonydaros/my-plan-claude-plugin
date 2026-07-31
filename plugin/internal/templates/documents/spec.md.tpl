@@ -10,6 +10,7 @@ tags: {{tags}}
 records:
   discovery: ./discovery.md
   research: ./research.md
+  audit: ./audit.md
   plan: ./plan.md
   implementation: ./implementation.md
   validation: ./validation.md

@@ -36,6 +36,13 @@ phase and not before.
 
 Do not read all five up front.
 
+**Except one section.** Read `project.md`'s "Where documents go" and "Identifiers
+and hashes" before rendering any document or building any handoff, even when
+setup already ran. They define the run ID, slug, attempt ID, hash algorithm, and
+document destinations that every later phase depends on. Skipping them means
+inventing those values, and invented identifiers do not survive contact with the
+next session or the reviewer that has to recompute a hash.
+
 When the backend is `hybrid`, also read
 `${CLAUDE_PLUGIN_ROOT}/internal/codex.md` before dispatching your first Codex
 Worker. In `claude-only` mode, never read it.

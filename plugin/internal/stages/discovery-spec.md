@@ -27,6 +27,12 @@ then narrow deeper reading to the ones the goal actually touches.
 In Greenfield Mode, record the empty state. The user's idea and constraints
 replace repository evidence as the starting packet.
 
+Greenfield discovery must also settle what an existing repository would have
+answered: the Git identity to commit under, the initial branch name, and whether
+the project has a remote at all. Record them in the decision register. The
+identity in particular is checked again before `git init`, and there is nothing to
+check it against unless discovery recorded it.
+
 ## 2. Domain Research
 
 Trigger-based, not mandatory. A local change with sufficient current repository

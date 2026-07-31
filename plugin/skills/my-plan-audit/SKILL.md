@@ -1,6 +1,6 @@
 ---
 name: my-plan-audit
-description: Read-only repository-wide discovery and audit covering architecture, complexity, correctness risk, maintainability, product behavior, and relevant design and accessibility. Accepted findings enter delivery without another command. Manual only.
+description: Read-only repository-wide discovery and audit covering architecture, complexity, correctness risk, maintainability, product behavior, and relevant design and accessibility. Accepted findings become a spec and enter delivery without another command. Manual only.
 argument-hint: "[focus area]"
 disable-model-invocation: true
 ---
@@ -16,7 +16,12 @@ into a single-file review; the point of an audit is what a narrow look misses.
 
 ## Route
 
-1. **No Working Profile or Project Setup?** Read
+0. **Always** read `${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md`'s "Where
+   documents go" and "Identifiers and hashes" sections, whatever the setup state.
+   They define the run ID, slug, hash algorithm, and where `audit.md` is written.
+   Without them you will invent those values.
+
+1. **No Working Profile or Project Setup?** Read the rest of
    `${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md` and run setup first. Do not
    send the user to a separate command.
 

@@ -124,12 +124,25 @@ warning. Never enable it silently or through repository configuration.
 
 ### State root
 
-Default to `${CLAUDE_PLUGIN_DATA}`. It is the host's per-plugin data directory and
-it survives plugin updates, which is exactly what Run state and worktrees need.
+`~/.claude/plugins/data/my-plan-my-plan/`, on Windows
+`%USERPROFILE%\.claude\plugins\data\my-plan-my-plan\`. Create it if it does not
+exist yet; the host does not create it for you.
+
+That is the host's per-plugin data directory, and it survives plugin updates,
+which is exactly what Run state and worktrees need.
+
+Use the literal path, not `${CLAUDE_PLUGIN_DATA}`. That variable is exported to
+hook processes and MCP subprocesses, not to the session running these
+instructions, so reading it here yields an empty string. Two sessions that each
+substitute their own guess end up with different state roots and cannot resume
+each other's Runs.
 
 Never put state under `${CLAUDE_PLUGIN_ROOT}`. That path is the installed plugin
 copy and it changes on every update, so anything written there is lost the first
 time the user upgrades.
+
+Record the resolved path in the Working Profile so later Runs read it rather than
+deriving it again.
 
 Allow an explicit override, and offer one when the default would produce long
 worktree paths. Windows path limits are a real constraint on deep worktrees, not
@@ -148,10 +161,37 @@ Layout:
 │   ├── artifacts/
 │   ├── handoffs/<attempt-id>.json
 │   └── results/<attempt-id>.json
-├── repos/<repo-key>/repo.json
+├── repos/<repo-key>/repo.json      # run index for this repo, not the Project Profile
 ├── locks/<repo-key>/
 └── worktrees/<repo-key>/<run-short>/
 ```
+
+### Identifiers and hashes
+
+These appear throughout the plugin and mean nothing unless they are defined once,
+here. Two sessions that pick different formats cannot verify each other's work.
+
+| Value | Format | Example |
+|-------|--------|---------|
+| `<run-id>` | `<YYYYMMDD>-<4 hex chars>` | `20260731-7c41` |
+| `<slug>` | The goal, lowercased, non-alphanumerics to `-`, trimmed to 40 chars | `add-input-validation` |
+| `<attempt-id>` | `<run-id>-<role>-<n>`, `n` counting from 1 per role | `20260731-7c41-reviewer-2` |
+| `<repo-key>` | Repository basename plus 8 hex of its absolute path | `task-api-75d0b10a` |
+
+**Every hash in this product is SHA-256, rendered as lowercase hex.** Report the
+first 12 characters in documents; keep the full digest in Run state.
+
+| Hash | Computed over |
+|------|---------------|
+| Artifact hash | The file's exact bytes |
+| Spec hash | `spec.md`'s exact bytes, which is what approval freezes |
+| Review Subject hash | The output of `git diff <baseSha>` restricted to Run-owned paths, excluding `review.md` and `delivery.md` |
+| Snapshot hash, when no diff exists (audit) | `git rev-parse HEAD^{tree}` |
+
+A reviewer must be able to recompute the hash it was handed and get the same
+string. Without one stated algorithm the check `subjectHash` performs is
+theatre: it compares two numbers produced by different methods and passes when
+they happen to match, which is never.
 
 Every state write uses a temporary sibling plus atomic replacement, and increments
 a monotonic manifest revision. Leases use atomic directory creation carrying
@@ -184,8 +224,10 @@ Discover, do not ask:
 Ask only what the repository cannot answer: delivery constraints, a genuinely
 ambiguous validation command, or a preference between two equally valid options.
 
-Record in `project.json`: the profile, its schema version, and the source hash of
-each file the facts came from. Also record `architectureMemoryPath` and
+Record in the Project Skill's `project.json`, inside the repository: the profile,
+its schema version, and the source hash of each file the facts came from. This is
+a different file from `repos/<repo-key>/repo.json` in the state root, which only
+indexes this repository's Runs and holds no project facts. Also record `architectureMemoryPath` and
 `runDocsRoot`.
 
 ### Where documents go
