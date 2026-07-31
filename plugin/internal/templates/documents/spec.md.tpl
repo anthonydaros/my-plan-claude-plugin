@@ -9,13 +9,13 @@ status: approval-candidate
 tags: {{tags}}
 records:
   discovery: ./discovery.md
-  research: ./research.md
-  audit: ./audit.md
   plan: ./plan.md
   implementation: ./implementation.md
   validation: ./validation.md
   review: ./review.md
   delivery: ./delivery.md
+  # Add research or audit only when that phase actually ran. Predeclaring a link
+  # to a document that will never exist points future readers at nothing.
 ---
 
 # Working Spec

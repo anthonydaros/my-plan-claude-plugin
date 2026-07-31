@@ -197,10 +197,29 @@ first 12 characters in documents; keep the full digest in Run state.
 | Review Subject hash | The output of `git diff <baseSha>` restricted to Run-owned paths, excluding `review.md` and `delivery.md` |
 | Snapshot hash, when no diff exists (audit) | `git rev-parse HEAD^{tree}` |
 
+Compute them. Never write a hash you did not run a command to get.
+
+```sh
+# a file
+shasum -a 256 <path> | cut -c1-64          # macOS and Linux
+sha256sum <path> | cut -c1-64              # Linux, if shasum is absent
+# a diff
+git diff <baseSha> -- <paths> | shasum -a 256 | cut -c1-64
+# a tree, when no diff exists
+git rev-parse HEAD^{tree}
+```
+
+On Windows: `(Get-FileHash <path> -Algorithm SHA256).Hash.ToLower()`.
+
+This matters more than it looks. Every artifact carries a hash, nothing in the
+flow forces you to compute one, and inventing a plausible hex string is the path
+of least resistance under time pressure. A fabricated hash passes every check in
+this product, because the only thing that verifies it is a comparison against
+another value from the same source. Then approval binds to nothing.
+
 A reviewer must be able to recompute the hash it was handed and get the same
-string. Without one stated algorithm the check `subjectHash` performs is
-theatre: it compares two numbers produced by different methods and passes when
-they happen to match, which is never.
+string. If you cannot run the command, say so and stop; do not supply a
+placeholder.
 
 ### run.json
 

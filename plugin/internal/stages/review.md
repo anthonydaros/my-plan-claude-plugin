@@ -79,6 +79,11 @@ large diff against a session that has moved on.
 `initial` and `final` still see everything. Per-task review catches local defects;
 only a full pass catches what emerges between tasks.
 
+`initial` is for a change that arrives whole, without per-task review: an audit
+handed to delivery, or a Run resumed with work already committed. When every task
+was reviewed as it landed, skip straight to `final`; there is no first pass left
+to make.
+
 Artifacts depend on the mode. Send what exists, never a path to a file that does
 not:
 

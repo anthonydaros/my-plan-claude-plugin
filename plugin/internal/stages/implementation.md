@@ -89,10 +89,19 @@ For each task:
    history. Resetting mid-task throws away context that was still working.
 
 3. **Verify the claim.** Validate the returned result against
-   `${CLAUDE_PLUGIN_ROOT}/internal/contracts/build-result.schema.json`. Then check
+   `${CLAUDE_PLUGIN_ROOT}/internal/contracts/build-result.schema.json`, then check
    `changedPaths` against the real Git diff and the approved write set. A Worker's
    report of what it changed is a claim; Git is the evidence. A path outside the
    write set stops the task.
+
+   Validate by reading the schema and checking the result against it yourself:
+   every required field present, every enum a listed value, no field the schema
+   does not allow. Do not install a validator, and do not add a dependency to the
+   user's project to check your own plumbing. If a validator already exists in the
+   repository, using it is fine.
+
+   The schemas are small and the check is mechanical. What matters is that it
+   actually happens: an unvalidated result is a Worker's word for what it did.
 
 4. **When a task comes back `blocked`.** Never re-dispatch the same handoff to
    the same Worker and hope. Diagnose first, then act:
@@ -118,6 +127,11 @@ For each task:
    First inspect the delta yourself against the specification, plan, project
    skill, and Architecture Memory. Then dispatch the independent reviewer in
    `incremental` mode over just this task's diff.
+
+   Run `git add -N` on any new file first. Untracked files do not appear in
+   `git diff` at all, so a task that only adds files produces an empty diff and
+   the reviewer approves nothing while believing it reviewed everything. This is
+   silent: no error, no warning, just a clean review of an invisible change.
 
    Reviewing each delivery as it arrives is what keeps the writer's job small. A
    defect found now costs one small correction against code the writer just wrote.
@@ -444,6 +458,7 @@ Final status:
 | Verified, deployment target exists | `READY_FOR_DEPLOY` |
 | Work complete and committed, push not approved | `DONE_LOCAL` |
 | Greenfield, intentionally local-only, local commit verified | `DONE_LOCAL` |
+| Repository has no remote at all, local commit verified | `DONE_LOCAL` |
 | Required remote failed, or a push failed mid-workspace | `BLOCKED`, recoverable |
 
 `DONE_LOCAL` from a declined push is a completed Run, not a failure. The work is
