@@ -201,8 +201,57 @@ string. Without one stated algorithm the check `subjectHash` performs is
 theatre: it compares two numbers produced by different methods and passes when
 they happen to match, which is never.
 
+### run.json
+
+The Run manifest. Resume reads this and nothing else to work out where a Run
+stopped, so its shape cannot be left to whoever writes it first.
+
+```json
+{
+  "schemaVersion": 1,
+  "manifestRevision": 7,
+  "runId": "20260731-7c41",
+  "slug": "add-input-validation",
+  "goal": "add input validation to the task API",
+  "mode": "repository",
+  "backend": "hybrid",
+  "phase": "implementation",
+  "status": "active",
+  "repoKey": "task-api-75d0b10a",
+  "repoPath": "/abs/path/to/repo",
+  "defaultBranch": "main",
+  "baseSha": "ba62788...",
+  "branch": "my-plan/20260731-7c41",
+  "worktree": "/abs/path/to/worktree",
+  "runDocsRoot": "docs/my-plan",
+  "pendingApproval": null,
+  "approvedSpecHash": "sha256:...",
+  "planHash": "sha256:...",
+  "reviewSubjectHash": null,
+  "currentTaskId": "T-03",
+  "completedTaskIds": ["T-01", "T-02"]
+}
+```
+
+`phase` is one of `discovery`, `spec`, `planning`, `implementation`,
+`validation`, `review`, `delivery`.
+
+`status` is one of `active`, `blocked`, `done`, `done_local`,
+`ready_for_deploy`. It is never absent: a Run with no status cannot be resumed or
+reported on, and every Run has one from the moment it is created.
+
+`mode` is `repository`, `workspace`, or `greenfield`. In Workspace Mode add a
+`repositories` array carrying the per-repository fields.
+
+`manifestRevision` increments on every write. Two sessions writing the same Run
+detect the conflict by comparing it.
+
+Add fields when a Run genuinely needs them, but never rename these: a Run written
+by one session must be resumable by another, and a field the reader does not know
+is a Run it cannot continue.
+
 Every state write uses a temporary sibling plus atomic replacement, and increments
-a monotonic manifest revision. Leases use atomic directory creation carrying
+`manifestRevision`. Leases use atomic directory creation carrying
 owner, host, nonce, creation time, and expiry. No database, daemon, heartbeat, or
 global active-Run pointer.
 

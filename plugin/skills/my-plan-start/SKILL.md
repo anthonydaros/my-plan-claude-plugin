@@ -53,11 +53,16 @@ Worker. In `claude-only` mode, never read it.
    `project.md` and run setup first. Do not ask the user to run a separate install
    command; this is the same flow.
 
-2. **No goal argument?** Resume.
+2. **No goal argument?** Resume. An unfinished Run is one whose `run.json` has
+   `status: "active"` or `"blocked"`.
    - A Run already named in this conversation wins.
    - Otherwise, exactly one unfinished Run for this scope continues.
    - Several matches: show a compact selection. Never guess.
    - None: ask for the goal.
+
+   Resume from `run.json`'s `phase` and `currentTaskId`. Do not re-derive where
+   you are by inspecting the worktree: a half-finished task looks identical to a
+   finished one that was never recorded.
 
 3. **Goal argument present?** Start a new Run, unless this conversation already
    identifies an unfinished Run for the same goal, in which case resume that one.
