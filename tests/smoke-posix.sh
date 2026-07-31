@@ -48,7 +48,7 @@ check $? "marketplace publishes ./plugin"
 
 echo "== public skills"
 
-for s in my-plan-install my-plan-start my-plan-audit; do
+for s in install start audit; do
   f="$PLUGIN/skills/$s/SKILL.md"
   if [ ! -f "$f" ]; then fail "missing $f"; continue; fi
 
@@ -138,7 +138,7 @@ echo "== push is gated, commits are scanned"
 
 # Two invariants a prompt edit could quietly undo, both of which leak or publish
 # something the user did not agree to.
-grep -rq "push gate" "$PLUGIN/skills/my-plan-start/SKILL.md"
+grep -rq "push gate" "$PLUGIN/skills/start/SKILL.md"
 check $? "the push gate is stated to the Coordinator"
 
 grep -rq "## The push gate" "$PLUGIN/internal/stages/implementation.md"
@@ -150,7 +150,7 @@ check $? "delivery stops at the push gate"
 # an innocuous future sentence, which is the acceptable cost of a tripwire. The
 # positive check after it is the real guarantee: the section must say the push is
 # not covered.
-if grep -q "remediation, commit, fast-forward integration, and push" "$PLUGIN/skills/my-plan-start/SKILL.md"; then
+if grep -q "remediation, commit, fast-forward integration, and push" "$PLUGIN/skills/start/SKILL.md"; then
   fail "spec approval still claims to authorize push"
 else
   pass "spec approval stops at local commits"

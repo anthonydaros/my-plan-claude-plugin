@@ -1,5 +1,5 @@
 ---
-name: my-plan-start
+name: start
 description: Carry one goal from discovery through specification, planning, isolated implementation, validation, independent review, commit, and push. Manual only.
 argument-hint: "<goal, or empty to resume>"
 disable-model-invocation: true

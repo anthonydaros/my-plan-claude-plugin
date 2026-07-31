@@ -1,5 +1,5 @@
 ---
-name: my-plan-install
+name: install
 description: Guided setup, repair, reconfigure, or migrate for My Plan. Verifies capabilities, collects the Working Profile, and initializes the current repository. Manual only.
 argument-hint: "[repair|reconfigure|migrate]"
 disable-model-invocation: true

@@ -1,7 +1,7 @@
 # Stage: Project
 
 Environment setup, repository facts, and the two durable memory artifacts. Loaded
-by `/my-plan-install`, and automatically by the other actions when setup is
+by `/my-plan:install`, and automatically by the other actions when setup is
 missing.
 
 This module never asks the user something the machine can answer.
@@ -89,7 +89,7 @@ Check what already owns each bare name. Look at the skills and commands visible 
 this session, plus `.claude/skills/`, `.claude/commands/`, `~/.claude/skills/`,
 and `~/.claude/commands/`. A name defined in any of them wins over a plugin skill.
 
-For each of `/my-plan-install`, `/my-plan-start`, `/my-plan-audit`:
+For each of `/install`, `/start`, `/audit`:
 
 - Free: the bare alias works. Report it.
 - Owned by a personal, project, enterprise, or other plugin command: that command
@@ -410,8 +410,8 @@ and reaches the repository only if the user accepts a scope and the work proceed
 
 | Invocation | Where |
 |------------|-------|
-| `/my-plan-install` in a repository | Materialize directly. The user asked for it |
-| First `/my-plan-start` or `/my-plan-audit` in an uninitialized repository | Transient profile in Run state. Materialize files in the worktree after approval |
+| `/my-plan:install` in a repository | Materialize directly. The user asked for it |
+| First `/my-plan:start` or `/my-plan:audit` in an uninitialized repository | Transient profile in Run state. Materialize files in the worktree after approval |
 
 This keeps discovery read-only and the primary checkout clean.
 

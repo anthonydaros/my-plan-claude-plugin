@@ -52,7 +52,7 @@ open, and nothing has touched a repository yet.
 Open the repository you want to work in and run:
 
 ```
-/my-plan-install
+/my-plan:install
 ```
 
 It reads the repository and records what it verified: stack, package manager,
@@ -70,10 +70,10 @@ repository: probing what you have, selecting the backend, and recording your
 preferences outside your repositories. Later repositories skip straight to the
 repository part.
 
-**You can skip this step.** `/my-plan-start` runs the same setup when it finds
+**You can skip this step.** `/my-plan:start` runs the same setup when it finds
 none, so a repository never needs a separate install command. The difference is
 only where those two files land. Run install and they are written to your
-checkout, because you asked for them. Let `/my-plan-start` do it and they arrive
+checkout, because you asked for them. Let `/my-plan:start` do it and they arrive
 in the worktree after you approve the spec, so your checkout stays untouched
 while you are still deciding.
 
@@ -81,9 +81,9 @@ while you are still deciding.
 
 | Command | What it does |
 |---------|--------------|
-| `/my-plan-install repair` | Re-probes and fixes what is missing or broken. Keeps the answers you already gave |
-| `/my-plan-install reconfigure` | Keeps the verified facts, re-asks the preferences |
-| `/my-plan-install migrate` | Moves managed files to the current schema. Stops on an edit it does not recognize instead of overwriting it |
+| `/my-plan:install repair` | Re-probes and fixes what is missing or broken. Keeps the answers you already gave |
+| `/my-plan:install reconfigure` | Keeps the verified facts, re-asks the preferences |
+| `/my-plan:install migrate` | Moves managed files to the current schema. Stops on an edit it does not recognize instead of overwriting it |
 
 Setup resumes, it never restarts. Install a missing prerequisite, run it again,
 and it continues from where it stopped without re-asking anything.
@@ -101,13 +101,13 @@ Missing Codex is fine. The whole flow runs on Claude alone.
 
 | Command | What it does |
 |---------|--------------|
-| `/my-plan-start <goal>` | One goal, from question to pushed code |
-| `/my-plan-start` | Resumes. Asks which run only if several match |
-| `/my-plan-audit` | Read-only findings. Accept a scope and it delivers them |
-| `/my-plan-install` | Initialize a repository. Also repair, reconfigure, migrate |
+| `/my-plan:start <goal>` | One goal, from question to pushed code |
+| `/my-plan:start` | Resumes. Asks which run only if several match |
+| `/my-plan:audit` | Read-only findings. Accept a scope and it delivers them |
+| `/my-plan:install` | Initialize a repository. Also repair, reconfigure, migrate |
 
-If another command already owns a name, the full form always works:
-`/my-plan:my-plan-start`.
+When nothing else owns the short names, `/install`, `/start`, and `/audit`
+work too.
 
 ---
 
@@ -166,7 +166,7 @@ You appear twice: to approve the spec, and to approve the push.
 ## What a run looks like
 
 ```
-/my-plan-start add rate limiting to the public API
+/my-plan:start add rate limiting to the public API
 ```
 
 1. **It reads your repository first.** Anything the code can answer, it does not
@@ -261,7 +261,7 @@ CHANGELOG.md                          or whatever your repo already uses
 
 Run state, worktrees, and locks live outside your repository, in an app data
 directory. They survive terminal closure, restarts, and plugin updates.
-`/my-plan-install` prints the path.
+`/my-plan:install` prints the path.
 
 No database. No daemon. No transcripts in your repo.
 
@@ -273,8 +273,8 @@ No database. No daemon. No transcripts in your repo.
 `/reload-plugins`. The reload summary can report `0 skills` while your skills did
 reload.
 
-**`/my-plan-start` not found, but `/my-plan:my-plan-start` works.** Another
-command owns the short name. Expected.
+**`/start` not found, but `/my-plan:start` works.** Another command owns the
+short name. Expected.
 
 **An agent does not run.** A project or user agent with the same name wins over a
 plugin agent. Check `.claude/agents/` and `~/.claude/agents/`.
@@ -285,7 +285,7 @@ the scan, not from you.
 **A run is `BLOCKED`.** Reviews stopped making progress, or the base branch kept
 moving. Nothing was committed; the report says what is open.
 
-**You want a dry run.** `/my-plan-audit` is read-only by construction.
+**You want a dry run.** `/my-plan:audit` is read-only by construction.
 
 ---
 
@@ -295,7 +295,7 @@ moving. Nothing was committed; the report says what is open.
 /plugin uninstall my-plan@my-plan
 ```
 
-Run state lives outside your repository; `/my-plan-install` prints the path so you
+Run state lives outside your repository; `/my-plan:install` prints the path so you
 can remove it.
 
 ---

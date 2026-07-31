@@ -45,7 +45,7 @@ Check ($market.plugins[0].source -eq './plugin') 'marketplace publishes ./plugin
 
 Write-Host '== public skills'
 
-foreach ($s in @('my-plan-install', 'my-plan-start', 'my-plan-audit')) {
+foreach ($s in @('install', 'start', 'audit')) {
     $f = Join-Path $plugin "skills\$s\SKILL.md"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing $s"; continue }
     $fm = Frontmatter $f
@@ -98,7 +98,7 @@ Check ([bool]$rule) 'commit authorship rule is stated to the Coordinator'
 
 Write-Host '== push is gated, commits are scanned'
 
-$startSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\my-plan-start\SKILL.md') -Raw
+$startSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\start\SKILL.md') -Raw
 $implStage = Get-Content -LiteralPath (Join-Path $plugin 'internal\stages\implementation.md') -Raw
 
 Check ($startSkill -like '*push gate*') 'the push gate is stated to the Coordinator'

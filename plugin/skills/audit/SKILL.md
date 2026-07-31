@@ -1,5 +1,5 @@
 ---
-name: my-plan-audit
+name: audit
 description: Read-only repository-wide audit covering architecture, correctness risk, security, maintainability, unnecessary complexity, product behavior, and relevant design and accessibility. Accepted findings become a spec and enter delivery without another command. Manual only.
 argument-hint: "[focus area]"
 disable-model-invocation: true
@@ -40,7 +40,7 @@ into a single-file review; the point of an audit is what a narrow look misses.
 5. **Hand off.** An affirmative reply on the recommended scope converts the
    accepted findings into a Working Spec. Render it, show its Approval Summary,
    and take the ordinary affirmative that freezes it as `approvedSpecHash`. Then
-   continue into planning exactly as `/my-plan-start` would.
+   continue into planning exactly as `/my-plan:start` would.
 
    This is one command, not two. But planning binds to a specification hash, and
    accepting a list of findings is not the same as approving the specification

@@ -2,7 +2,7 @@
 
 Independent review of the Review Subject, remediation of what it finds, and the
 approval that authorizes delivery. Also runs the read-only audit for
-`/my-plan-audit`.
+`/my-plan:audit`.
 
 The Worker that wrote the code never reviews it. This holds in every backend and
 every fallback. If the only remaining option would merge those identities, block
@@ -219,7 +219,7 @@ stable finding IDs, not model conversation.
 
 ## Audit mode
 
-For `/my-plan-audit`. Read-only: no worktree, no branch, no edits.
+For `/my-plan:audit`. Read-only: no worktree, no branch, no edits.
 
 Understand the architecture before judging it. An audit that reports findings
 before it understands produces noise, and noise is worse than silence.
