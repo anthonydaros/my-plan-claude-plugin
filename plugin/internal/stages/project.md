@@ -221,6 +221,42 @@ A reviewer must be able to recompute the hash it was handed and get the same
 string. If you cannot run the command, say so and stop; do not supply a
 placeholder.
 
+### findings.json
+
+The Finding Ledger. Every finding from every review round in this Run, keyed by
+task plus finding id so parallel tasks cannot collide.
+
+```json
+{
+  "schemaVersion": 1,
+  "findings": [
+    {
+      "key": "T-02/unvalidated-order-id",
+      "taskId": "T-02",
+      "id": "unvalidated-order-id",
+      "severity": "blocker",
+      "lens": "correctness",
+      "title": "markPaid throws on an unknown id",
+      "evidence": "src/orders.js:18 reads o.status on an undefined order",
+      "correction": "Return undefined for an unknown id and let the caller decide",
+      "disposition": "resolved",
+      "reason": null,
+      "openedAt": "20260731-a617-reviewer-2",
+      "closedAt": "20260731-a617-reviewer-3"
+    }
+  ]
+}
+```
+
+`disposition` is `open`, `resolved`, `not-reproducible`, `accepted`, or
+`blocked-by-owner`. `reason` is required for the last three and for any finding
+the writer pushed back on, so a disagreement stays visible instead of vanishing.
+
+Carry `title`, `evidence`, and `correction` across from the review result
+verbatim. A ledger entry that keeps only an id and a severity is unreadable
+weeks later, and `review.md` is rendered from this file: whatever is missing here
+is missing from the record the user reads.
+
 ### run.json
 
 The Run manifest. Resume reads this and nothing else to work out where a Run
