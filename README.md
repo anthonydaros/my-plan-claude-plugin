@@ -70,63 +70,51 @@ If another command already owns a name, the full form always works:
 ## The flow
 
 ```mermaid
-flowchart LR
-    subgraph ASK[" 1 · Ask "]
-        direction TB
-        S["/my-plan-start<br/><i>your goal</i>"] --> SCAN["Read the repo<br/><i>code, tests, history</i>"]
-        SCAN --> Q{"Anything the<br/>code can't answer?"}
-        Q -->|yes| ASKQ["One question,<br/>with a recommendation"]
-        ASKQ --> Q
-        Q -->|no| SPEC["Spec"]
-        SPEC --> APPR{"You approve"}
-    end
+flowchart TD
+    S["<b>/my-plan-start</b> your goal"] --> SCAN["Read the repository"]
+    SCAN --> Q{"Can the code<br/>answer it?"}
+    Q -->|"no, ask"| ASKQ["One question,<br/>with a recommendation"]
+    ASKQ --> Q
+    Q -->|"yes, all clear"| SPEC["Spec"]
+    SPEC --> APPR{"You approve"}
+    APPR -->|"change the scope"| SPEC
 
-    APPR -->|"yes"| PLAN
-    APPR -->|"change scope"| SPEC
+    APPR ==>|"yes"| PLAN["Plan: many small tasks"]
+    PLAN --> PR{"Plan review"}
+    PR -->|"findings"| PLAN
 
-    subgraph BUILD[" 2 · Build · no further questions "]
-        direction TB
-        PLAN["Plan<br/><i>many small tasks</i>"] --> PR{"Plan review"}
-        PR -->|"findings"| PLAN
-        PR -->|"clean"| T
+    PR ==>|"clean"| T["Next task"]
+    T --> W["Write<br/><i>one task, alone or in parallel</i>"]
+    W --> G["Checks"]
+    G --> RV{"Review<br/>this delivery"}
+    RV -->|"one finding at a time"| FIX["Fix"]
+    FIX --> G
+    RV -->|"clean, tasks left"| T
 
-        T["Next task<br/><i>alone or in parallel</i>"] --> W["Write"]
-        W --> GATE["Checks"]
-        GATE --> RV{"Review<br/>this delivery"}
-        RV -->|"one finding<br/>at a time"| FIX["Fix"]
-        FIX --> GATE
-        RV -->|"clean"| MORE{"Tasks left?"}
-        MORE -->|"yes"| T
-    end
+    RV ==>|"clean, none left"| FULL{"Full review<br/><i>the whole change</i>"}
+    FULL -->|"findings"| REM["Fix"]
+    REM --> FULL
 
-    MORE -->|"no"| FULL
+    FULL ==>|"clean"| VAL["Validation gate"]
+    VAL --> CL["Changelog"]
+    CL --> CM["Commit"]
+    CM --> PUSH["Push"]
+    PUSH --> DONE(["Done"])
+    PUSH -.->|"if a deploy target exists"| HOLD(["Held for<br/>your approval"])
 
-    subgraph SHIP[" 3 · Ship "]
-        direction TB
-        FULL{"Full review<br/><i>the whole change</i>"} -->|"findings"| REM["Fix"]
-        REM --> FULL
-        FULL -->|"clean"| VAL["Validation gate"]
-        VAL --> CL["Changelog"]
-        CL --> C["Commit"]
-        C --> P["Push"]
-    end
-
-    P --> DONE(["Done"])
-    P -.->|"deploy target"| HOLD(["Waiting for<br/>your approval"])
-
-    style APPR fill:#2d6a4f,stroke:#40916c,color:#fff
-    style DONE fill:#1b4332,stroke:#40916c,color:#fff
-    style HOLD fill:#7f4f24,stroke:#bc6c25,color:#fff
-    style ASK fill:#f8f9fa,stroke:#adb5bd
-    style BUILD fill:#f8f9fa,stroke:#adb5bd
-    style SHIP fill:#f8f9fa,stroke:#adb5bd
+    classDef gate fill:#1b5e3f,stroke:#2d8a5f,color:#ffffff,font-weight:bold
+    classDef stop fill:#6b4423,stroke:#a06a35,color:#ffffff
+    classDef done fill:#1b5e3f,stroke:#2d8a5f,color:#ffffff
+    class APPR gate
+    class DONE done
+    class HOLD stop
 ```
 
-Three loops do the work: **questions** until nothing material is unresolved,
-**task → review → fix** until each delivery is clean, and **full review → fix**
-until the whole change is.
+Three loops carry the work: **questions** until nothing material is open,
+**write, check, review, fix** for every single task, and **full review, fix**
+over the whole change before anything ships.
 
-You appear once, at the green box.
+The bold path is the happy one. You appear once, at the green box.
 
 ---
 
