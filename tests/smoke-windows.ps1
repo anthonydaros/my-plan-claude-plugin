@@ -63,10 +63,71 @@ foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer')) {
     Check ([bool]($fm -contains "name: my-plan-$a")) "agent $a name matches its filename"
 }
 
-foreach ($a in @('discovery', 'planner', 'reviewer')) {
+# The reviewer reviews both plans and code, so it is the one that must never gain
+# a write tool. The planner writes the plan; the implementer writes the code.
+foreach ($a in @('discovery', 'reviewer')) {
     $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
     Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) "agent $a is read-only"
 }
+
+foreach ($a in @('implementer', 'planner')) {
+    $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
+    Check ([bool]($tools -match 'Write')) "$a can write"
+}
+
+# Same-model review is the failure this product exists to prevent.
+function ModelOf([string]$agent) {
+    $line = (Frontmatter (Join-Path $plugin "agents\my-plan-$agent.md")) -match '^model:'
+    return ($line -replace '^model:\s*', '').Trim()
+}
+$author = ModelOf 'planner'
+$critic = ModelOf 'reviewer'
+$coder = ModelOf 'implementer'
+Check ($author -ne $critic) "plan author ($author) differs from reviewer ($critic)"
+Check ($coder -ne $critic) "code author ($coder) differs from reviewer ($critic)"
+
+Write-Host '== commits stay the user''s'
+
+$trailer = Get-ChildItem -LiteralPath $plugin -Recurse -File |
+    Select-String -Pattern 'Co-Authored-By:' -SimpleMatch -List
+Check (-not $trailer) 'no Co-Authored-By trailer anywhere'
+
+$rule = Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Recurse -File |
+    Select-String -Pattern "Never override the repository's Git identity" -SimpleMatch -List
+Check ([bool]$rule) 'commit authorship rule is stated to the Coordinator'
+
+Write-Host '== contracts are strict-mode clean'
+
+# Provider-enforced structured output rejects a schema where any property lacks a
+# type, or where required omits any key in properties, at any depth.
+$violations = @()
+function Test-Strict($node, [string]$where) {
+    if ($node -is [System.Management.Automation.PSCustomObject]) {
+        $keys = $node.PSObject.Properties.Name
+        if ($keys -contains 'properties') {
+            $props = $node.properties.PSObject.Properties.Name
+            $req = @()
+            if ($keys -contains 'required') { $req = @($node.required) }
+            foreach ($p in $props) {
+                if ($req -notcontains $p) { $script:violations += "$where`: '$p' in properties but not in required" }
+                $sub = $node.properties.$p
+                $subKeys = $sub.PSObject.Properties.Name
+                if ($subKeys -notcontains 'type' -and $subKeys -notcontains '$ref' -and
+                    $subKeys -notcontains 'anyOf' -and $subKeys -notcontains 'oneOf' -and $subKeys -notcontains 'allOf') {
+                    $script:violations += "$where.$p`: no 'type' key"
+                }
+            }
+        }
+        foreach ($k in $keys) { Test-Strict $node.$k "$where.$k" }
+    } elseif ($node -is [System.Object[]]) {
+        for ($i = 0; $i -lt $node.Count; $i++) { Test-Strict $node[$i] "$where[$i]" }
+    }
+}
+Get-ChildItem -LiteralPath (Join-Path $plugin 'internal\contracts') -Filter *.json | ForEach-Object {
+    Test-Strict (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json) $_.Name
+}
+foreach ($v in $violations) { Check $false $v }
+if ($violations.Count -eq 0) { Check $true 'contract schemas accept --output-schema' }
 
 Write-Host '== references resolve'
 
