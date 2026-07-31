@@ -13,9 +13,16 @@ Approval authorizes repository mutation. Set up isolation first.
 2. Create a Run-unique temporary branch and an external worktree at that SHA.
    Short path, outside both the source repository and the plugin cache.
 3. In Workspace Mode, one worktree per affected repository.
-4. In Greenfield Mode, initialize Git with `main`, create the minimal empty
-   Bootstrap Commit, then create the branch and worktree from it. The Bootstrap
-   Commit contains no scaffold and no feature code.
+4. In Greenfield Mode, revalidate before mutating anything: the directory must
+   still be empty and the approved Git identity must still be active. Time passed
+   between discovery and approval, and `git init` over a directory someone has
+   since put files into is not the operation the user approved. Any new file
+   aborts the mutation and goes back to the user as evidence, exactly as a
+   non-empty directory would have during discovery.
+
+   Then initialize Git with `main`, create the minimal empty Bootstrap Commit, and
+   create the branch and worktree from it. The Bootstrap Commit contains no
+   scaffold and no feature code.
 
 Worktree creation takes a short atomic repository lock. Release it immediately. A
 lock is never held while a model reasons.
@@ -57,6 +64,12 @@ Rules:
   tasks need but approval does not cover is a scope change: revise the
   specification, take an ordinary approval, renew `approvedSpecHash`. The plan
   never widens its own authority.
+- That set already includes the Run Dossier directory, the Architecture Memory
+  when this Run updates it, and the Project Skill when this Run materializes it.
+  If the approved specification is missing any of them, it is the specification
+  that needs the revision, not the plan that needs an exception. Reviewers check
+  the diff against this set with no carve-outs, so an unlisted Run document blocks
+  delivery exactly like an unlisted source file.
 - Reuse before adding. Name the existing helper, pattern, or installed dependency
   the task should use. A new abstraction needs a reason the existing code cannot
   serve.

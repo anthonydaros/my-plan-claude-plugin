@@ -64,5 +64,18 @@ What could go wrong, its impact, and how the plan reduces it.
 
 ## Preliminary write set
 
-Every path implementation is authorized to modify. A path outside this set stops
-the Run.
+Every path this Run is authorized to modify. A path outside this set stops the
+Run.
+
+It always includes the Run's own paperwork, because those files are part of the
+reviewed diff and get committed with the work:
+
+- `<runDocsRoot>/runs/<run-id>-<slug>/` — the Run Dossier directory.
+- The Architecture Memory at `architectureMemoryPath`, when this Run updates it.
+- `.claude/skills/my-plan-project/`, when this Run materializes or migrates it.
+
+List them explicitly. Leaving them out does not protect anything: it just means
+the final review finds Run-owned documents in the diff with no authorization
+behind them, and blocks delivery over the Run's own records.
+
+Then the product paths the work actually touches.

@@ -57,7 +57,7 @@ not:
 
 | Mode | Artifacts |
 |------|-----------|
-| `audit` | Architecture Memory, project skill, checklist, and prior audit records. There is no specification, plan, or validation evidence in an Audit Run |
+| `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run |
 | `initial`, `incremental`, `final` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
 
 Pass the handoff path. Never concatenate documents into the prompt; reviewers read

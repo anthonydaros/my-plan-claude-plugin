@@ -205,6 +205,13 @@ is not a criterion.
 The decision register records both user answers and automatic Recommendation
 Authority decisions, marked by source.
 
+The preliminary write set must include the Run's own paperwork as well as the
+product paths: the Run Dossier directory, the Architecture Memory when this Run
+updates it, and the Project Skill when this Run materializes it. Those files end
+up in the reviewed diff and the commit, so approval has to cover them. Omitting
+them does not make the Run safer; it makes the final review block on the Run's own
+records.
+
 Durable current architecture belongs in the Architecture Memory, not here. Task
 decisions belong here, not there.
 
