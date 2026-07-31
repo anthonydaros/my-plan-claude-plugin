@@ -12,6 +12,7 @@
     "verdict",
     "summary",
     "subjectHash",
+    "taskId",
     "lensOutcomes",
     "findings",
     "resolvedFindingIds",
@@ -35,6 +36,10 @@
       "type": "string",
       "description": "Hash of the exact subject reviewed. Must match the handoff snapshot hash.",
       "minLength": 7
+    },
+    "taskId": {
+      "type": ["string", "null"],
+      "description": "The task this review covers, copied from the handoff. Findings are keyed by taskId plus finding id, so two parallel tasks that independently produce the same semantic key stay distinct. Null for whole-subject reviews."
     },
     "lensOutcomes": {
       "type": "array",

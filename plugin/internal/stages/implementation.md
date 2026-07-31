@@ -13,6 +13,25 @@ parallel when the plan marks them independent and their paths are disjoint. Neve
 hand a writer several sequential tasks at once, however small they look: the point
 of small tasks is that the writer only ever holds one.
 
+### Parallel tasks share one worktree
+
+The writers are separate sessions, but the working tree, the Git index, and
+`implementation.md` are not. Two tasks finishing at once would interleave their
+staging and each measure its delta against the other's checkpoint.
+
+So writers run concurrently; everything else serializes:
+
+- Each parallel writer gets a write set restricted to its own task's paths. Two
+  writers never share a path.
+- Build each reviewer's subject as a diff filtered to that task's paths
+  (`git diff -- <paths>`), not as the whole working tree. A reviewer must see its
+  task's work and nothing else, whatever else is in flight.
+- Staging, `implementation.md` updates, and ledger writes happen one task at a
+  time, in the Coordinator, never inside a writer.
+
+If a task's paths cannot be isolated from another's, the two are not independent.
+Run them in sequence and correct the plan.
+
 For each task:
 
 1. **Assign.** Build a handoff matching
@@ -24,9 +43,15 @@ For each task:
    Claude-only: the `my-plan-implementer` agent, Sonnet. Hybrid: Luna via Codex,
    workspace-write sandbox, per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
 
-   The handoff must be self-sufficient. The writer has not read the plan and will
-   not read the other tasks. Anything it needs to know that is not in the
-   repository goes in the handoff or in `notes`.
+   Include a `kind: "task"` artifact: the instruction, the requirements that bear
+   on this task, the paths, the dependencies already satisfied, and the checks
+   that prove it done. Extract it from the plan; do not hand over the plan.
+
+   The writer must not need the full specification or the full plan. Sending them
+   defeats the point of small tasks: the writer burns its context on work that is
+   not its own and arrives at its own task with less room than it started with.
+   Anything it needs that is not in the repository goes in the task artifact or in
+   `notes`.
 
 2. **Reuse the session, within reason.** Keep the same implementation Worker
    across tasks so verified conventions and correction notes carry forward.
@@ -72,19 +97,26 @@ For each task:
    the writer no longer holds, in a session that has already degraded.
 
 7. **Remediate before moving on.** Send verified findings back to the writer
-   sequentially, not as a batch.
+   sequentially, not as a list.
 
    One finding, or one tightly related group, per correction round. Confirm it
    closed, then send the next. A writer handed twelve findings at once fixes the
    first few properly and pattern-matches the rest, and the review round after
    that has to sort out which is which.
 
+   Between correction rounds run the micro-gate and the checks affected by that
+   correction. Not the full Validation Gate: with one finding per round, running
+   every required Project Profile command each time costs more than the entire
+   implementation and proves nothing new about untouched code. The full gate runs
+   after the last task and after final-review remediation, where it belongs.
+
    Do not assign the next task until this one's findings are closed or explicitly
    dispositioned. A problem carried forward multiplies: the next task builds on
    it, and the correction stops being local.
 
-   For parallel tasks, each has its own review and remediation. Do not merge
-   their findings into one queue; the writers are different sessions.
+   For parallel tasks, each has its own review and remediation, keyed by its
+   `taskId`. Do not merge their findings into one queue; the writers are different
+   sessions and identical finding ids can mean different defects.
 
 8. **Stage and record.** Stage only paths this task and this Run own. Never
    `git add -A`. Confirm the completed plan checkbox against the actual diff, then
@@ -106,7 +138,17 @@ can be slightly larger. A task that needed three correction rounds, came back
 have known, means the remaining tasks are too big. Split them before assigning,
 not after they fail.
 
-Record the change in `notes` so the writer inherits the convention rather than
+**Splitting a task revises the plan.** Do not invent task IDs on the fly and
+dispatch them: the plan was independently reviewed, and work that never appeared
+in it was never reviewed either. Update `plan.md` with the new task IDs, their
+paths, dependencies, and checks; run `plan-check` over the revision; renew the
+plan hash; then dispatch. The review is cheap because only the changed section is
+new, and skipping it means the write set, the dependencies, and the checks of the
+work you are about to run had no independent look at all.
+
+Growing a task within its existing scope needs no revision. Adding work does.
+
+Record the resizing in `notes` so the writer inherits the convention rather than
 rediscovering it.
 
 ## Shared resources

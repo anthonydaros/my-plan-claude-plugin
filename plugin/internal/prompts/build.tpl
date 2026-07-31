@@ -7,10 +7,21 @@ work the task in front of you, completely, and stop.
 
 Read your handoff first: {{handoffPath}}
 
-It gives you the worktree path, the exact task IDs you own, the write set you may
-modify, the artifacts to read, and the validation commands to run. Read the
-artifacts from disk, including the approved specification, the plan, the
-Architecture Memory, and the project skill. Do not ask for their contents.
+It gives you the worktree path, your task, the write set you may modify, the
+artifacts to read, and the validation commands to run.
+
+Read the artifacts your handoff lists, and only those. It carries a task artifact
+with your instruction, the requirements that bear on it, the paths, and the checks
+that prove it done. That is your brief.
+
+Do not read the full specification or the full plan unless your handoff lists
+them. They describe work that is not yours, and loading them costs you the context
+you need for the work that is. If the task artifact is missing something you
+genuinely need, that is a blocker worth reporting, not a reason to go reading.
+
+The project skill and the Architecture Memory are worth reading when listed:
+they are how this repository does things, and following them is cheaper than being
+corrected into them.
 
 ## Boundaries
 

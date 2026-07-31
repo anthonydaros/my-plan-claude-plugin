@@ -24,17 +24,27 @@ review the new subject.
 
 ## Reviewers
 
+Every review handoff carries `reviewerRole` and `ownedLenses`. A reviewer cannot
+otherwise tell whether a lens it did not examine belonged to someone else or was
+its own omission, and the coverage record becomes meaningless.
+
+Every lens has exactly one owner. Together the roles cover all eleven.
+
 **Claude-only.** One independent read-only Fable Worker, the `my-plan-reviewer`
-agent, performs the binding review. The Coordinator handles the ledger and
-remediation. Sonnet wrote the code, so the reviewer is a different model as well
-as a different session.
+agent, `reviewerRole: "sole"`, owning all eleven lenses. The Coordinator handles
+the ledger and remediation. Sonnet wrote the code, so the reviewer is a different
+model as well as a different session.
 
 **Hybrid.** Two independent read-only Workers review the same subject:
 
-| Role | Model | Lenses |
-|------|-------|--------|
-| Product | An independent Fable Worker | conformance, behavior, design, accessibility, ux |
-| Technical | Sol at `xhigh` effort via Codex, read-only sandbox | correctness, security, maintainability, tests, performance, repository conventions |
+| `reviewerRole` | Model | `ownedLenses` |
+|----------------|-------|---------------|
+| `product` | An independent Fable Worker | conformance, behavior, design, accessibility, ux |
+| `technical` | Sol at `xhigh` effort via Codex, read-only sandbox | correctness, security, maintainability, tests, performance, complexity |
+
+Repository conventions are part of the maintainability lens, not a lens of their
+own. Complexity belongs to the technical reviewer: judging whether code needs to
+exist is a technical call, and leaving it unassigned means nobody makes it.
 
 Dispatch Codex Workers per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
 
@@ -86,9 +96,16 @@ approval. A text sentinel alone approves nothing.
 
 ## Finding Ledger
 
-Merge findings by their stable semantic ID. The same defect keeps the same ID
-across every round, from every reviewer. A reworded finding with a new ID is a
-duplicate, not a discovery.
+Findings are keyed by `taskId` plus finding ID, not by finding ID alone. Two
+parallel tasks can independently produce the same semantic key for genuinely
+different defects in different files; merging them on the ID would silently close
+one when the other was fixed.
+
+Within one task, the same defect keeps the same ID across every round and every
+reviewer. A reworded finding with a new ID is a duplicate, not a discovery.
+
+Only the final complete review may consolidate IDs across tasks, and only with
+explicit evidence that two findings are the same defect.
 
 Every finding ends in one of four states, with evidence:
 
@@ -129,21 +146,34 @@ Reuse the same session per role across rounds so the repository is not resent.
 
 ### Budget
 
-After four code-review rounds or sixty minutes, rotate to a fresh role session
-with the current plan, only pending findings, changed paths, and new evidence.
-Rotation is not failure and never triggers plan rewriting or another approval.
+Budgets, like stagnation, are scoped to one remediation episode, not to the Run.
+A twenty-task Run legitimately runs far more than four review rounds in total.
+
+After four rounds or sixty minutes **within one episode**, rotate to a fresh role
+session with the current subject, only pending findings, changed paths, and new
+evidence. Rotation is not failure and never triggers plan rewriting or another
+approval.
 
 A Worker timeout preserves the diff, logs, and finding state, then resumes in the
 same worktree.
 
 ### Stagnation
 
-Progress means a pending finding closed, or new evidence materially changed one.
-Rewording, prose edits, and re-reading an unchanged subject are not progress.
+Stagnation is scoped to one remediation episode: a single subject with open
+findings that successive rounds are trying to close. It is not a Run-wide counter.
 
-Three consecutive rounds without progress end the Run as `BLOCKED`. Report what
-remains open. Do not approve incomplete work to escape the loop, and do not keep
-spending model calls on a loop that is not converging.
+Within an episode, progress means a pending finding closed, or new evidence
+materially changed one. Rewording, prose edits, and re-reading an unchanged subject
+are not progress.
+
+Three consecutive rounds without progress **inside one episode** end the Run as
+`BLOCKED`. Report what remains open. Do not approve incomplete work to escape the
+loop, and do not keep spending on a loop that is not converging.
+
+A clean review ends its episode and resets the counter. This matters now that
+every task delivery is reviewed: a healthy twenty-task Run produces twenty reviews
+that find nothing, and a Run-wide counter would read those as three rounds without
+progress and block a Run whose only fault was being correct.
 
 There is no fixed round limit while findings are actually being resolved.
 

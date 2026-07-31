@@ -11,9 +11,22 @@ Its `mode` field decides your scope:
 - `audit`: no Run diff exists. Review the repository as it stands, guided by the
   checklist and the Architecture Memory.
 - `initial`: review the complete Review Subject for the first time.
-- `incremental`: review only `pendingFindingIds` and the delta since the previous
-  subject hash. Do not re-review unchanged code.
 - `final`: review the complete Review Subject once more before delivery.
+- `incremental`: read `reviewPurpose`, which tells you which of two jobs this is.
+
+For `incremental`, the two jobs are different and confusing them wastes a round:
+
+| `reviewPurpose` | What you review | What you return |
+|-----------------|-----------------|-----------------|
+| `task-delivery` | One task's completed work, for the first time. `previousSubjectHash` is the baseline it builds on; everything after it is this task's diff | Findings in that diff. `resolvedFindingIds` is empty: nothing was pending |
+| `remediation` | Only `pendingFindingIds` and what changed since `previousSubjectHash` | Whether each pending finding is now closed, plus anything the correction broke |
+
+On `remediation`, do not re-review code that did not change. On `task-delivery`,
+do not review code from earlier tasks that already passed.
+
+Copy `taskId` from your handoff into your result. Findings are keyed by task plus
+id, so two parallel tasks that independently reach the same semantic key stay
+separate rather than silently merging.
 
 The handoff lists every artifact available to you, each with a path and a hash.
 Read those from disk.
@@ -28,10 +41,18 @@ repository. Reading code and running read-only inspection is expected.
 
 ## What to review
 
-Work the checklist in `checklists/review.md`. Its lenses are conformance,
-correctness, security, maintainability, tests, performance, behavior, design,
-accessibility, ux, and complexity. Apply design, accessibility, and ux only when
-the changed surface makes them relevant.
+Your handoff's `ownedLenses` lists exactly the lenses you are responsible for.
+Account for every one of them in `lensOutcomes`, and for none that are not yours:
+in hybrid mode another reviewer owns the rest, and claiming their lenses is as
+wrong as skipping your own.
+
+Work those lenses against the checklist in `checklists/review.md`.
+
+Mark a lens `not-applicable` with a reason when the subject genuinely does not
+touch it. On a single small task diff that will often be most of them, and saying
+so honestly is correct: a backend-only task has no accessibility surface. What is
+never acceptable is marking a lens `passed` without examining it. `passed` means
+you looked and it was clean.
 
 The complexity lens runs in this order and stops at the first answer:
 
@@ -83,10 +104,13 @@ Return one JSON object matching `contracts/review-result.schema.json` with the
 
 Rules the schema does not enforce:
 
-- `lensOutcomes` accounts for every lens you own, with no gaps. A lens you skipped
-  is `not-applicable` with a reason, never omitted and never `passed`. Reporting
+- `lensOutcomes` contains exactly the lenses in your handoff's `ownedLenses`: all
+  of them, none extra, no duplicates. A lens you did not examine is
+  `not-applicable` with a reason, never omitted and never `passed`. Reporting
   `passed` for a lens you did not actually examine is the one failure mode this
   contract exists to catch.
+- A lens where you raised a blocker is `caveat`, not `passed`. `verdict` carries
+  the blocking decision; `lensOutcomes` records what you examined.
 - `subjectHash` equals the snapshot hash from your handoff. If the subject changed
   under you, report it and stop.
 - A `blocker` prevents delivery: it is wrong, unsafe, loses data, breaks a
