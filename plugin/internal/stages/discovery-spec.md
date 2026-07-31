@@ -42,6 +42,11 @@ Triggers: specialized business terminology, market behavior, regulation,
 standards, current facts, an external integration, greenfield work, insufficient
 local evidence, or an explicit user request.
 
+Research is not only technical. The repository tells you how the software works;
+it rarely tells you what the business needs it to do, what its market expects, or
+which rules constrain it. When a goal turns on any of that, the web is the
+evidence and the code is not.
+
 Once a trigger fires, research runs automatically. Do not ask for a separate
 command or permission.
 
@@ -105,13 +110,31 @@ Markdown.
 Persist the evidence, the reason for asking, the options, the recommendation, the
 answer, and the resulting decision before asking the next question.
 
-### Budget
+### Rounds
 
-At most ten answered questions in the first round. If material ambiguity remains,
-one more round of one to fifteen questions, still one at a time.
+Discovery is iterative. It is not one questionnaire.
 
-Running out of budget with ambiguity left means the specification states the
-assumption explicitly and flags it. It does not mean guessing silently.
+1. **First round.** At most ten answered questions, one at a time.
+2. **Go and find out.** Take the answers back to the evidence: read the code the
+   answers pointed at, and research the domain the answers revealed. Answers
+   routinely open questions that could not have been asked before, because you did
+   not know enough to ask them.
+3. **Ask again.** Up to fifteen more, one at a time, on what step 2 exposed.
+4. **Repeat 2 and 3** while each round is still resolving material ambiguity.
+
+Stop when a round produces no question that would change scope, behavior,
+acceptance criteria, or risk. That is the real condition, not a counter.
+
+Stop early, too, if rounds start returning questions you could answer yourself
+from the repository, or restatements of settled decisions. That is the signal
+that discovery is done and the engine is padding.
+
+If genuine ambiguity survives, do not keep asking and do not guess silently: the
+specification states the assumption explicitly, flags it as an assumption, and
+records what would have to be true for it to hold.
+
+The user is never asked to approve implementation until this loop closes. A
+specification built on unresolved ambiguity buys an approval that means nothing.
 
 ### Sharpen the language
 
@@ -165,12 +188,25 @@ re-ask.
 Resume restores the single pending question by ID. Never ask an answered question
 again.
 
-## 4. Deeper discovery
+## 4. Deeper discovery, between rounds
 
-After the first answers, go deeper into the repository and the domain. Research
-additional claims only when an answer exposed a material knowledge gap.
+This runs after every question round, not once.
 
-You now know what the change actually touches. Read that.
+The answers just told you things the repository could not: which flow the user
+actually meant, what the business rule is, which of two readings was right. Take
+that back to the evidence.
+
+- Read the code the answers pointed at. It is usually not the code you guessed.
+- Research the domain the answers revealed. A term the user used casually may be
+  regulated, standardised, or mean something specific in their market. Understand
+  the business, not only the code: what the software is for, who it serves, and
+  what the rules around it are. That is often where the real requirements live,
+  and none of it is in the repository.
+- Check whether the answers contradict something the code does today. If so, that
+  contradiction is the next question.
+
+Then ask the next round on what this exposed. Stop when it exposes nothing
+material.
 
 ## 5. Consensus
 

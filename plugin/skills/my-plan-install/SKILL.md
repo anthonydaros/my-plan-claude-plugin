@@ -29,7 +29,9 @@ Mode: $ARGUMENTS
 - The effective model mapping shown.
 - The command aliases verified, with any collision reported alongside its
   `/my-plan:*` fallback.
-- A Working Profile persisted.
+- A Working Profile persisted at `<stateRoot>/profile.json`. Its presence is what
+  every later Run checks to decide whether setup already happened, so nothing else
+  serves as that signal.
 - The state root path reported to the user, so they know where Run state lives.
 
 When run inside a repository, setup may also materialize the Project Profile,

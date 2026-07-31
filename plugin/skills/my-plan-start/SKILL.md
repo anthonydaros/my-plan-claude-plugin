@@ -49,8 +49,9 @@ Worker. In `claude-only` mode, never read it.
 
 ## Route
 
-1. **No Working Profile?** Read `project.md` and run setup first. Do not ask the
-   user to run a separate install command; this is the same flow.
+1. **No Working Profile?** That means no `profile.json` in the state root. Read
+   `project.md` and run setup first. Do not ask the user to run a separate install
+   command; this is the same flow.
 
 2. **No goal argument?** Resume.
    - A Run already named in this conversation wins.

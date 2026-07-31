@@ -72,19 +72,39 @@ If another command already owns a name, the full form always works:
 ```mermaid
 flowchart TD
     A["Your goal"] --> B["Questions<br/><i>one at a time</i>"]
-    B --> C{"You approve<br/>the spec"}
-    C ==> D["Plan<br/><i>many small tasks</i>"]
-    D ==> E["Every task<br/><i>write, check, review, fix<br/>until clean</i>"]
-    E ==> F["Full review<br/><i>until clean</i>"]
-    F ==> G["Validate, changelog,<br/>commit, push"]
+    B --> D["Discovery<br/><i>code, docs, the web</i>"]
+    D -->|"new questions"| B
+    D -->|"nothing left to ask"| C{"You approve<br/>the spec"}
+
+    C ==> P["Plan<br/><i>many small tasks</i>"]
+    P ==> T["Write one task"]
+    T ==> R{"Review"}
+    R -->|"not good enough"| T
+    R ==>|"clean"| M{"Tasks left?"}
+    M ==>|"yes"| T
+
+    M ==>|"no"| F{"Full review"}
+    F -->|"not good enough"| T
+    F ==>|"clean"| S["Validate, changelog,<br/>commit, push"]
 
     classDef gate fill:#1b5e3f,stroke:#2d8a5f,color:#fff,font-weight:bold
     class C gate
 ```
 
-You are asked once, at the green box. Everything after runs on its own: each task
-is reviewed the moment it lands and fixed before the next one starts, then the
-whole change is reviewed again before anything is committed.
+**Before the green box: it asks until it stops having doubts.** You answer up to
+ten questions. It takes your answers back to the code, and to the web when the
+goal turns on business rules, a market, a regulation, or a standard the repository
+never mentions. That usually raises questions it could not have asked before, so
+it asks again. The loop repeats until a round produces nothing that would change
+scope or behavior. Only then are you asked to approve.
+
+**After the green box: nothing ships until review is satisfied.** Every task goes
+write, review, back to the writer, review again, until that task is clean. Then
+the whole change is reviewed, and anything it finds goes back to the writer too.
+The loop does not exit on a round count or a timer; it exits when there is nothing
+left to fix.
+
+You appear once, at the green box.
 
 ---
 
@@ -97,12 +117,24 @@ whole change is reviewed again before anything is committed.
 1. **It reads your repository first.** Anything the code can answer, it does not
    ask you.
 2. **It asks what is genuinely open.** One question at a time, each with a
-   recommendation you can accept or override. Ten at most.
-3. **You approve a spec.** One paragraph and a link. Say yes in ordinary words.
-4. **It builds.** Small tasks, each reviewed as it lands, each fixed before the
-   next begins.
-5. **It ships.** Full review, validation, changelog, commit, push.
-6. **You get a short report.** What was done, what was validated, the commit, the
+   recommendation you can accept or override. Ten at most in this round.
+3. **It goes and finds out.** Your answers point at code it had not read and at a
+   domain it had not researched. It reads both, and searches the web when the
+   business, the market, or a regulation matters more than the code does.
+4. **It asks again.** Whatever step 3 exposed, up to fifteen more. Then repeats
+   steps 3 and 4 for as long as each round is still resolving something material.
+   Ambiguity it cannot resolve is written into the spec as a flagged assumption,
+   never guessed silently.
+5. **You approve a spec.** One paragraph and a link. Say yes in ordinary words.
+   This is the only approval, and it comes after the doubts are gone.
+6. **It builds, in a loop.** One small task at a time: written, checked,
+   reviewed. Findings go back to the writer one at a time and it reviews again.
+   Nothing advances to the next task until this one is clean.
+7. **It reviews the whole thing.** Per-task review misses what emerges between
+   tasks. Anything the full review finds goes back to the writer, and it runs
+   again. Repeat until clean.
+8. **It ships.** Validation gate, changelog, commit, push.
+9. **You get a short report.** What was done, what was validated, the commit, the
    verified remote SHA.
 
 ---

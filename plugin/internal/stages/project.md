@@ -20,20 +20,24 @@ fails its probe is not supported.
 
 | Capability | Probe | If missing |
 |------------|-------|------------|
-| Claude Code 2.1.216+ | Version, plus native bare-alias behavior | Give the exact upgrade command for their platform |
-| Git | `git --version` | Give the exact install command for their platform |
-| Context7 | A real documentation query that returns content | Give the exact connection steps |
+| Claude Code 2.1.216+ | `claude --version`, compared numerically | Give the exact upgrade command for their platform |
+| Git 2.28+ | `git --version`. 2.28 is the floor because `git init -b` needs it | Give the exact install command for their platform |
+| Context7 | One real documentation query that returns content | Give the exact connection steps |
 
 Claude must expose: structured questions, `WebSearch`, `WebFetch`, model
-selection, isolated agents, and the native file and shell tools.
+selection, isolated agents, and the native file and shell tools. You are running
+inside Claude Code, so check your own tool availability rather than shelling out.
 
 **Optional. Report and continue.**
 
 | Capability | Probe | If missing |
 |------------|-------|------------|
-| Codex CLI | `exec`, `exec resume`, `-C`, read-only and workspace-write sandboxes, JSON events, `--output-schema` | Select `claude-only`, name the missing capability, continue |
-| GitHub CLI | Installed and authenticated | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
-| Playwright | Installed | Recommend it for browser validation. Never block on it |
+| Codex CLI | `codex --version`, then `codex exec --help` and `codex exec resume --help`, checking that the help text lists `-C`, `--sandbox`, `--json`, `--output-schema`, and `-o`. Then `codex login status` for authentication | Select `claude-only`, name the missing capability, continue |
+| GitHub CLI | `gh --version` and `gh auth status` | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
+| Playwright | `playwright --version`, then `playwright-cli --version`. Either counts | Recommend it for browser validation. Never block on it |
+
+Probe the flags from the help output rather than by running a real Codex turn: a
+probe that costs a model call is a probe people learn to skip.
 
 Report installed versions and whether authentication is ready. Never read, echo,
 log, or store a secret value.
@@ -81,8 +85,11 @@ instead.
 
 ### Command aliases
 
-Inspect the effective command registry in the active directory. For each of
-`/my-plan-install`, `/my-plan-start`, `/my-plan-audit`:
+Check what already owns each bare name. Look at the skills and commands visible in
+this session, plus `.claude/skills/`, `.claude/commands/`, `~/.claude/skills/`,
+and `~/.claude/commands/`. A name defined in any of them wins over a plugin skill.
+
+For each of `/my-plan-install`, `/my-plan-start`, `/my-plan-audit`:
 
 - Free: the bare alias works. Report it.
 - Owned by a personal, project, enterprise, or other plugin command: that command
@@ -155,6 +162,7 @@ Layout:
 
 ```text
 <stateRoot>/
+├── profile.json                    # Working Profile. Its presence means setup ran
 ├── runs/<run-id>/
 │   ├── run.json
 │   ├── findings.json
