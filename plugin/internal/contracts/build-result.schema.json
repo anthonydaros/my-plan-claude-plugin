@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "my-plan/build-result",
+  "title": "Build Result",
+  "description": "Implementation or remediation attempt result. Reported paths are claims; the Coordinator verifies them against Git and the approved write set.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "attemptId",
+    "status",
+    "changedPaths",
+    "completedTaskIds",
+    "remainingTaskIds",
+    "commands",
+    "blockers",
+    "resolvedFindingIds",
+    "notes"
+  ],
+  "$comment": "Strict structured output requires every property to appear in required at every level. Optional fields are nullable, never omitted from required. Omitting one makes the Codex backend fail with HTTP 400 before the model runs.",
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "attemptId": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "description": "complete means every assigned task is done and the micro-gate passed. partial means the worktree is usable but tasks remain. blocked means work stopped.",
+      "enum": ["complete", "partial", "blocked"]
+    },
+    "changedPaths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "completedTaskIds": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "remainingTaskIds": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "commands": {
+      "type": "array",
+      "description": "Micro-gate and test commands actually executed in this attempt.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exitCode", "summary"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "exitCode": { "type": "integer" },
+          "summary": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["taskId", "reason", "needsDecision"],
+        "properties": {
+          "taskId": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "needsDecision": {
+            "type": ["boolean", "null"],
+            "description": "True only when the blocker is a product decision the Worker cannot resolve from the approved spec."
+          }
+        }
+      }
+    },
+    "resolvedFindingIds": {
+      "type": "array",
+      "description": "Present on remediation attempts. Findings this attempt claims to have fixed.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Material deviations and conventions worth carrying to the next batch. Not a transcript."
+    }
+  }
+}

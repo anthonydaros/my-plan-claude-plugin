@@ -1,0 +1,170 @@
+# Stage: Review
+
+Independent review of the Review Subject, remediation of what it finds, and the
+approval that authorizes delivery. Also runs the read-only audit for
+`/my-plan-audit`.
+
+The Worker that wrote the code never reviews it. This holds in every backend and
+every fallback. If the only remaining option would merge those identities, block
+the Run instead.
+
+## The Review Subject
+
+The exact Run-owned Git diff proposed for delivery: code, tests, configuration,
+memory, specification, plan, implementation record, and validation evidence.
+
+Excluded: `review.md` and `delivery.md`. They record this subject's outcome, so
+they cannot be inside it. Those two files are limited to fixed-template Markdown
+at their exact Run Dossier paths and may never contain product code,
+configuration, or executable content.
+
+Hash the subject before dispatching review. Verify it again before approving. If
+it changed under the reviewer, the review is void: rerun affected validation and
+review the new subject.
+
+## Reviewers
+
+**Claude-only.** One independent read-only Fable Worker, the `my-plan-reviewer`
+agent, performs the binding review. The Coordinator handles the ledger and
+remediation. Sonnet wrote the code, so the reviewer is a different model as well
+as a different session.
+
+**Hybrid.** Two independent read-only Workers review the same subject:
+
+| Role | Model | Lenses |
+|------|-------|--------|
+| Product | An independent Fable Worker | conformance, behavior, design, accessibility, ux |
+| Technical | Sol at `xhigh` effort via Codex, read-only sandbox | correctness, security, maintainability, tests, performance, repository conventions |
+
+Dispatch Codex Workers per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
+
+Approval requires zero unresolved blockers from every active role.
+
+## Dispatch
+
+Build a handoff matching `${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json`
+with `role: "reviewer"` and the right `mode`:
+
+| Mode | Scope |
+|------|-------|
+| `audit` | No Run diff. The repository as it stands |
+| `initial` | The complete Review Subject, first pass |
+| `incremental` | Only pending findings and the delta since the last subject hash |
+| `final` | The complete Review Subject, once more, before delivery |
+
+Artifacts depend on the mode. Send what exists, never a path to a file that does
+not:
+
+| Mode | Artifacts |
+|------|-----------|
+| `audit` | Architecture Memory, project skill, checklist, and prior audit records. There is no specification, plan, or validation evidence in an Audit Run |
+| `initial`, `incremental`, `final` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
+
+Pass the handoff path. Never concatenate documents into the prompt; reviewers read
+the current files themselves.
+
+Reviewers receive only the active subject, pending Finding Ledger entries, and new
+evidence. Closed findings and prior review history are not resent.
+
+## Verify the result
+
+Validate against `${CLAUDE_PLUGIN_ROOT}/internal/contracts/review-result.schema.json`
+before trusting it. Check that `subjectHash` matches what you dispatched. Check
+that every finding cites a real path.
+
+Invalid, unparseable, or unsupported output is a failed attempt, never an implicit
+approval. A text sentinel alone approves nothing.
+
+## Finding Ledger
+
+Merge findings by their stable semantic ID. The same defect keeps the same ID
+across every round, from every reviewer. A reworded finding with a new ID is a
+duplicate, not a discovery.
+
+Every finding ends in one of four states, with evidence:
+
+- **Resolved.** The correction landed and the reviewer confirmed it.
+- **Not reproducible.** The reviewer could not reproduce it against the current
+  subject.
+- **Blocked by an owner decision.** Recorded with the decision and its reason.
+- **Accepted, not blocking.** A `major` or `minor` finding the Run deliberately
+  ships without fixing, with the reason. Only non-blockers are eligible.
+
+That fourth state exists because only blockers go back for remediation. Without
+it, a `major` finding can never reach a terminal state, and the ledger carries an
+open item into approval that nothing will ever close.
+
+Approval requires zero open blockers. It does not require zero findings.
+
+## Remediation loop
+
+1. Valid blockers go back to the implementation Worker, never to the reviewer that
+   found them. Reviewers do not repair their own findings.
+2. Rerun the affected part of the Validation Gate.
+3. Delta review: `incremental` mode, pending findings and the changed paths only.
+4. Repeat until no blockers remain.
+5. Run one `final` complete review from every active role.
+6. Bind `REVIEW_APPROVED` to the final subject hash.
+
+The first review is complete. Remediation reviews are not; re-reviewing unchanged
+code wastes a round and produces noise. Approval always requires one final
+complete pass.
+
+Reuse the same session per role across rounds so the repository is not resent.
+
+### Budget
+
+After four code-review rounds or sixty minutes, rotate to a fresh role session
+with the current plan, only pending findings, changed paths, and new evidence.
+Rotation is not failure and never triggers plan rewriting or another approval.
+
+A Worker timeout preserves the diff, logs, and finding state, then resumes in the
+same worktree.
+
+### Stagnation
+
+Progress means a pending finding closed, or new evidence materially changed one.
+Rewording, prose edits, and re-reading an unchanged subject are not progress.
+
+Three consecutive rounds without progress end the Run as `BLOCKED`. Report what
+remains open. Do not approve incomplete work to escape the loop, and do not keep
+spending model calls on a loop that is not converging.
+
+There is no fixed round limit while findings are actually being resolved.
+
+## Approval
+
+`REVIEW_APPROVED` is created only after: every contract validated, every finding
+resolved or dispositioned, the Validation Gate green, and the final complete
+review clean.
+
+It binds to the specification hash, plan hash, base SHA, Review Subject hash,
+backend, Worker identity, and model.
+
+Any later change to a Review Subject path invalidates it. Rerun affected
+validation and a renewed final review. Rendering `review.md` and `delivery.md`
+does not invalidate it; that is why they are excluded.
+
+Render `review.md` from
+`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/review.md.tpl`, from the
+structured ledger. No extra synthesis model call. It records conclusions and
+stable finding IDs, not model conversation.
+
+## Audit mode
+
+For `/my-plan-audit`. Read-only: no worktree, no branch, no edits.
+
+Understand the architecture before judging it. An audit that reports findings
+before it understands produces noise, and noise is worse than silence.
+
+Confront the code against the Architecture Memory and prior audit records. When
+they disagree, say which one is wrong. Do not resurface a finding an earlier audit
+recorded as not worth doing; state that it was checked.
+
+Render `audit.md` from
+`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/audit.md.tpl`. Show a concise
+recommended scope, ordered, and say what is deliberately left out.
+
+An affirmative reply converts accepted findings into a Working Spec and enters
+planning. No second command. A non-affirmative reply is feedback: revise and ask
+again. Nothing changes until the user affirms.

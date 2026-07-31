@@ -1,0 +1,18 @@
+{
+  "name": "my-plan",
+  "owner": {
+    "name": "My Plan"
+  },
+  "metadata": {
+    "description": "My Plan distribution channel."
+  },
+  "plugins": [
+    {
+      "name": "my-plan",
+      "source": "./plugin",
+      "description": "One approved specification carried through planning, isolated implementation, validation, review, and delivery.",
+      "category": "development",
+      "license": "MIT"
+    }
+  ]
+}

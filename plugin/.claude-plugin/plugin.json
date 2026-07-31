@@ -1,0 +1,19 @@
+{
+  "name": "my-plan",
+  "description": "Carry one approved specification through discovery, planning, isolated implementation, validation, independent review, and delivery.",
+  "author": {
+    "name": "anthonydaros",
+    "url": "https://github.com/anthonydaros"
+  },
+  "license": "MIT",
+  "keywords": [
+    "specification",
+    "planning",
+    "review",
+    "delivery",
+    "worktree",
+    "orchestration"
+  ],
+  "repository": "https://github.com/anthonydaros/my-plan-claude-plugin",
+  "homepage": "https://github.com/anthonydaros/my-plan-claude-plugin"
+}
