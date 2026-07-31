@@ -28,6 +28,17 @@ So writers run concurrently; everything else serializes:
   task's work and nothing else, whatever else is in flight.
 - Staging, `implementation.md` updates, and ledger writes happen one task at a
   time, in the Coordinator, never inside a writer.
+- **Micro-gates and validation commands are serialized too.** Writing is parallel;
+  checking is not. Do not put gate commands in a parallel writer's handoff: the
+  Coordinator runs them, one task at a time, once that task's edits have settled.
+
+That last rule is the one that looks unnecessary and is not. Disjoint write sets
+isolate files, but `tsc`, `lint`, and `build` scan the whole project. A writer
+running its gate while another is mid-edit gets errors in files it does not own
+and may not touch, so it reports `blocked` with its own work perfectly correct.
+Nothing in the diagnosis table explains that, the Coordinator escalates a defect
+that does not exist, and three attempts later the Run is `BLOCKED` over a race.
+Shared incremental build caches corrupt the same way.
 
 If a task's paths cannot be isolated from another's, the two are not independent.
 Run them in sequence and correct the plan.
@@ -46,6 +57,9 @@ For each task:
    Include a `kind: "task"` artifact: the instruction, the requirements that bear
    on this task, the paths, the dependencies already satisfied, and the checks
    that prove it done. Extract it from the plan; do not hand over the plan.
+
+   Send `validationCommands` only for a task running alone. A task running
+   alongside others gets none: the Coordinator runs its gate afterwards, in turn.
 
    The writer must not need the full specification or the full plan. Sending them
    defeats the point of small tasks: the writer burns its context on work that is
@@ -76,6 +90,7 @@ For each task:
    | The task needs more reasoning than the model has | Escalate one step up the fallback table |
    | The task was too large to hold at once | Split it and reassign. Then check whether its siblings are oversized too |
    | The plan itself is wrong | Return to planning with the evidence |
+   | Failures are in files this task does not own | A parallel writer's in-flight edit, not a defect. Re-run the check once that task settles. Never escalate this |
    | `needsDecision: true` | A product question. It goes to the user, not to another Worker |
 
    Three failed attempts at the same finding means the defect is in the plan or
@@ -247,6 +262,26 @@ committing. It states intent: approved hashes, target remote and branch, planned
 commit grouping, integration preconditions, recovery policy, and deployment hold.
 
 It never claims a commit, push, or remote verification that has not happened.
+
+### Changelog
+
+Before committing, record what shipped in the repository's changelog.
+
+Adopt whatever the repository already uses: `CHANGELOG.md`, a `changelog/`
+directory, release notes, or the convention its history shows. Create
+`CHANGELOG.md` in Keep a Changelog form only when none exists.
+
+Write one entry for the Run, from the user's point of view: what changed for
+someone using this software, grouped as added, changed, fixed, or removed. Not
+task IDs, not internal steps, not which worker did what. Someone reading it later
+wants to know what the software does differently now.
+
+Skip it when the change is invisible to users: a refactor with no behavior change,
+a test-only change, internal documentation. An entry that says "refactored
+internals" is noise in a file people read to find out what broke.
+
+The changelog is part of the Review Subject, so it is written before the review
+that approves delivery, not after.
 
 ### Commit
 

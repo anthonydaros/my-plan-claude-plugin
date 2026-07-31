@@ -73,6 +73,7 @@ reviewed diff and get committed with the work:
 - `<runDocsRoot>/runs/<run-id>-<slug>/` — the Run Dossier directory.
 - The Architecture Memory at `architectureMemoryPath`, when this Run updates it.
 - `.claude/skills/my-plan-project/`, when this Run materializes or migrates it.
+- The repository's changelog, when this Run's change is user-visible.
 
 List them explicitly. Leaving them out does not protect anything: it just means
 the final review finds Run-owned documents in the diff with no authorization
