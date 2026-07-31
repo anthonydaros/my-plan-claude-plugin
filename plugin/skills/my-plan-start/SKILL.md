@@ -82,18 +82,43 @@ it must produce before the next one begins.
 Everything before approval is read-only against the user's repository. You write
 Run artifacts and transient setup state, nothing else.
 
-One ordinary affirmative reply to the Approval Summary authorizes the entire rest
-of the Run: worktree creation, project files, implementation, validation, review,
-remediation, commit, fast-forward integration, and push. Do not ask again at
-each phase. Asking for permission you already have wastes the user's attention
-and is a defect.
+One ordinary affirmative reply to the Approval Summary authorizes everything up to
+and including local commits: worktree creation, project files, implementation,
+validation, review, remediation, and committing to the Run's temporary branch. Do
+not ask again during that stretch. Asking for permission you already have wastes
+the user's attention and is a defect.
 
-The two things that approval never covers:
+Commit freely and often inside that authority. Local commits are reversible and
+cost the user nothing.
 
+The three things that approval never covers:
+
+- **Push.** Everything stays local until the user approves it, once, at the end.
+  See below.
 - **Deployment or publishing.** Requires separate explicit approval naming the
   target.
 - **A changed scope.** Product scope that moves needs a new specification revision
   and a new approval.
+
+## The push gate
+
+Nothing leaves the machine without a second, explicit approval.
+
+Work through the entire Run locally: every task, every review, every fix, every
+commit. When the work is complete and validation is green, stop and ask.
+
+Show a short summary: what was built, the commits by subject line, what was
+validated, and the target branch. Then ask whether to push.
+
+`yes`, `sim`, `push`, or any plain affirmative is approval. Anything else is not,
+including silence and a question. If the user asks something instead of
+answering, answer it and ask again.
+
+On approval: fast-forward merge into the default branch, push once, verify the
+remote SHA, and report it. One push for the whole Run, not one per commit.
+
+Without approval the Run ends complete but unpushed. Say so plainly, and say the
+work is safe on its branch. That is a finished Run, not a failure.
 
 ## Non-negotiable rules
 
@@ -104,7 +129,11 @@ The two things that approval never covers:
 - Never `git add -A`. Stage only paths this Run owns.
 - Never push the temporary branch, create a pull request, force push, use
   `--no-verify`, or rewrite published history.
-- Never write a secret into a tracked file.
+- Never write a secret into a tracked file, and scan the staged set before every
+  single commit. A secret committed once is leaked even if the next commit removes
+  it: the object stays in history, and history is what gets pushed.
+- Never push without the explicit push gate. Not a branch, not a tag, not "just
+  the docs".
 - Never override the repository's Git identity, add a `Co-Authored-By` trailer, or
   name a model, an assistant, or this plugin in a commit message. Commits are the
   user's.

@@ -96,6 +96,20 @@ $rule = Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Recurse -File |
     Select-String -Pattern "Never override the repository's Git identity" -SimpleMatch -List
 Check ([bool]$rule) 'commit authorship rule is stated to the Coordinator'
 
+Write-Host '== push is gated, commits are scanned'
+
+$startSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\my-plan-start\SKILL.md') -Raw
+$implStage = Get-Content -LiteralPath (Join-Path $plugin 'internal\stages\implementation.md') -Raw
+
+Check ($startSkill -like '*push gate*') 'the push gate is stated to the Coordinator'
+Check ($implStage -like '*## The push gate*') 'delivery stops at the push gate'
+Check (-not ($startSkill -like '*remediation, commit, fast-forward integration, and push*')) 'spec approval stops at local commits'
+Check ($implStage -like '*Before every commit: check what you are about to publish*') 'staged sets are scanned before commit'
+
+foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
+    Check ($implStage.Contains($pattern)) "secret scan names $pattern"
+}
+
 Write-Host '== contracts are strict-mode clean'
 
 # Provider-enforced structured output rejects a schema where any property lacks a

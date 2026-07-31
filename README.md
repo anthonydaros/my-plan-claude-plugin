@@ -85,10 +85,13 @@ flowchart TD
 
     M ==>|"no"| F{"Full review"}
     F -->|"not good enough"| T
-    F ==>|"clean"| S["Validate, changelog,<br/>commit, push"]
+    F ==>|"clean"| S["Validate, changelog,<br/>commit locally"]
+    S ==> PG{"You approve<br/>the push"}
+    PG ==>|"yes"| PUSH["Push once"]
+    PG -->|"not yet"| LOCAL["Done, kept local"]
 
     classDef gate fill:#1b5e3f,stroke:#2d8a5f,color:#fff,font-weight:bold
-    class C gate
+    class C,PG gate
 ```
 
 **Before the green box: it asks until it stops having doubts.** You answer up to
@@ -98,13 +101,21 @@ never mentions. That usually raises questions it could not have asked before, so
 it asks again. The loop repeats until a round produces nothing that would change
 scope or behavior. Only then are you asked to approve.
 
-**After the green box: nothing ships until review is satisfied.** Every task goes
-write, review, back to the writer, review again, until that task is clean. Then
-the whole change is reviewed, and anything it finds goes back to the writer too.
-The loop does not exit on a round count or a timer; it exits when there is nothing
-left to fix.
+**Between the green boxes: nothing ships until review is satisfied.** Every task
+goes write, review, back to the writer, review again, until that task is clean.
+Then the whole change is reviewed, and anything it finds goes back to the writer
+too. The loop does not exit on a round count or a timer; it exits when there is
+nothing left to fix.
 
-You appear once, at the green box.
+**At the second green box: nothing leaves your machine without you.** It commits
+as it goes, so you get real history to read, but it does not push. At the end it
+shows you what was built, the commits, and what was validated, and asks. One push
+for the whole run, after you say so.
+
+Say no and the run is still complete: the work is committed and waiting on its
+branch. That is a finished run, not a failed one.
+
+You appear twice: to approve the spec, and to approve the push.
 
 ---
 
@@ -133,9 +144,13 @@ You appear once, at the green box.
 7. **It reviews the whole thing.** Per-task review misses what emerges between
    tasks. Anything the full review finds goes back to the writer, and it runs
    again. Repeat until clean.
-8. **It ships.** Validation gate, changelog, commit, push.
-9. **You get a short report.** What was done, what was validated, the commit, the
-   verified remote SHA.
+8. **It commits.** Validation gate, changelog, and commits along the way. Before
+   every commit it scans what is staged for credentials, keys, env files, and
+   anything else that should not be published, including in its own notes.
+9. **It asks before pushing.** What was built, the commits, what was validated,
+   where it would go. Say `yes`, `sim`, or `push`. One push for the whole run.
+10. **You get a short report.** What was done, what was validated, the commit, and
+    the verified remote SHA if you pushed.
 
 ---
 
@@ -145,8 +160,11 @@ You appear once, at the green box.
 - Change anything before you approve.
 - Modify a file outside the approved scope.
 - Run `git add -A`.
-- Push the temporary branch, open a PR, force push, or rewrite history.
-- Write a secret into a tracked file.
+- **Push anything without asking you first.** Not a branch, not a tag, not "just
+  the docs".
+- Open a PR, force push, or rewrite history.
+- Commit a credential. Every staged set is scanned before every commit, because a
+  secret committed once stays in history even if the next commit removes it.
 - Deploy. Delivery is not deployment; that needs its own approval.
 - Let the model that wrote the code decide whether the code is good.
 

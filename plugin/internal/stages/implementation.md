@@ -296,10 +296,52 @@ internals" is noise in a file people read to find out what broke.
 The changelog is part of the Review Subject, so it is written before the review
 that approves delivery, not after.
 
+### Before every commit: check what you are about to publish
+
+Run this on the staged set, every time. A secret committed once is a secret
+leaked, even if the next commit removes it, because the object stays in history
+and history is what gets pushed.
+
+1. **Inspect the staged list itself.** `git diff --cached --name-only`. Anything
+   you did not expect stops the commit.
+
+2. **Refuse these paths outright**, whatever the diff says:
+   `.env` and `.env.*` other than `.env.example`, `*.pem`, `*.key`, `*.p12`,
+   `*.pfx`, `id_rsa` and other private keys, `*.keystore`, `.npmrc` and `.pypirc`
+   with credentials, `credentials.json`, `service-account*.json`,
+   `*.tfstate`, `.aws/`, `.ssh/`, `.kube/config`, and any local database dump.
+
+3. **Grep the staged content** for assigned secrets: `password`, `passwd`,
+   `secret`, `token`, `api[_-]?key`, `private[_-]?key`, `authorization`,
+   `bearer `, `BEGIN .* PRIVATE KEY`, plus provider prefixes such as `sk-`,
+   `ghp_`, `gho_`, `AKIA`, `AIza`, `xox[baprs]-`. A hit that is a real value, not
+   a variable name or a placeholder, stops the commit.
+
+4. **Read the Run's own documents before staging them.** Discovery quotes code,
+   research quotes sources, and specs quote configuration. A credential the
+   Coordinator copied into `discovery.md` while investigating is a leak the code
+   scan will not catch, because it is prose.
+
+5. **Check the ignore rules cover what this project produces.** If the repository
+   generates a local env file, a dump, or a key and `.gitignore` does not mention
+   it, add it in this Run and say so. Do not silently rely on it never being
+   staged.
+
+When something trips this, do not commit and quietly drop the file. Tell the user
+what was found and where, remove it from the staged set, and fix the ignore rule
+so it cannot come back. A finding here is worth interrupting for.
+
+Personal paths, machine names, internal hostnames, and customer identifiers get
+the same treatment. They are not credentials, but they are not yours to publish.
+
 ### Commit
 
 One commit for a small cohesive change; multiple atomic commits when independent
 changes make better history.
+
+Commit as the work completes, not once at the end. Local commits are authorized by
+the approved specification, are reversible, and give the user real history to read
+before deciding whether any of it should leave the machine.
 
 **Authorship is the user's, always.** Commit with the repository's configured Git
 identity, exactly as it is. Never override `user.name` or `user.email`, never add
@@ -321,9 +363,38 @@ generated changelogs on ordinary work.
 
 Never write a secret into a tracked file. Never use `--no-verify`.
 
+### The push gate
+
+Stop here. Everything so far was local and reversible; everything after leaves the
+machine and cannot be taken back.
+
+Show the user:
+
+- What was built, in a sentence or two.
+- The commits, by subject line.
+- What validation ran and that it is green.
+- The target: remote and branch.
+- Anything held back, such as a deployment.
+
+Then ask whether to push.
+
+Accept any plain affirmative: `yes`, `sim`, `push`, `pode`, `manda`. Anything else
+is not approval, including silence, a question, or a comment about the work. If
+the user asks something, answer it and ask again.
+
+One push per Run, not one per commit. The user approves the whole body of work
+once, having seen it.
+
+If approval does not come, the Run is finished and unpushed. Record it, tell the
+user the work is committed and safe on its branch and how to push it themselves,
+and stop. Do not push later on the assumption they meant yes.
+
+Never treat the specification approval as covering this. That approval was given
+before any code existed.
+
 ### Integration
 
-Optimistic two-phase locking:
+Only after the push gate. Optimistic two-phase locking:
 
 1. Take a short lease. Fetch. Record the target remote SHA. Release the lease.
 2. If the base moved: rebase only the temporary branch, resolve conflicts, rerun
@@ -371,8 +442,13 @@ Final status:
 |-----------|--------|
 | Pushed and remote SHA verified, no deployment target | `DONE` |
 | Verified, deployment target exists | `READY_FOR_DEPLOY` |
+| Work complete and committed, push not approved | `DONE_LOCAL` |
 | Greenfield, intentionally local-only, local commit verified | `DONE_LOCAL` |
 | Required remote failed, or a push failed mid-workspace | `BLOCKED`, recoverable |
+
+`DONE_LOCAL` from a declined push is a completed Run, not a failure. The work is
+done, reviewed, validated, and committed; the user simply chose not to publish it
+yet. Report it that way.
 
 Deployment is never implied by code delivery. It requires separate explicit
 approval naming the target.

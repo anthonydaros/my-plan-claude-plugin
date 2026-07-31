@@ -134,6 +134,32 @@ for d in discovery research spec plan implementation validation review audit del
   check $? "exists: documents/$d.md.tpl"
 done
 
+echo "== push is gated, commits are scanned"
+
+# Two invariants a prompt edit could quietly undo, both of which leak or publish
+# something the user did not agree to.
+grep -rq "push gate" "$PLUGIN/skills/my-plan-start/SKILL.md"
+check $? "the push gate is stated to the Coordinator"
+
+grep -rq "## The push gate" "$PLUGIN/internal/stages/implementation.md"
+check $? "delivery stops at the push gate"
+
+# The approval of the spec must not read as authorizing the push.
+if grep -q "remediation, commit, fast-forward integration, and push" "$PLUGIN/skills/my-plan-start/SKILL.md"; then
+  fail "spec approval still claims to authorize push"
+else
+  pass "spec approval stops at local commits"
+fi
+
+grep -rq "Before every commit: check what you are about to publish" "$PLUGIN/internal/stages/implementation.md"
+check $? "staged sets are scanned before commit"
+
+# Fixed-string search: these are literal patterns in the doc, not regexes to run.
+for pattern in 'PRIVATE KEY' 'AKIA' 'api[_-]?key' '.env' 'bearer '; do
+  grep -qF -- "$pattern" "$PLUGIN/internal/stages/implementation.md"
+  check $? "secret scan names $pattern"
+done
+
 echo "== contracts are strict-mode clean"
 
 # Provider-enforced structured output rejects the request with HTTP 400 before the
