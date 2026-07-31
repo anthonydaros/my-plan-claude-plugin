@@ -57,7 +57,11 @@ Return one JSON object matching `contracts/review-result.schema.json` with
 
 Rules the schema does not enforce:
 
-- `subjectHash` equals the plan hash from your handoff.
+- `subjectHash` equals your handoff's `snapshotHash`, which for a plan review
+  carries the plan hash: the plan is the subject.
+- `lensOutcomes` covers exactly the four lenses a plan review owns: `conformance`,
+  `correctness`, `tests`, and `complexity`. Mark the other seven
+  `not-applicable`, with the reason that no code exists yet.
 - A `blocker` means the plan cannot be built as written. Everything else is
   `major` or `minor` and does not stop delivery. Inflating severity to force
   attention is a failed review.

@@ -185,6 +185,7 @@ here. Two sessions that pick different formats cannot verify each other's work.
 | `<slug>` | The goal, lowercased, non-alphanumerics to `-`, trimmed to 40 chars | `add-input-validation` |
 | `<attempt-id>` | `<run-id>-<role>-<n>`, `n` counting from 1 per role | `20260731-7c41-reviewer-2` |
 | `<repo-key>` | Repository basename plus 8 hex of its absolute path | `task-api-75d0b10a` |
+| `<run-short>` | The run id's 4 hex characters, without the date | `7c41` |
 
 **Every hash in this product is SHA-256, rendered as lowercase hex.** Report the
 first 12 characters in documents; keep the full digest in Run state.

@@ -55,13 +55,13 @@
       "minLength": 1
     },
     "baseSha": {
-      "type": "string",
-      "description": "The commit the work is anchored to. After approval, the immutable SHA the worktree was created from. Before approval, the observed HEAD, recorded so a later phase can tell whether the repository moved during discovery.",
+      "type": ["string", "null"],
+      "description": "The commit the work is anchored to. After approval, the immutable SHA the worktree was created from. Before approval, the observed HEAD. Null in Greenfield Mode before the bootstrap commit exists, which is the only case where there is no commit to name.",
       "minLength": 7
     },
     "snapshotHash": {
-      "type": "string",
-      "description": "Hash of the repository subject at handoff time. Reused to detect a changed Review Subject.",
+      "type": ["string", "null"],
+      "description": "SHA-256 of the subject at handoff time, reused to detect that it changed under the Worker. For plan-check this is the plan hash, because the plan is the subject. Null in Greenfield Mode before the bootstrap commit, when there is no tree to hash.",
       "minLength": 7
     },
     "taskIds": {

@@ -44,8 +44,9 @@ inventing those values, and invented identifiers do not survive contact with the
 next session or the reviewer that has to recompute a hash.
 
 When the backend is `hybrid`, also read
-`${CLAUDE_PLUGIN_ROOT}/internal/codex.md` before dispatching your first Codex
-Worker. In `claude-only` mode, never read it.
+`${CLAUDE_PLUGIN_ROOT}/internal/codex.md`: during setup if you are running it, so
+its model resolution and capability probes happen there, and otherwise before
+dispatching your first Codex Worker. In `claude-only` mode, never read it.
 
 ## Route
 

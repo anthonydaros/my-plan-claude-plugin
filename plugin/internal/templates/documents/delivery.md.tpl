@@ -7,6 +7,10 @@ reviewSubjectHash: {{reviewSubjectHash}}
 target: {{targetRemote}}/{{targetBranch}}
 ---
 
+<!-- A local-only Run has no remote: write `target: local/main` and say so under
+     Target. Never leave a placeholder unrendered. -->
+
+
 # Delivery Manifest
 
 Pre-push intent, rendered before committing. Fixed-template evidence record,

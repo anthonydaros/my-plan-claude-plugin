@@ -58,6 +58,19 @@ For each task:
    on this task, the paths, the dependencies already satisfied, and the checks
    that prove it done. Extract it from the plan; do not hand over the plan.
 
+   **Write it to `<worktree>/.my-plan/task.md`, and add `.my-plan/` to the
+   worktree's `.git/info/exclude`.** A Codex Worker is confined to the worktree
+   and cannot read Run state outside it, so the artifact has to live inside; and
+   anything inside that Git tracks would show up in the Review Subject as a path
+   nobody approved. Excluding it locally solves both: readable by the Worker,
+   invisible to the diff, and never committed.
+
+   `.git/info/exclude` rather than `.gitignore`, because `.gitignore` is a tracked
+   file in the user's repository and this is scaffolding, not a project decision.
+
+   Overwrite it per task. It is a scratch file for the current Worker, not a
+   record; `implementation.md` is the record.
+
    Send `validationCommands` only for a task running alone. A task running
    alongside others gets none: the Coordinator runs its gate afterwards, in turn.
 

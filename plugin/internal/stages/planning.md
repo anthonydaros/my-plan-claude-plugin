@@ -68,9 +68,12 @@ In Greenfield Mode the last two do not exist yet, and that is expected: they are
 created inside the worktree after this. Send what exists. Never send a path to a
 file that is not there, and never omit one that is.
 
-Copy any pre-approval artifact the Worker needs into the worktree before
+Copy any pre-approval artifact the Worker needs into `<worktree>/.my-plan/` before
 dispatching, and point the handoff at the copy. A Worker confined to the worktree,
 which every Codex Worker is, cannot read a Run artifacts path outside it.
+
+Add `.my-plan/` to the worktree's `.git/info/exclude` when creating the worktree,
+so those copies never reach the Review Subject or a commit.
 
 Record each normative fact once. Reference the specification, Architecture Memory,
 project skill, research record, and contracts by path. Do not copy their contents

@@ -30,6 +30,14 @@ its own omission, and the coverage record becomes meaningless.
 
 Every lens has exactly one owner. Together the roles cover all eleven.
 
+For `plan-check` the subject is a plan, not code, so most lenses have nothing to
+look at. That review owns exactly four: `conformance` (does it deliver the
+approved specification), `correctness` (is it executable as written, with real
+paths and honest dependencies), `tests` (does non-trivial behavior get a check),
+and `complexity` (does the work need to exist, and does it reuse what is there).
+Everything else is `not-applicable`, because there is no code yet to secure,
+maintain, or make accessible.
+
 **Claude-only.** One independent read-only Fable Worker, the `my-plan-reviewer`
 agent, `reviewerRole: "sole"`, owning all eleven lenses. The Coordinator handles
 the ledger and remediation. Sonnet wrote the code, so the reviewer is a different

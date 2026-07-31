@@ -9,15 +9,24 @@ file only describes the transport.
 
 ## Model names
 
-`Sol` and `Luna` are role names, not model IDs. Resolve them once during setup by
-asking Codex what it actually offers, and record the resolved IDs in the Working
-Profile. Pass the resolved ID as `-c model="<id>"`, never the role name.
+`Sol` and `Luna` are role names, not model IDs. Resolve them during setup and
+record the resolved IDs in the Working Profile. Pass the resolved ID as
+`-c model="<id>"`, never the role name.
+
+Resolve without a TTY, in this order:
+
+1. `~/.codex/config.toml`, whose `model` key names what the user already runs.
+2. Any `model` set in `~/.codex/*.config.toml` profile overlays.
+3. If neither names one, ask the user during setup and record the answer.
+
+Do not call an interactive model picker: it needs a terminal and fails in a
+non-interactive session, which is where setup usually runs.
 
 Codex model IDs change between releases, so a pinned ID in this file would be
 wrong within months and fail as an unknown model rather than degrade. If a
 recorded ID stops resolving, re-probe at the next Run boundary and update the
-profile; if nothing suitable is offered, that is a failed capability probe and the
-backend falls back to `claude-only`.
+profile; if nothing suitable can be resolved, that is a failed capability probe
+and the backend falls back to `claude-only`.
 
 ## Capability probe
 

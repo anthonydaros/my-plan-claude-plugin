@@ -34,7 +34,7 @@
     "summary": { "type": "string", "minLength": 1 },
     "subjectHash": {
       "type": "string",
-      "description": "Hash of the exact subject reviewed. Must match the handoff snapshot hash.",
+      "description": "SHA-256 of the exact subject reviewed, which must equal the handoff's snapshotHash. The subject depends on mode: for plan-check it is the plan, so snapshotHash carries the plan hash; for audit it is the repository tree; otherwise it is the Review Subject diff.",
       "minLength": 7
     },
     "taskId": {
