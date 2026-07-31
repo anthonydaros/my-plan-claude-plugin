@@ -113,6 +113,7 @@ For each task:
    | The task was too large to hold at once | Split it and reassign. Then check whether its siblings are oversized too |
    | The plan itself is wrong | Return to planning with the evidence |
    | Failures are in files this task does not own | A parallel writer's in-flight edit, not a defect. Re-run the check once that task settles. Never escalate this |
+   | The host denied the Worker's write to a path inside its write set | Have the Worker return the exact intended content, apply it yourself byte for byte, and record in `implementation.md` what was applied and why the Worker could not. You are the Worker's hands here, not a second writer: never alter, extend, or improve what it specified |
    | `needsDecision: true` | A product question. It goes to the user, not to another Worker |
 
    Three failed attempts at the same finding means the defect is in the plan or
@@ -459,13 +460,19 @@ resume only the unpushed repositories. Never roll back published history.
 ### Completion
 
 Record in durable local Run state: exact commit identifiers, integration base,
-push result, verified remote SHA, completion status, and timestamp.
+push result, verified remote SHA, completion status, and timestamp. Compute and
+record the delivered subject hash alongside them, in the pinned form
+`project.md`'s hash table defines, over the integration base this record
+already carries. The in-flight hash stops being recomputable once the index
+moves; the delivered form is the one that still verifies weeks later.
 
 Create no post-push documentation commit. The approved specification stays
 unchanged.
 
-Remove the worktree and temporary branch only after remote SHA verification.
-Preserve unintegrated or dirty Runs for recovery.
+Remove the worktree and temporary branch only after remote SHA verification. In
+a repository with no remote there will never be one to wait for: the verified
+local fast-forward — the default branch resolving to the Run's final commit —
+takes its place. Preserve unintegrated or dirty Runs for recovery.
 
 Final status:
 

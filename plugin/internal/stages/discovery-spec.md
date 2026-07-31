@@ -249,10 +249,15 @@ Authority decisions, marked by source.
 
 The preliminary write set must include the Run's own paperwork as well as the
 product paths: the Run Dossier directory, the Architecture Memory when this Run
-updates it, and the Project Skill when this Run materializes it. Those files end
+updates it, the Project Skill when this Run materializes it, and the repository's
+changelog whenever the change is visible to a user of the software — the path the
+repository already uses, or `CHANGELOG.md` when none exists yet. Those files end
 up in the reviewed diff and the commit, so approval has to cover them. Omitting
 them does not make the Run safer; it makes the final review block on the Run's own
-records.
+records. The changelog earns its place for a sharper reason: delivery may not
+write outside the approved set, so a changelog missing here is a changelog the
+Run is forbidden to write later — the omission silently decides no entry will
+exist.
 
 Durable current architecture belongs in the Architecture Memory, not here. Task
 decisions belong here, not there.
@@ -288,9 +293,11 @@ If the user changes scope before approving, revise the specification and the
 summary. If they push back on something you recommended, that is their decision:
 record it and proceed with their choice.
 
-One affirmative reply authorizes everything downstream: worktree, project files,
-implementation, validation, review, remediation, commit, integration, and push. Do
-not ask again at each phase.
+One affirmative reply authorizes everything downstream that stays local:
+worktree, project files, implementation, validation, review, remediation, and
+commits on the Run's branch. Do not ask again at each phase.
 
-It never authorizes deployment or publishing. Those need separate explicit
+It never authorizes the push. Nothing leaves the machine until the push gate at
+the end of the Run, where the user approves once more, having seen the work. And
+it never authorizes deployment or publishing; those need separate explicit
 approval naming the target.

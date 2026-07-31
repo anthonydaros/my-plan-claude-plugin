@@ -18,9 +18,12 @@ they cannot be inside it. Those two files are limited to fixed-template Markdown
 at their exact Run Dossier paths and may never contain product code,
 configuration, or executable content.
 
-Hash the subject before dispatching review. Verify it again before approving. If
-it changed under the reviewer, the review is void: rerun affected validation and
-review the new subject.
+Hash the subject before dispatching review. Run `git add -N` over the Run-owned
+paths first: untracked files are invisible to `git diff`, and a subject hashed
+with part of itself invisible verifies cleanly while covering less than the
+approval thinks it does. Verify the hash again before approving. If it changed
+under the reviewer, the review is void: rerun affected validation and review the
+new subject.
 
 ## Reviewers
 

@@ -144,12 +144,26 @@ check $? "the push gate is stated to the Coordinator"
 grep -rq "## The push gate" "$PLUGIN/internal/stages/implementation.md"
 check $? "delivery stops at the push gate"
 
-# The approval of the spec must not read as authorizing the push.
+# The approval of the spec must not read as authorizing the push. The same claim
+# has appeared twice in different words, so two guards. The grep below is a broad
+# tripwire against the known ", and push." list shape — it may false-positive on
+# an innocuous future sentence, which is the acceptable cost of a tripwire. The
+# positive check after it is the real guarantee: the section must say the push is
+# not covered.
 if grep -q "remediation, commit, fast-forward integration, and push" "$PLUGIN/skills/my-plan-start/SKILL.md"; then
   fail "spec approval still claims to authorize push"
 else
   pass "spec approval stops at local commits"
 fi
+
+if grep -qE ', and push\.' "$PLUGIN/internal/stages/discovery-spec.md"; then
+  fail "approval section claims to authorize push (discovery-spec)"
+else
+  pass "discovery-spec approval stops at local commits"
+fi
+
+grep -q "It never authorizes the push" "$PLUGIN/internal/stages/discovery-spec.md"
+check $? "discovery-spec states the push is not covered by approval"
 
 grep -rq "Before every commit: check what you are about to publish" "$PLUGIN/internal/stages/implementation.md"
 check $? "staged sets are scanned before commit"
@@ -159,6 +173,38 @@ for pattern in 'PRIVATE KEY' 'AKIA' 'api[_-]?key' '.env' 'bearer '; do
   grep -qF -- "$pattern" "$PLUGIN/internal/stages/implementation.md"
   check $? "secret scan names $pattern"
 done
+
+echo "== field-test gaps stay closed"
+
+# Each of these was a real failure observed in a live end-to-end run. The fix is
+# prose, so only a literal check keeps a later edit from silently undoing it.
+
+grep -q "Delivered subject hash" "$PLUGIN/internal/stages/project.md"
+check $? "delivered subject hash is defined (recomputable after delivery)"
+
+grep -q "record the delivered subject hash" "$PLUGIN/internal/stages/implementation.md"
+check $? "completion records the delivered subject hash"
+
+grep -q "git add -N" "$PLUGIN/internal/stages/review.md"
+check $? "full-subject hashing makes untracked files visible first"
+
+grep -q "changelog whenever the change is visible" "$PLUGIN/internal/stages/discovery-spec.md"
+check $? "spec write set covers the changelog for user-visible changes"
+
+grep -q "no changelog path is a finding" "$PLUGIN/internal/prompts/plan-check.tpl"
+check $? "plan-check looks for the changelog in the write set"
+
+grep -q "Never substitute a location of your own" "$PLUGIN/internal/stages/project.md"
+check $? "an unwritable state root blocks setup instead of improvising"
+
+grep -q "not a second writer" "$PLUGIN/internal/stages/implementation.md"
+check $? "host-denied worker writes are applied byte for byte, never authored"
+
+grep -q "no remote there will never be one to wait for" "$PLUGIN/internal/stages/implementation.md"
+check $? "worktree removal covers the no-remote case"
+
+grep -q "no-ext-diff" "$PLUGIN/internal/stages/project.md"
+check $? "subject hashing pins the git diff invocation"
 
 echo "== contracts are strict-mode clean"
 

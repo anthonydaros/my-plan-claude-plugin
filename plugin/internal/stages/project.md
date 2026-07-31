@@ -155,6 +155,12 @@ Allow an explicit override, and offer one when the default would produce long
 worktree paths. Windows path limits are a real constraint on deep worktrees, not
 a theoretical one.
 
+A state root you cannot create or write is a blocked setup, not a decision
+point. Stop and report the exact denied path and the permission that would
+unblock it. Never substitute a location of your own: an override is the user's
+to give, and two sessions that each improvise a fallback end up with different
+roots and cannot resume each other's Runs.
+
 Report the resolved path. The user should know where their Run state lives and how
 to remove it.
 
@@ -195,7 +201,19 @@ first 12 characters in documents; keep the full digest in Run state.
 | Artifact hash | The file's exact bytes |
 | Spec hash | `spec.md`'s exact bytes, which is what approval freezes |
 | Review Subject hash | The output of `git diff <baseSha>` restricted to Run-owned paths, excluding `review.md` and `delivery.md` |
+| Delivered subject hash | `git diff <integrationBase> <finalSha>` under the same restriction: the committed form of the Review Subject, recorded at completion. The integration base is `<baseSha>` until a rebase moves it; after one it is the SHA the branch was replayed onto, because a diff from the original base would hash upstream work the Run never wrote |
 | Snapshot hash, when no diff exists (audit) | `git rev-parse HEAD^{tree}` |
+
+`git diff` does not see untracked files. Before computing any Review Subject
+hash, run `git add -N` over every Run-owned path; a hash computed while part of
+the subject is untracked covers less than it claims, verifies cleanly in the
+moment, and can never be reproduced once the files are staged. The working-tree
+form is index-dependent either way, which is why completion also records the
+delivered form: it is the one a reader can still recompute after the worktree is
+gone. Recompute means byte-identical, and `git diff` output depends on reader
+configuration — `diff.noprefix`, `diff.algorithm`, rename detection, external
+drivers — so both the computation and any later verification use the pinned
+invocation below, never a bare `git diff`.
 
 Compute them. Never write a hash you did not run a command to get.
 
@@ -203,8 +221,10 @@ Compute them. Never write a hash you did not run a command to get.
 # a file
 shasum -a 256 <path> | cut -c1-64          # macOS and Linux
 sha256sum <path> | cut -c1-64              # Linux, if shasum is absent
-# a diff
-git diff <baseSha> -- <paths> | shasum -a 256 | cut -c1-64
+# a diff — pinned so any session, any gitconfig, recomputes identical bytes
+git -c diff.noprefix=false -c diff.mnemonicPrefix=false -c diff.algorithm=myers \
+  diff --no-color --no-ext-diff --no-textconv --no-renames \
+  <baseSha> [<finalSha>] -- <paths> | shasum -a 256 | cut -c1-64
 # a tree, when no diff exists
 git rev-parse HEAD^{tree}
 ```

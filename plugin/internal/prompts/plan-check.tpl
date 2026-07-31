@@ -20,7 +20,10 @@ repository. You may read code and run read-only inspection.
    that it creates them? A step that cannot be executed without a decision the
    plan does not contain is blocked.
 3. **Write set.** Does the declared write set cover every path the steps actually
-   touch, and nothing more? An undeclared path is blocked.
+   touch, and nothing more? An undeclared path is blocked. A user-visible change
+   whose write set carries no changelog path is a finding: delivery may only
+   write inside this set, so the omission silently decides that no changelog
+   entry will exist.
 4. **Sequencing.** Do the dependencies reflect real ordering constraints? Phases
    invented for tidiness, where no step depends on the previous phase, are a
    finding.
