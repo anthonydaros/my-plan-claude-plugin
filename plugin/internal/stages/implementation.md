@@ -51,8 +51,12 @@ For each task:
    artifact paths and hashes, and the micro-gate commands. Pass the handoff path,
    never the documents themselves.
 
-   Claude-only: the `my-plan-implementer` agent, Sonnet. Hybrid: Luna via Codex,
-   workspace-write sandbox, per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
+   Hybrid: Terra at `high` via Codex, workspace-write sandbox, per
+   `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. Claude-only: the
+   `my-plan-implementer` agent, Sonnet at `high`. Some tasks belong on Luna and
+   some on Sol from the first attempt; the criteria are in
+   `${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md` and the choice is per task,
+   not per Run.
 
    Include a `kind: "task"` artifact: the instruction, the requirements that bear
    on this task, the paths, the dependencies already satisfied, and the checks
@@ -109,12 +113,16 @@ For each task:
    | Cause | Response |
    |-------|----------|
    | The handoff was missing context the Worker needed | Fix the handoff, re-dispatch in the same session |
-   | The task needs more reasoning than the model has | Escalate one step up the fallback table |
+   | The task needs more reasoning than the model has | Escalate one step: Luna to Terra, Terra to Sol at `xhigh`, Sonnet to Opus. Sol at `max` only after `xhigh` has failed |
    | The task was too large to hold at once | Split it and reassign. Then check whether its siblings are oversized too |
    | The plan itself is wrong | Return to planning with the evidence |
    | Failures are in files this task does not own | A parallel writer's in-flight edit, not a defect. Re-run the check once that task settles. Never escalate this |
    | The host denied the Worker's write to a path inside its write set | Have the Worker return the exact intended content, apply it yourself byte for byte, and record in `implementation.md` what was applied and why the Worker could not. You are the Worker's hands here, not a second writer: never alter, extend, or improve what it specified |
    | `needsDecision: true` | A product question. It goes to the user, not to another Worker |
+
+   An escalation moves the reviewer too. Sol reviews Terra's code, so a task Sol
+   wrote goes to `my-plan-reviewer-deep` on Opus instead; the writer never
+   reviews itself, whichever direction the ladder moved.
 
    Three failed attempts at the same finding means the defect is in the plan or
    the design, not in the attempt. Route it upward instead of patching a fourth

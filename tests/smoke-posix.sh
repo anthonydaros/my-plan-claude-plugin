@@ -69,7 +69,7 @@ echo "== agents"
 
 # Filename and frontmatter name must agree: the host lists agents by filename,
 # so a mismatch makes the agent unaddressable by the name its prompt claims.
-for a in discovery planner implementer reviewer; do
+for a in discovery planner implementer reviewer reviewer-deep; do
   f="$PLUGIN/agents/my-plan-$a.md"
   if [ ! -f "$f" ]; then fail "missing $f"; continue; fi
 
@@ -78,12 +78,18 @@ for a in discovery planner implementer reviewer; do
 
   frontmatter "$f" | grep -q "^tools: \["
   check $? "agent $a declares a bounded tool list"
+
+  # Effort is not overridable per dispatch, so whatever the file declares is what
+  # runs. An unrecognized value is dropped by the host and the Worker silently
+  # falls back to the session's effort.
+  frontmatter "$f" | grep -qE "^effort: (low|medium|high|xhigh|max)\$"
+  check $? "agent $a declares a valid effort"
 done
 
 # The writer/reviewer boundary is the one invariant a prompt edit could silently
 # break, so it gets its own check rather than trusting review. The reviewer
 # reviews both plans and code, so it is the one that must never gain a write tool.
-for a in discovery reviewer; do
+for a in discovery reviewer reviewer-deep; do
   if frontmatter "$PLUGIN/agents/my-plan-$a.md" | grep -qE '^tools: \[.*(Write|Edit|NotebookEdit)'; then
     fail "agent $a must stay read-only"
   else
@@ -98,14 +104,26 @@ done
 
 # Plan author and plan reviewer must not be the same model, and neither must the
 # code author and the code reviewer. Same-model review is the failure this whole
-# product exists to prevent.
+# product exists to prevent. Two reviewer agents exist because two Claude families
+# cannot cover both pairs from one file: the plan reviewer must differ from Opus,
+# and the claude-only code reviewer must differ from Sonnet.
 author=$(frontmatter "$PLUGIN/agents/my-plan-planner.md" | grep '^model:' | cut -d' ' -f2)
 critic=$(frontmatter "$PLUGIN/agents/my-plan-reviewer.md" | grep '^model:' | cut -d' ' -f2)
 coder=$(frontmatter "$PLUGIN/agents/my-plan-implementer.md" | grep '^model:' | cut -d' ' -f2)
+deep=$(frontmatter "$PLUGIN/agents/my-plan-reviewer-deep.md" | grep '^model:' | cut -d' ' -f2)
 [ "$author" != "$critic" ]
-check $? "plan author ($author) differs from reviewer ($critic)"
-[ "$coder" != "$critic" ]
-check $? "code author ($coder) differs from reviewer ($critic)"
+check $? "plan author ($author) differs from its reviewer ($critic)"
+[ "$coder" != "$deep" ]
+check $? "code author ($coder) differs from its reviewer ($deep)"
+[ "$critic" != "$deep" ]
+check $? "the two reviewers are different models ($critic, $deep)"
+
+# The two reviewers differ in model and in nothing else. A tool granted to one and
+# not the other makes the review boundary depend on which one got dispatched.
+r_tools=$(frontmatter "$PLUGIN/agents/my-plan-reviewer.md" | grep '^tools:')
+d_tools=$(frontmatter "$PLUGIN/agents/my-plan-reviewer-deep.md" | grep '^tools:')
+[ "$r_tools" = "$d_tools" ]
+check $? "both reviewers declare the same tool list"
 
 echo "== internal assets"
 

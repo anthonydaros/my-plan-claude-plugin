@@ -1,7 +1,8 @@
 ---
 name: my-plan-discovery
 description: Independent second opinion on a discovery packet. Verifies claims against real sources, surfaces what the packet missed, and separates disagreement from decisions only the user can make. Read-only.
-model: fable
+model: sonnet
+effort: high
 color: cyan
 tools: [Read, Grep, Glob, Bash, WebSearch, WebFetch]
 disallowedTools: Write, Edit, NotebookEdit

@@ -221,13 +221,22 @@ and review run again.
 
 Nobody reviews their own work.
 
-| Job | Claude only | With Codex |
-|-----|-------------|------------|
-| Discovery | Fable | Fable |
-| Write the plan | Opus | Opus |
-| Review the plan | Fable | Sol, xhigh |
-| Write the code | Sonnet | Luna |
-| Review the code | Fable | Sol xhigh + Fable |
+| Job | With Codex | Claude only |
+|-----|------------|-------------|
+| Discovery | Terra, high ×2 | Sonnet, high ×2 |
+| Write the plan | Sol, high | Opus, high |
+| Review the plan | Terra, high | Sonnet, high |
+| Write the code | Terra, high | Sonnet, high |
+| Review the code | Sol, high ×2 | Opus, high |
+
+Codex takes every job it can hold when it is available. Claude runs the rest: the
+review whose writer was the only other option, a subject too wide for a Codex
+thread, and everything at all when Codex is not installed or has run out.
+
+Deep jobs go to the tier that reasons hardest about one thing, wide jobs to the
+one that holds the most at once, and `high` is the default effort everywhere. A
+hard problem escalates — Sol at `xhigh`, or `max` for a critical exception — and a
+wide one splits across parallel workers instead.
 
 If Codex runs out of quota or credits mid-run, it switches to Claude and keeps
 going. Your spec, plan, worktree, diff, findings, and validation survive the

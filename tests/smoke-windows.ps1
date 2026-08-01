@@ -56,16 +56,17 @@ foreach ($s in @('install', 'start', 'audit')) {
 
 Write-Host '== agents'
 
-foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer')) {
+foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer', 'reviewer-deep')) {
     $f = Join-Path $plugin "agents\my-plan-$a.md"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing agent $a"; continue }
     $fm = Frontmatter $f
     Check ([bool]($fm -contains "name: my-plan-$a")) "agent $a name matches its filename"
+    Check ([bool]($fm -match '^effort: (low|medium|high|xhigh|max)$')) "agent $a declares a valid effort"
 }
 
 # The reviewer reviews both plans and code, so it is the one that must never gain
 # a write tool. The planner writes the plan; the implementer writes the code.
-foreach ($a in @('discovery', 'reviewer')) {
+foreach ($a in @('discovery', 'reviewer', 'reviewer-deep')) {
     $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
     Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) "agent $a is read-only"
 }
@@ -83,8 +84,10 @@ function ModelOf([string]$agent) {
 $author = ModelOf 'planner'
 $critic = ModelOf 'reviewer'
 $coder = ModelOf 'implementer'
-Check ($author -ne $critic) "plan author ($author) differs from reviewer ($critic)"
-Check ($coder -ne $critic) "code author ($coder) differs from reviewer ($critic)"
+$deep = ModelOf 'reviewer-deep'
+Check ($author -ne $critic) "plan author ($author) differs from its reviewer ($critic)"
+Check ($coder -ne $deep) "code author ($coder) differs from its reviewer ($deep)"
+Check ($critic -ne $deep) "the two reviewers are different models ($critic, $deep)"
 
 Write-Host '== commits stay the user''s'
 

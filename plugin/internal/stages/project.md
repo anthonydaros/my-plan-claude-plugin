@@ -47,41 +47,117 @@ log, or store a secret value.
 Codex passes every probe: `hybrid`. Anything else: `claude-only`, with the reason
 stated.
 
-`claude-only` is not a degraded mode. It completes the full flow. Present it as
-the default it is, not as a fallback the user should feel bad about.
+`claude-only` completes the full flow, every gate and every phase. It is what
+runs when Codex is missing or fails a probe, and saying which probe failed is
+more useful than apologizing for the mode. Do not present it as broken; do not
+present it as equivalent either, because the mapping below prefers Codex wherever
+Codex can run.
 
 ### Model mapping
 
-Use aliases and capability probes. Never pin a release-specific model ID; it will
-be wrong within months.
+Use aliases and role names, and capability probes to resolve them. Never pin a
+release-specific model ID; it will be wrong within months.
 
-Fable is used for discovery and for review. It does not create plans and it does
-not write code.
+**Codex first whenever the backend is `hybrid`.** The GPT tiers take every role
+they can hold, and Claude takes what is left. This is the user's standing
+preference, applied before anything else on this page.
 
-**Claude-only**
+Two properties then decide which tier holds which role. **Width** is how much a
+Worker can hold at once, and it is what discovery, a whole-repository audit, and
+a large diff need. **Depth** is how hard it reasons about a single tangled thing,
+and it is what a plan, a product judgement, and a concurrency bug need. On Codex
+the tiers run Luna, Terra, Sol; on Claude, Sonnet is the wide one and Opus the
+deep one.
 
-| Role | Model | Falls back to |
-|------|-------|---------------|
-| Discovery | Fable | Opus, then Sonnet |
-| Plan creation | Opus | Sonnet |
-| Plan review | Fable | Opus |
-| Implementation, tests, remediation | Sonnet | Opus |
-| Code review, coverage review | Fable | Opus, then a separate Sonnet session |
+Every Worker also carries a reasoning effort. `high` is the working default
+everywhere. `xhigh` and `max` are escalations spent on one hard problem, not a
+setting to leave on.
 
-**Hybrid** keeps discovery on Fable and plan creation on Opus, then uses Codex:
-Sol at `xhigh` effort for plan review and technical code review, Luna for
-implementation, and an independent Fable Worker for product review.
+Claude Workers declare their effort in their agent file, and the host has no
+per-dispatch effort override, so a Claude Worker runs at exactly what its file
+says. Escalating one means dispatching it with a different model; escalating
+effort means the Codex path. When a Run in `claude-only` needs more than Opus at
+`high`, say so plainly: that is a reason to prefer `hybrid`, not a knob this
+plugin has.
 
-Two rules survive every fallback. The model that wrote the plan never reviews the
-plan, and the session that wrote code never reviews that code. If the only
-remaining option would merge either pair, the Run blocks instead.
+**Claude-only.** No GPT tier is available, so every role is a Claude Worker.
+
+| Role | Worker | Runs at | Falls back to |
+|------|--------|---------|---------------|
+| Discovery | `my-plan-discovery` | Sonnet, `high` | Opus, by model override on dispatch |
+| Plan creation | `my-plan-planner` | Opus, `high` | Sonnet |
+| Plan review | `my-plan-reviewer` | Sonnet, `high` | Nothing below it: Opus wrote the plan |
+| Implementation, tests, remediation | `my-plan-implementer` | Sonnet, `high` | Opus, by model override on dispatch |
+| Code review, product review, coverage review | `my-plan-reviewer-deep` | Opus, `high` | Nothing below it: Sonnet wrote the code |
+| Audit, where no Worker wrote the subject | `my-plan-reviewer` | Sonnet, `high` | Opus, via `my-plan-reviewer-deep` |
+
+In `claude-only` the reviewer follows the writer, in both directions. Sonnet
+writes the code and Opus reviews it; if implementation escalates to Opus, code
+review moves to `my-plan-reviewer` on Sonnet. Two families cover both directions
+and nothing covers a third, so an escalation that would put the same model on
+both sides is refused, not quietly allowed.
+
+**Hybrid**
+
+| Role | Worker | Runs at | Escalates to |
+|------|--------|---------|--------------|
+| Discovery | Two Codex Workers over disjoint partitions | Terra, `high` | Sol `xhigh` on the second opinion |
+| Plan creation | Codex | Sol, `high` | Sol `xhigh` |
+| Plan review | Codex | Terra, `high` | Opus `high` via `my-plan-reviewer-deep`, because Sol wrote the plan |
+| Implementation, tests, remediation | Codex | Terra, `high` | Sol `xhigh`, then Sol `max` |
+| Technical code review | Codex | Sol, `high` | Sol `xhigh` |
+| Product review | Codex, in a session that saw no implementation | Sol, `high` | Opus `high` via `my-plan-reviewer-deep` |
+| Audit, where no Worker wrote the subject | Codex | Terra, `high` | Sol `xhigh` |
+
+Every hybrid row falls back to its `claude-only` equivalent when a Codex call
+fails. That fallback is sticky for the Run and recorded in `implementation.md`;
+`${CLAUDE_PLUGIN_ROOT}/internal/codex.md` classifies which failures fall back at
+once and which get one retry first.
+
+Luna at `high` replaces Terra for implementation when the plan leaves nothing to
+decide: a rename, a CRUD endpoint, a repeated test, a type fix. Luna at `medium`
+only when the change is mechanical outright. A task that needs a judgement call
+is not a Luna task, and downgrading one to save tokens buys another review round.
+
+Escalate to Sol on evidence, not on the third failure. Authorization,
+authentication, payments, migrations, concurrency, distributed caches, structural
+refactors, and bugs nobody can reproduce are Sol work from the first attempt. Sol
+at `max` is a critical exception after other attempts have failed, and using it
+is recorded in `implementation.md`.
+
+**Where Claude still runs in `hybrid`.** Three cases, and only these:
+
+1. **Independence.** A reviewer must not be the model that wrote the subject.
+   Where the ladder would put one model on both sides, the review crosses to
+   Claude instead. Two efforts of one model are one reviewer.
+2. **Width beyond the Codex window.** The Codex CLI carries far less context than
+   the same model reached through its API, so a whole-repository audit, a
+   monorepo-wide discovery, or a very large diff can exceed it. Split the subject
+   across GPT Workers by area or by lens first, and cross to Sonnet only when no
+   partition covers it. Report which one happened; they are different problems.
+3. **A failed call.** Authentication, quota, credit, and provider limits fall
+   back immediately, without retry.
+
+Two role names that resolve to the same model ID are one model, not two. If a
+user's Codex configuration collapses Terra and Sol that way, a Sol review of
+Terra's code is the writer reviewing itself: cross that review to Claude and
+record why in the Working Profile alongside the resolved IDs.
+
+Escalation is not the only move up. Discovery and technical review can also be
+split across parallel Workers that each own one area or one lens; `discovery-spec.md`
+and `review.md` say when that beats a single deeper Worker.
+
+Fable is not in the mapping. It remains available as a user override, and nothing
+in the flow depends on it: one less model to hold quota for, one less branch in
+every fallback.
 
 A configured user override wins over all of this. Show the effective mapping at
 setup and at the start of each Run.
 
-A fallback may reduce capability. It never lets the writer session review its own
-work. If the only remaining option would merge those identities, the Run blocks
-instead.
+A fallback may reduce capability. It never merges writer and reviewer: the model
+that wrote the plan does not review the plan, and the session that wrote code
+does not review that code. If the only remaining option would merge either pair,
+the Run blocks instead.
 
 ### Command aliases
 
@@ -116,9 +192,11 @@ and a Coordinator that verifies every changed path against Git and the approved
 write set before trusting anything. That last check is what actually catches a
 violation, which is why it is not optional.
 
-Never present the Claude read-only boundary as a sandbox. If a Run needs an
-enforced one, that is a reason to prefer the hybrid backend, not a reason to
-pretend.
+Never present the Claude read-only boundary as a sandbox. In `hybrid` the
+reviewers are Codex Workers and the boundary is real, but a review that crosses
+to Claude — for independence, or for a subject too wide for a Codex thread —
+crosses out of the sandbox at the same time. Say so when it happens; the
+Coordinator's path check is what covers it from there.
 
 ### Autonomous sessions
 

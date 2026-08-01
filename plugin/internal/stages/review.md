@@ -41,25 +41,65 @@ and `complexity` (does the work need to exist, and does it reuse what is there).
 Everything else is `not-applicable`, because there is no code yet to secure,
 maintain, or make accessible.
 
-**Claude-only.** One independent read-only Fable Worker, the `my-plan-reviewer`
-agent, `reviewerRole: "sole"`, owning all eleven lenses. The Coordinator handles
-the ledger and remediation. Sonnet wrote the code, so the reviewer is a different
-model as well as a different session.
+**Claude-only.** One independent read-only Worker, the `my-plan-reviewer-deep`
+agent on Opus at `high`, `reviewerRole: "sole"`, owning all eleven lenses. The
+Coordinator handles the ledger and remediation. Sonnet wrote the code, so the
+reviewer is a different model as well as a different session.
 
 **Hybrid.** Two independent read-only Workers review the same subject:
 
-| `reviewerRole` | Model | `ownedLenses` |
-|----------------|-------|---------------|
-| `product` | An independent Fable Worker | conformance, behavior, design, accessibility, ux |
-| `technical` | Sol at `xhigh` effort via Codex, read-only sandbox | correctness, security, maintainability, tests, performance, complexity |
+| `reviewerRole` | Worker | `ownedLenses` |
+|----------------|--------|---------------|
+| `product` | Codex on Sol at `high` | conformance, behavior, design, accessibility, ux |
+| `technical` | Codex on Sol at `high` | correctness, security, maintainability, tests, performance, complexity |
+
+Both are Sol because Terra wrote the code and Sol did not, and both run in
+separate threads that have seen none of the implementation. A reviewer that
+watched the code being written reviews its own reasoning.
+
+Sharing a tier means sharing its blind spots, which is the cost of this order and
+worth naming. Two subjects are worth paying to avoid it, and they cross in
+different directions: a product judgement the user has said matters more than
+throughput goes to `my-plan-reviewer-deep` on Opus, and a diff too wide for a
+Codex thread to hold at once goes to `my-plan-reviewer` on Sonnet.
+
+Escalate the technical role to Sol at `xhigh` when the subject is one deeply
+interlocking thing — a race, a transaction that can half-commit, a permission
+model. A wide subject splits instead; see below.
 
 Repository conventions are part of the maintainability lens, not a lens of their
 own. Complexity belongs to the technical reviewer: judging whether code needs to
 exist is a technical call, and leaving it unassigned means nobody makes it.
 
+**An audit has no writer.** Nothing was produced by this Run, so the independence
+rule that picks a reviewer does not apply and only width decides. Hybrid: Codex
+on Terra at `high`, `reviewerRole: "sole"`. Claude-only: one `my-plan-reviewer`
+Worker on Sonnet at `high`.
+
+A whole repository is the widest subject this product reviews, and it is the one
+most likely to exceed what a Codex thread can hold. When it does, split the audit
+into `product` and `technical` roles as a hybrid review does, then split the
+technical side by lens if it is still too wide. Cross to Sonnet only when no split
+covers the repository, and say that is why: a subject nobody could read whole is a
+different result from one a Worker chose not to.
+
 Dispatch Codex Workers per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
 
 Approval requires zero unresolved blockers from every active role.
+
+### Splitting a review instead of escalating
+
+A subject too large or too varied for one technical reviewer splits by specialty:
+several read-only Workers on Sol at `high`, each carrying
+`reviewerRole: "technical"` and a disjoint slice of the technical lenses —
+correctness, security, performance, tests, and maintainability with complexity.
+Every lens keeps exactly one owner, every Worker returns the same contract, and
+their findings merge into the Finding Ledger by key like any other round. There is
+no synthesis Worker: merging structured findings is the Coordinator's job.
+
+Split when the lenses need different kinds of attention. Escalate when one lens
+needs the same attention applied harder. Doing both at once returns the same
+finding several times and costs a round to deduplicate.
 
 ## Dispatch
 

@@ -56,8 +56,14 @@ reset, cleaned, or overwritten.
 Render `plan.md` from
 `${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/plan.md.tpl`.
 
-Dispatch the `my-plan-planner` agent, Opus, in both backends. Fable does discovery
-and review; it does not plan.
+A plan is a depth problem, so it goes to the deepest tier available. Hybrid: Sol
+at `high` via Codex, per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. Claude-only:
+the `my-plan-planner` agent, Opus at `high`.
+
+`high` is the working default, because a plan is rarely improved by spending
+twice as long on it. A plan that changes architecture, moves data, spans several
+systems, or makes a decision nobody can walk back is the exception, and it
+escalates to Sol at `xhigh`.
 
 Build a handoff with `role: "planner"`, `mode: "plan-write"`, and artifact paths
 and hashes for whichever of these exist: the approved specification, the discovery
@@ -70,7 +76,9 @@ file that is not there, and never omit one that is.
 
 Copy any pre-approval artifact the Worker needs into `<worktree>/.my-plan/` before
 dispatching, and point the handoff at the copy. A Worker confined to the worktree,
-which every Codex Worker is, cannot read a Run artifacts path outside it.
+which every Codex Worker is, cannot read a Run artifacts path outside it — and a
+plugin path is outside it too, so a Codex planner gets `plan.md.tpl` copied there
+as well.
 
 Add `.my-plan/` to the worktree's `.git/info/exclude` when creating the worktree,
 so those copies never reach the Review Subject or a commit.
@@ -171,9 +179,18 @@ sequencing turns a parallel plan into a slow one for no safety gained.
 
 ## Plan review
 
-Dispatch a different Worker than the one that wrote the plan. Claude-only: the
-`my-plan-reviewer` agent, Fable, read-only. Hybrid: Sol at `xhigh` effort via
-Codex, read-only sandbox, per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
+Dispatch a different Worker than the one that wrote the plan. Hybrid: Terra at
+`high` via Codex, read-only sandbox, per
+`${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. Claude-only: the `my-plan-reviewer`
+agent, Sonnet at `high`, read-only. Either way the reviewer is a different model
+as well as a different session, because Sol wrote the plan in one backend and
+Opus in the other.
+
+Terra at `high` is not the stronger reviewer; it is enough for most plan reviews
+at a fraction of the cost, which is why it goes first. Escalating it cannot mean
+Sol, which wrote the plan: when Terra reports a blocker it cannot resolve, or the
+plan touches security, concurrency, payments, infrastructure, or a data
+migration, the review crosses to `my-plan-reviewer-deep` on Opus.
 
 Build a handoff matching `${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json`
 with `role: "reviewer"`, `mode: "plan-check"`, and artifact paths and hashes for

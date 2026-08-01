@@ -2,6 +2,7 @@
 name: my-plan-planner
 description: Turns an approved specification into an executable plan of small, precisely scoped tasks with exact paths, dependencies, and checks. Writes the plan only. Never reviews it, and never writes product code.
 model: opus
+effort: high
 color: purple
 tools: [Read, Write, Edit, Grep, Glob, Bash]
 ---
