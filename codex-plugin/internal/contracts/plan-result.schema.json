@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "my-plan/plan-result",
+  "title": "Planning Worker Result",
+  "description": "Structured result from a Worker that writes exactly one executable plan.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "planPath",
+    "planHash",
+    "summary",
+    "blockers"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["complete", "blocked"]
+    },
+    "planPath": {
+      "type": ["string", "null"]
+    },
+    "planHash": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "needsDecision"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "needsDecision": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
