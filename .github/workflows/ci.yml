@@ -48,10 +48,11 @@ jobs:
     # Codex CLI has no validate subcommand. Installing from an isolated local
     # marketplace exercises the real ingestion and cache path instead.
     runs-on: ubuntu-latest
-    env:
-      CODEX_HOME: ${{ runner.temp }}/codex-home
     steps:
       - uses: actions/checkout@v5
+
+      - name: Isolate Codex state
+        run: echo "CODEX_HOME=$RUNNER_TEMP/codex-home" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v5
         with:
