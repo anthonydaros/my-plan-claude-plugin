@@ -1,0 +1,35 @@
+{
+  "name": "my-plan",
+  "version": "0.1.0",
+  "description": "Carry one approved specification through discovery, planning, isolated implementation, validation, independent review, and delivery in Codex.",
+  "author": {
+    "name": "Anthony Max",
+    "url": "https://github.com/anthonydaros"
+  },
+  "license": "MIT",
+  "keywords": [
+    "specification",
+    "planning",
+    "review",
+    "delivery",
+    "worktree",
+    "orchestration"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "My Plan",
+    "shortDescription": "Plan, build, review, and deliver safely",
+    "longDescription": "Carry one approved specification through discovery, planning, isolated implementation, validation, independent review, local commits, and an explicit push gate.",
+    "developerName": "Anthony Max",
+    "category": "Development",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use My Plan to turn this goal into reviewed, validated code.",
+      "Use My Plan to audit this repository before changing it.",
+      "Use My Plan to initialize this repository."
+    ]
+  }
+}

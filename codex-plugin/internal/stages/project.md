@@ -1,7 +1,7 @@
 # Stage: Project
 
 Environment setup, repository facts, and the two durable memory artifacts. Loaded
-by `/my-plan:install`, and automatically by the other actions when setup is
+by `$my-plan:install`, and automatically by the other actions when setup is
 missing.
 
 This module never asks the user something the machine can answer.
@@ -20,19 +20,18 @@ fails its probe is not supported.
 
 | Capability | Probe | If missing |
 |------------|-------|------------|
-| Claude Code 2.1.216+ | `claude --version`, compared numerically | Give the exact upgrade command for their platform |
+| Codex CLI | `codex --version`, `codex exec --help`, `codex exec resume --help`, and `codex login status`; verify every flag named in `internal/codex.md` | Give the exact installation, upgrade, or login command for the platform |
 | Git 2.28+ | `git --version`. 2.28 is the floor because `git init -b` needs it | Give the exact install command for their platform |
 | Context7 | One real documentation query that returns content | Give the exact connection steps |
 
-Claude must expose: structured questions, `WebSearch`, `WebFetch`, model
-selection, isolated agents, and the native file and shell tools. You are running
-inside Claude Code, so check your own tool availability rather than shelling out.
+The parent session must expose structured user questions and native file and
+shell tools. Discovery also needs a web research capability. Check the current
+session rather than assuming a feature from the CLI version.
 
 **Optional. Report and continue.**
 
 | Capability | Probe | If missing |
 |------------|-------|------------|
-| Codex CLI | `codex --version`, then `codex exec --help` and `codex exec resume --help`, checking that the help text lists `-C`, `--sandbox`, `--json`, `--output-schema`, and `-o`. Then `codex login status` for authentication | Select `claude-only`, name the missing capability, continue |
 | GitHub CLI | `gh --version` and `gh auth status` | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
 | Playwright | `playwright --version`, then `playwright-cli --version`. Either counts | Recommend it for browser validation. Never block on it |
 
@@ -42,187 +41,87 @@ probe that costs a model call is a probe people learn to skip.
 Report installed versions and whether authentication is ready. Never read, echo,
 log, or store a secret value.
 
-### Backend selection
+### Runtime
 
-Codex passes every probe: `hybrid`. Anything else: `claude-only`, with the reason
-stated.
-
-`claude-only` completes the full flow, every gate and every phase. It is what
-runs when Codex is missing or fails a probe, and saying which probe failed is
-more useful than apologizing for the mode. Do not present it as broken; do not
-present it as equivalent either, because the mapping below prefers Codex wherever
-Codex can run.
+The only runtime is `codex-only`. Record it in `profile.json` and every
+`run.json`. A failed required probe leaves setup incomplete with the exact reason;
+it never selects another host or silently weakens a boundary.
 
 ### Model mapping
 
 Use aliases and role names, and capability probes to resolve them. Never pin a
 release-specific model ID; it will be wrong within months.
 
-**Codex first whenever the backend is `hybrid`.** The GPT tiers take every role
-they can hold, and Claude takes what is left. This is the user's standing
-preference, applied before anything else on this page.
-
-Two properties then decide which tier holds which role. **Width** is how much a
+Two properties decide which tier holds which role. **Width** is how much a
 Worker can hold at once, and it is what discovery, a whole-repository audit, and
 a large diff need. **Depth** is how hard it reasons about a single tangled thing,
-and it is what a plan, a product judgement, and a concurrency bug need. On Codex
-the tiers run Luna, Terra, Sol; on Claude, Sonnet is the wide one and Opus the
-deep one.
+and it is what a plan, a product judgement, and a concurrency bug need. The tiers
+are Luna, Terra, and Sol.
 
 Every Worker also carries a reasoning effort. `high` is the working default
 everywhere. `xhigh` and `max` are escalations spent on one hard problem, not a
 setting to leave on.
 
-Claude Workers declare their effort in their agent file, and the host has no
-per-dispatch effort override, so a Claude Worker runs at exactly what its file
-says. Escalating one means dispatching it with a different model; escalating
-effort means the Codex path. When a Run in `claude-only` needs more than Opus at
-`high`, say so plainly: that is a reason to prefer `hybrid`, not a knob this
-plugin has.
-
-**Claude-only.** No GPT tier is available, so every role is a Claude Worker.
-
-| Role | Worker | Runs at | Falls back to |
-|------|--------|---------|---------------|
-| Discovery | `my-plan-discovery` | Sonnet, `high` | Opus, by model override on dispatch |
-| Plan creation | `my-plan-planner` | Opus, `high` | Sonnet |
-| Plan review | `my-plan-reviewer` | Sonnet, `high` | Nothing below it: Opus wrote the plan |
-| Implementation, tests, remediation | `my-plan-implementer` | Sonnet, `high` | Opus, by model override on dispatch |
-| Code review, product review, coverage review | `my-plan-reviewer-deep` | Opus, `high` | Nothing below it: Sonnet wrote the code |
-| Audit, where no Worker wrote the subject | `my-plan-reviewer` | Sonnet, `high` | Opus, via `my-plan-reviewer-deep` |
-
-In `claude-only` the reviewer follows the writer, in both directions. Sonnet
-writes the code and Opus reviews it; if implementation escalates to Opus, code
-review moves to `my-plan-reviewer` on Sonnet. Two families cover both directions
-and nothing covers a third, so an escalation that would put the same model on
-both sides is refused, not quietly allowed.
-
-**Hybrid**
-
-| Role | Worker | Runs at | Escalates to |
-|------|--------|---------|--------------|
-| Discovery | Two Codex Workers over disjoint partitions | Terra, `high` | Sol `xhigh` on the second opinion |
-| Plan creation | Codex | Sol, `high` | Sol `xhigh` |
-| Plan review | Codex | Terra, `high` | Opus `high` via `my-plan-reviewer-deep`, because Sol wrote the plan |
-| Implementation, tests, remediation | Codex | Terra, `high` | Sol `xhigh`, then Sol `max` |
-| Technical code review | Codex | Sol, `high` | Sol `xhigh` |
-| Product review | Codex, in a session that saw no implementation | Sol, `high` | Opus `high` via `my-plan-reviewer-deep` |
-| Audit, where no Worker wrote the subject | Codex | Terra, `high` | Sol `xhigh` |
-
-Every hybrid row falls back to its `claude-only` equivalent when a Codex call
-fails. That fallback is sticky for the Run and recorded in `implementation.md`;
-`${CLAUDE_PLUGIN_ROOT}/internal/codex.md` classifies which failures fall back at
-once and which get one retry first.
+| Role | Runs at | Escalation |
+|------|---------|------------|
+| Discovery | Two Terra Workers over disjoint partitions, `high` | More Terra partitions; `xhigh` for one hard question |
+| Plan creation | Sol, `high` | Sol `xhigh`, then `max` for a critical irreversible plan |
+| Plan review | Terra, `high` | A fresh Terra session at `xhigh`; never Sol, which wrote the plan |
+| Implementation, tests, remediation | Terra, `high` | Terra `xhigh`, then `max`; never Sol, which reviews the code |
+| Technical code review | Sol, `high` | A fresh Sol session at `xhigh` |
+| Product review | Sol, `high`, in a session that saw no implementation | A fresh Sol session at `xhigh` |
+| Audit, where no Worker wrote the subject | Terra, `high` | More Terra partitions, then Terra `xhigh` |
 
 Luna at `high` replaces Terra for implementation when the plan leaves nothing to
 decide: a rename, a CRUD endpoint, a repeated test, a type fix. Luna at `medium`
 only when the change is mechanical outright. A task that needs a judgement call
 is not a Luna task, and downgrading one to save tokens buys another review round.
 
-Escalate to Sol on evidence, not on the third failure. Authorization,
-authentication, payments, migrations, concurrency, distributed caches, structural
-refactors, and bugs nobody can reproduce are Sol work from the first attempt. Sol
-at `max` is a critical exception after other attempts have failed, and using it
-is recorded in `implementation.md`.
-
-**Where Claude still runs in `hybrid`.** Three cases, and only these:
-
-1. **Independence.** A reviewer must not be the model that wrote the subject.
-   Where the ladder would put one model on both sides, the review crosses to
-   Claude instead. Two efforts of one model are one reviewer.
-2. **Width beyond the Codex window.** The Codex CLI carries far less context than
-   the same model reached through its API, so a whole-repository audit, a
-   monorepo-wide discovery, or a very large diff can exceed it. Split the subject
-   across GPT Workers by area or by lens first, and cross to Sonnet only when no
-   partition covers it. Report which one happened; they are different problems.
-3. **A failed call.** Authentication, quota, credit, and provider limits fall
-   back immediately, without retry.
-
 Two role names that resolve to the same model ID are one model, not two. If a
-user's Codex configuration collapses Terra and Sol that way, a Sol review of
-Terra's code is the writer reviewing itself: cross that review to Claude and
-record why in the Working Profile alongside the resolved IDs.
+user's configuration collapses Terra and Sol that way, setup may complete its
+read-only inventory but `$my-plan:start` blocks before planning. Record the
+collision beside the resolved IDs and ask for a distinct mapping.
 
 Escalation is not the only move up. Discovery and technical review can also be
 split across parallel Workers that each own one area or one lens; `discovery-spec.md`
 and `review.md` say when that beats a single deeper Worker.
 
-Fable is not in the mapping. It remains available as a user override, and nothing
-in the flow depends on it: one less model to hold quota for, one less branch in
-every fallback.
-
 A configured user override wins over all of this. Show the effective mapping at
 setup and at the start of each Run.
 
-A fallback may reduce capability. It never merges writer and reviewer: the model
-that wrote the plan does not review the plan, and the session that wrote code
-does not review that code. If the only remaining option would merge either pair,
-the Run blocks instead.
+The model that wrote the plan does not review the plan, and the model that wrote
+code does not review that code. If an unavailable model or exhausted quota leaves
+only one side of either pair, persist the Run and block.
 
-### Command aliases
+### Read-only boundary
 
-Check what already owns each bare name. Look at the skills and commands visible in
-this session, plus `.claude/skills/`, `.claude/commands/`, `~/.claude/skills/`,
-and `~/.claude/commands/`. A name defined in any of them wins over a plugin skill.
-
-For each of `/install`, `/start`, `/audit`:
-
-- Free: the bare alias works. Report it.
-- Owned by a personal, project, enterprise, or other plugin command: that command
-  wins. Report the collision and the exact `/my-plan:*` fallback.
-
-Never create a standalone skill, change command precedence, or overwrite a command
-the user already has.
-
-### How the read-only boundary is actually enforced
-
-Be honest about this, because the two backends are not equally strong.
-
-**Codex Workers** get a real sandbox. `--sandbox read-only` is enforced by the
-process, and a reviewer cannot write even if its prompt were wrong.
-
-**Claude Workers** get a narrow `tools` list plus `disallowedTools`, which removes
-`Write`, `Edit`, and `NotebookEdit`. But reviewers keep `Bash`, because they need
-`git diff`, `git log`, and read-only inspection to do the job at all, and `Bash`
-can write. `permissionMode` is ignored for agents that come from a plugin, so the
-plugin cannot close that gap itself.
-
-So for Claude reviewers the boundary is: no write tools, an explicit instruction,
-and a Coordinator that verifies every changed path against Git and the approved
-write set before trusting anything. That last check is what actually catches a
-violation, which is why it is not optional.
-
-Never present the Claude read-only boundary as a sandbox. In `hybrid` the
-reviewers are Codex Workers and the boundary is real, but a review that crosses
-to Claude — for independence, or for a subject too wide for a Codex thread —
-crosses out of the sandbox at the same time. Say so when it happens; the
-Coordinator's path check is what covers it from there.
+Discovery, plan review, code review, and audit always start with
+`--sandbox read-only`. The process boundary prevents writes even when a prompt is
+wrong. Planning and implementation use `--sandbox workspace-write`, bounded by
+the handoff write set and verified against Git by the Coordinator.
 
 ### Autonomous sessions
 
-Offer to reduce routine permission prompts. Default to: native `dontAsk`, narrow
-tool lists per agent, read-only discovery and review agents, explicit write sets
-for implementation, and Git safety instructions.
+Explain the fixed child-session sandboxes and keep the parent session's current
+permission profile. Never broaden it merely to reduce routine prompts.
 
 Unrestricted bypass is an advanced explicit opt-in with the host's own safety
 warning. Never enable it silently or through repository configuration.
 
 ### State root
 
-`~/.claude/plugins/data/my-plan-my-plan/`, on Windows
-`%USERPROFILE%\.claude\plugins\data\my-plan-my-plan\`. Create it if it does not
+`~/.codex/plugins/data/my-plan-my-plan/`, on Windows
+`%USERPROFILE%\.codex\plugins\data\my-plan-my-plan\`. Create it if it does not
 exist yet; the host does not create it for you.
 
 That is the host's per-plugin data directory, and it survives plugin updates,
 which is exactly what Run state and worktrees need.
 
-Use the literal path, not `${CLAUDE_PLUGIN_DATA}`. That variable is exported to
-hook processes and MCP subprocesses, not to the session running these
-instructions, so reading it here yields an empty string. Two sessions that each
-substitute their own guess end up with different state roots and cannot resume
-each other's Runs.
+Use the literal path. Hook-only environment variables are not guaranteed in the
+session running these instructions; two sessions that substitute guesses can end
+up with different state roots and cannot resume each other's Runs.
 
-Never put state under `${CLAUDE_PLUGIN_ROOT}`. That path is the installed plugin
+Never put state under `<pluginRoot>`. That path is the installed plugin
 copy and it changes on every update, so anything written there is lost the first
 time the user upgrades.
 
@@ -368,7 +267,7 @@ stopped, so its shape cannot be left to whoever writes it first.
   "slug": "add-input-validation",
   "goal": "add input validation to the task API",
   "mode": "repository",
-  "backend": "hybrid",
+  "runtime": "codex-only",
   "phase": "implementation",
   "status": "active",
   "repoKey": "task-api-75d0b10a",
@@ -429,7 +328,7 @@ Discover, do not ask:
 - Test framework and where tests live.
 - Default branch, remotes, and Git identity.
 - CI configuration and what it actually enforces.
-- Existing `CLAUDE.md`, `AGENTS.md`, ADRs, and canonical documentation.
+- Existing agent instruction files, ADRs, and canonical documentation.
 - Deployment configuration, if any.
 
 Ask only what the repository cannot answer: delivery constraints, a genuinely
@@ -488,25 +387,29 @@ and reaches the repository only if the user accepts a scope and the work proceed
 
 | Invocation | Where |
 |------------|-------|
-| `/my-plan:install` in a repository | Materialize directly. The user asked for it |
-| First `/my-plan:start` or `/my-plan:audit` in an uninitialized repository | Transient profile in Run state. Materialize files in the worktree after approval |
+| `$my-plan:install` in a repository | Materialize directly. The user asked for it |
+| First `$my-plan:start` or `$my-plan:audit` in an uninitialized repository | Transient profile in Run state. Materialize files in the worktree after approval |
 
 This keeps discovery read-only and the primary checkout clean.
 
 ## Part 3: Project Skill
 
-One hidden skill per repository, at `.claude/skills/my-plan-project/`.
+One hidden skill per repository, at `.agents/skills/my-plan-project/`.
 
 ```text
-.claude/skills/my-plan-project/
+.agents/skills/my-plan-project/
 ├── SKILL.md
+├── agents/openai.yaml
 ├── project.json
 └── references/              # only when needed
     └── <topic>.md
 ```
 
-Render `SKILL.md` from `${CLAUDE_PLUGIN_ROOT}/internal/templates/project-skill.md.tpl`.
-It is a short navigator, not a manual.
+Render `SKILL.md` from `<pluginRoot>/internal/templates/project-skill.md.tpl`.
+Render `agents/openai.yaml` from
+`<pluginRoot>/internal/templates/project-skill-openai.yaml.tpl`. The policy keeps
+the repository skill path-only rather than implicitly injecting it into every
+turn. `SKILL.md` is a short navigator, not a manual.
 
 `references/` does not exist by default. Create a file there only when stack
 rules, validation, tooling, architecture, or review guidance cannot be represented
@@ -514,9 +417,9 @@ by an existing canonical repository document or the Architecture Memory. Link th
 repository's own documentation instead of copying it.
 
 Never rewrite the installed plugin to specialize a repository. Never modify
-`CLAUDE.md`, `AGENTS.md`, custom skills, or canonical documentation. On upgrade,
-migrate the schema idempotently; when you find an edit you do not recognize, stop
-for reconciliation rather than overwriting it.
+existing agent instructions, custom skills, or canonical documentation. On
+upgrade, migrate the schema idempotently; when you find an edit you do not
+recognize, stop for reconciliation rather than overwriting it.
 
 Workspace Mode creates one independent Project Skill per child repository.
 

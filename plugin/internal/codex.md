@@ -7,11 +7,12 @@ Every rule in the stage modules still holds: bounded handoffs, contract-shaped
 results, read-only reviewers, and a writer that never reviews its own work. This
 file only describes the transport.
 
-## Model names
+## Model names and effort
 
-`Sol` and `Luna` are role names, not model IDs. Resolve them during setup and
-record the resolved IDs in the Working Profile. Pass the resolved ID as
-`-c model="<id>"`, never the role name.
+`Terra`, `Luna`, and `Sol` are role names for three reasoning tiers, not model
+IDs: Luna is the cheap tier, Terra the working default, Sol the strongest one.
+Resolve all three during setup and record the resolved IDs in the Working
+Profile. Pass a resolved ID as `-c model="<id>"`, never the role name.
 
 Resolve without a TTY, in this order:
 
@@ -19,8 +20,17 @@ Resolve without a TTY, in this order:
 2. Any `model` set in `~/.codex/*.config.toml` profile overlays.
 3. If neither names one, ask the user during setup and record the answer.
 
+One ID may serve more than one tier when the user runs a single model. Record
+that as it is; do not invent a second ID to fill a row.
+
 Do not call an interactive model picker: it needs a terminal and fails in a
 non-interactive session, which is where setup usually runs.
+
+Effort is a per-call flag, `-c model_reasoning_effort="$EFFORT"`, not a property
+of the resolved model. Which tier and which effort a role gets is decided in
+`${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md`; this file only passes both
+through. `xhigh` and `max` are escalations, and sending one by default spends
+time and tokens on every call that carries it.
 
 Codex model IDs change between releases, so a pinned ID in this file would be
 wrong within months and fail as an unknown model rather than degrade. If a
@@ -46,7 +56,7 @@ codex exec \
   --color never \
   -C "$WORKTREE" \
   -c model="$MODEL" \
-  -c model_reasoning_effort=xhigh \
+  -c model_reasoning_effort="$EFFORT" \
   --output-schema "$SCHEMA" \
   -o "$RESULT_FILE" \
   "$PROMPT" \
@@ -55,12 +65,14 @@ codex exec \
   2>"$EVENTS_FILE.stderr"
 ```
 
-The implementation role is identical except `--sandbox workspace-write`.
+The roles that write — implementation, and plan creation in `hybrid` — are
+identical except `--sandbox workspace-write`.
 
 | Flag | Why it is there |
 |------|-----------------|
 | `--json` | Emits the JSONL event stream on stdout. The thread ID comes from it |
 | `--sandbox` | The tool boundary for the role. Read-only for every reviewer |
+| `-c model_reasoning_effort` | This call's effort for the resolved tier. It travels per call, so an escalation raises it without changing the model |
 | `-C` | Where the Worker operates: the Run's worktree after approval. Before approval, and for an audit, no worktree exists and this is the primary checkout, made safe by `--sandbox read-only` rather than by isolation |
 | `--output-schema` | Host-enforced structured output, pointed at the role's contract in `contracts/` |
 | `-o` | Writes the Worker's final message to a file: the result to validate |
@@ -105,7 +117,7 @@ codex exec resume "$THREAD_ID" \
   --json \
   --skip-git-repo-check \
   -c model="$MODEL" \
-  -c model_reasoning_effort=xhigh \
+  -c model_reasoning_effort="$EFFORT" \
   --output-schema "$SCHEMA" \
   -o "$RESULT_FILE" \
   "$PROMPT" \

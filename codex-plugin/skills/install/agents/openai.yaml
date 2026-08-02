@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Install"
+  short_description: "Initialize My Plan for this repository"
+  default_prompt: "Use $my-plan:install to initialize or repair My Plan in this repository."
+policy:
+  allow_implicit_invocation: false

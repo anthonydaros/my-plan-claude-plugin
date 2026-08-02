@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Audit"
+  short_description: "Audit a repository without changing it"
+  default_prompt: "Use $my-plan:audit to inspect this repository and report actionable findings without changing code."
+policy:
+  allow_implicit_invocation: false

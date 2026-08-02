@@ -46,17 +46,14 @@ Run them in sequence and correct the plan.
 For each task:
 
 1. **Assign.** Build a handoff matching
-   `${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json` with
+   `<pluginRoot>/internal/contracts/handoff.schema.json` with
    `role: "implementer"`, `mode: "build"`, this task's ID, the write set,
    artifact paths and hashes, and the micro-gate commands. Pass the handoff path,
    never the documents themselves.
 
-   Hybrid: Terra at `high` via Codex, workspace-write sandbox, per
-   `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. Claude-only: the
-   `my-plan-implementer` agent, Sonnet at `high`. Some tasks belong on Luna and
-   some on Sol from the first attempt; the criteria are in
-   `${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md` and the choice is per task,
-   not per Run.
+   Use Terra at `high` via a workspace-write child session per
+   `<pluginRoot>/internal/codex.md`. A mechanical task may use Luna only when
+   Luna resolves to a model distinct from Sol; Sol remains reserved for review.
 
    Include a `kind: "task"` artifact: the instruction, the requirements that bear
    on this task, the paths, the dependencies already satisfied, and the checks
@@ -93,7 +90,7 @@ For each task:
    history. Resetting mid-task throws away context that was still working.
 
 3. **Verify the claim.** Validate the returned result against
-   `${CLAUDE_PLUGIN_ROOT}/internal/contracts/build-result.schema.json`, then check
+   `<pluginRoot>/internal/contracts/build-result.schema.json`, then check
    `changedPaths` against the real Git diff and the approved write set. A Worker's
    report of what it changed is a claim; Git is the evidence. A path outside the
    write set stops the task.
@@ -113,16 +110,15 @@ For each task:
    | Cause | Response |
    |-------|----------|
    | The handoff was missing context the Worker needed | Fix the handoff, re-dispatch in the same session |
-   | The task needs more reasoning than the model has | Escalate one step: Luna to Terra, Terra to Sol at `xhigh`, Sonnet to Opus. Sol at `max` only after `xhigh` has failed |
+   | The task needs more reasoning than the model has | Move Luna to Terra, or raise Terra to `xhigh`, then `max`. Never move implementation to Sol, which owns review |
    | The task was too large to hold at once | Split it and reassign. Then check whether its siblings are oversized too |
    | The plan itself is wrong | Return to planning with the evidence |
    | Failures are in files this task does not own | A parallel writer's in-flight edit, not a defect. Re-run the check once that task settles. Never escalate this |
    | The host denied the Worker's write to a path inside its write set | Have the Worker return the exact intended content, apply it yourself byte for byte, and record in `implementation.md` what was applied and why the Worker could not. You are the Worker's hands here, not a second writer: never alter, extend, or improve what it specified |
    | `needsDecision: true` | A product question. It goes to the user, not to another Worker |
 
-   An escalation moves the reviewer too. Sol reviews Terra's code, so a task Sol
-   wrote goes to `my-plan-reviewer-deep` on Opus instead; the writer never
-   reviews itself, whichever direction the ladder moved.
+   Sol reviews Terra's code. An escalation may increase Terra's effort but never
+   changes the writer to Sol; the writer model never reviews itself.
 
    Three failed attempts at the same finding means the defect is in the plan or
    the design, not in the attempt. Route it upward instead of patching a fourth
@@ -172,7 +168,7 @@ For each task:
 8. **Stage and record.** Stage only paths this task and this Run own. Never
    `git add -A`. Confirm the completed plan checkbox against the actual diff, then
    update `implementation.md`, rendering it from
-   `${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/implementation.md.tpl` on
+   `<pluginRoot>/internal/templates/documents/implementation.md.tpl` on
    the first task.
 
    Staging is the checkpoint. The next task's delta is then measured against the
@@ -243,31 +239,25 @@ So review the complete feature diff before the Validation Gate, looking for:
 - Dead code left behind by a later task.
 - Files that were never supposed to be there.
 
-## Codex fallback
+## Worker failure
 
 Failure classification and the exact invocations are in
-`${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. In short: authentication, quota, usage,
-credit, and explicit provider limits fall back immediately without retry;
-transient failures get one bounded retry first.
+`<pluginRoot>/internal/codex.md`. Authentication, quota, usage, credit, missing
+models, and explicit provider limits block immediately; transient failures get
+one bounded retry first.
 
-The transition is sticky for this Run. Record phase, role, error class,
-replacement model, and time in `implementation.md`. A later Run probes Codex
-again.
-
-Fallback continues from current canonical artifacts. It never repeats discovery,
-requests approval again, or discards valid work. If a Codex Worker left a partial
-diff, verify the real changed paths against the write set first, then let Sonnet
-continue the remaining tasks in the same worktree.
-
-A fallback never merges writer and reviewer identities. If the only remaining
-option would, the Run blocks instead.
+Before blocking, record phase, role, error class, model, thread ID, and time in
+`implementation.md`. Preserve current canonical artifacts and any valid work. A
+resume never repeats discovery, asks for approval again, or discards the diff.
+If a Worker left a partial diff, verify its real changed paths against the write
+set before persisting the blocked state.
 
 ## Validation Gate
 
 Runs before commit, and again after every remediation round.
 
 Render `validation.md` from
-`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/validation.md.tpl`.
+`<pluginRoot>/internal/templates/documents/validation.md.tpl`.
 
 Always run: every affected test, and every required command in the Project
 Profile.
@@ -310,7 +300,7 @@ A failure here returns to remediation. It does not block the Run.
 ### Manifest
 
 Render `delivery.md` from
-`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/delivery.md.tpl` before
+`<pluginRoot>/internal/templates/documents/delivery.md.tpl` before
 committing. It states intent: approved hashes, target remote and branch, planned
 commit grouping, integration preconditions, recovery policy, and deployment hold.
 

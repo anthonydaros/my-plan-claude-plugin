@@ -7,6 +7,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $plugin = Join-Path $root 'plugin'
+$codexPlugin = Join-Path $root 'codex-plugin'
 $fails = 0
 
 function Check([bool]$ok, [string]$label) {
@@ -26,7 +27,9 @@ Write-Host '== manifests'
 
 foreach ($m in @(
         (Join-Path $root '.claude-plugin\marketplace.json'),
-        (Join-Path $plugin '.claude-plugin\plugin.json'))) {
+        (Join-Path $plugin '.claude-plugin\plugin.json'),
+        (Join-Path $root '.agents\plugins\marketplace.json'),
+        (Join-Path $codexPlugin '.codex-plugin\plugin.json'))) {
     $name = $m.Substring($root.Length + 1)
     if (-not (Test-Path -LiteralPath $m)) { Check $false "missing $name"; continue }
     try {
@@ -43,6 +46,20 @@ Check ($manifest.name -eq 'my-plan') 'plugin name is my-plan'
 $market = Get-Content -LiteralPath (Join-Path $root '.claude-plugin\marketplace.json') -Raw | ConvertFrom-Json
 Check ($market.plugins[0].source -eq './plugin') 'marketplace publishes ./plugin'
 
+$codexManifest = Get-Content -LiteralPath (Join-Path $codexPlugin '.codex-plugin\plugin.json') -Raw | ConvertFrom-Json
+Check ($codexManifest.name -eq 'my-plan') 'Codex plugin name is my-plan'
+Check ($codexManifest.version -eq '0.1.0') 'Codex plugin version is 0.1.0'
+Check ($codexManifest.skills -eq './skills/') 'Codex manifest publishes only its skill root'
+Check (-not ($codexManifest.PSObject.Properties.Name -contains 'mcpServers')) 'Codex manifest has no MCP servers'
+Check (-not ($codexManifest.PSObject.Properties.Name -contains 'hooks')) 'Codex manifest has no hooks'
+
+$codexMarket = Get-Content -LiteralPath (Join-Path $root '.agents\plugins\marketplace.json') -Raw | ConvertFrom-Json
+Check ($codexMarket.name -eq 'my-plan-codex') 'Codex marketplace name is my-plan-codex'
+Check ($codexMarket.plugins[0].source.path -eq './codex-plugin') 'Codex marketplace publishes ./codex-plugin'
+Check ($codexMarket.plugins[0].policy.installation -eq 'AVAILABLE') 'Codex marketplace installation policy is AVAILABLE'
+Check ($codexMarket.plugins[0].policy.authentication -eq 'ON_INSTALL') 'Codex marketplace authentication policy is ON_INSTALL'
+Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace category is Development'
+
 Write-Host '== public skills'
 
 foreach ($s in @('install', 'start', 'audit')) {
@@ -54,18 +71,35 @@ foreach ($s in @('install', 'start', 'audit')) {
     Check ((Get-Content -LiteralPath $f -Raw) -like '*$ARGUMENTS*') "$s consumes `$ARGUMENTS"
 }
 
+Write-Host '== Codex public skills'
+
+foreach ($s in @('install', 'start', 'audit')) {
+    $f = Join-Path $codexPlugin "skills\$s\SKILL.md"
+    $meta = Join-Path $codexPlugin "skills\$s\agents\openai.yaml"
+    if (-not (Test-Path -LiteralPath $f)) { Check $false "missing Codex skill $s"; continue }
+    if (-not (Test-Path -LiteralPath $meta)) { Check $false "missing Codex metadata $s"; continue }
+    $fm = @(Frontmatter $f | Where-Object { $_.Trim() -ne '' })
+    Check ([bool]($fm -contains "name: $s")) "Codex $s declares name: $s"
+    Check ([bool]($fm -match '^description: .')) "Codex $s has a description"
+    Check ($fm.Count -eq 2) "Codex $s frontmatter contains only name and description"
+    $metaText = Get-Content -LiteralPath $meta -Raw
+    Check ($metaText.Contains('allow_implicit_invocation: false')) "Codex $s is manual only"
+    Check ($metaText.Contains("`$my-plan:$s")) "Codex $s metadata names its invocation"
+}
+
 Write-Host '== agents'
 
-foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer')) {
+foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer', 'reviewer-deep')) {
     $f = Join-Path $plugin "agents\my-plan-$a.md"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing agent $a"; continue }
     $fm = Frontmatter $f
     Check ([bool]($fm -contains "name: my-plan-$a")) "agent $a name matches its filename"
+    Check ([bool]($fm -match '^effort: (low|medium|high|xhigh|max)$')) "agent $a declares a valid effort"
 }
 
 # The reviewer reviews both plans and code, so it is the one that must never gain
 # a write tool. The planner writes the plan; the implementer writes the code.
-foreach ($a in @('discovery', 'reviewer')) {
+foreach ($a in @('discovery', 'reviewer', 'reviewer-deep')) {
     $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
     Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) "agent $a is read-only"
 }
@@ -83,8 +117,10 @@ function ModelOf([string]$agent) {
 $author = ModelOf 'planner'
 $critic = ModelOf 'reviewer'
 $coder = ModelOf 'implementer'
-Check ($author -ne $critic) "plan author ($author) differs from reviewer ($critic)"
-Check ($coder -ne $critic) "code author ($coder) differs from reviewer ($critic)"
+$deep = ModelOf 'reviewer-deep'
+Check ($author -ne $critic) "plan author ($author) differs from its reviewer ($critic)"
+Check ($coder -ne $deep) "code author ($coder) differs from its reviewer ($deep)"
+Check ($critic -ne $deep) "the two reviewers are different models ($critic, $deep)"
 
 Write-Host '== commits stay the user''s'
 
@@ -109,6 +145,40 @@ Check ($implStage -like '*Before every commit: check what you are about to publi
 foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
     Check ($implStage.Contains($pattern)) "secret scan names $pattern"
 }
+
+$codexStart = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\start\SKILL.md') -Raw
+$codexImpl = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\implementation.md') -Raw
+$codexDiscovery = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\discovery-spec.md') -Raw
+$codexTransport = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\codex.md') -Raw
+
+Check ($codexStart.Contains('push gate')) 'Codex push gate is stated to the Coordinator'
+Check ($codexImpl.Contains('## The push gate')) 'Codex delivery stops at the push gate'
+Check ($codexDiscovery.Contains('It never authorizes the push')) 'Codex spec approval stops at local commits'
+Check ($codexImpl.Contains('Before every commit: check what you are about to publish')) 'Codex staged sets are scanned before commit'
+foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
+    Check ($codexImpl.Contains($pattern)) "Codex secret scan names $pattern"
+}
+Check ($codexTransport.Contains('--sandbox read-only')) 'Codex reviewers use a read-only sandbox'
+Check ($codexTransport.Contains('--sandbox workspace-write')) 'Codex writers use a workspace-write sandbox'
+Check ($codexTransport.Contains('--output-schema')) 'Codex Worker results use provider-enforced schemas'
+Check ($codexTransport.Contains('Sol and Terra must resolve to different IDs')) 'Codex writer and reviewer models must differ'
+
+Write-Host '== Codex lifecycle contract'
+
+$codexProject = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\project.md') -Raw
+$codexAudit = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\audit\SKILL.md') -Raw
+Check ($codexProject.Contains('Record it in `profile.json` and every')) 'codex-only runtime is recorded in profiles and Runs'
+Check ($codexProject.Contains('~/.codex/plugins/data/my-plan-my-plan/')) 'Codex state uses its own POSIX root'
+Check ($codexProject.Contains('%USERPROFILE%\.codex\plugins\data\my-plan-my-plan\')) 'Codex state uses its own Windows root'
+Check ($codexProject.Contains('.agents/skills/my-plan-project/')) 'Codex setup owns only the .agents Project Skill'
+Check (-not (Test-Path -LiteralPath (Join-Path $codexPlugin 'agents'))) 'Codex plugin installs no global agents'
+Check ($codexStart.Contains('Everything before approval is read-only against the user')) 'pre-approval repository state is read-only'
+Check ($codexStart.Contains("All mutation happens in the Run's isolated")) 'approved mutation stays in the isolated worktree'
+Check ($codexTransport.Contains('One bounded retry, then mark the Run blocked')) 'transient Worker failure gets one retry'
+Check ($codexTransport.Contains('quota, usage cap, credits, unavailable model')) 'quota and model failures block without fallback'
+Check ($codexTransport.Contains('Never resume a last or most')) 'Worker continuation requires an exact thread'
+Check ($codexAudit.Contains('Read-only until findings are accepted')) 'audit remains read-only until accepted findings become a spec'
+Check ($codexProject.Contains('docs/my-plan/SEAM.md')) 'both distributions share the Architecture Memory path'
 
 Write-Host '== contracts are strict-mode clean'
 
@@ -137,8 +207,12 @@ function Test-Strict($node, [string]$where) {
         for ($i = 0; $i -lt $node.Count; $i++) { Test-Strict $node[$i] "$where[$i]" }
     }
 }
-Get-ChildItem -LiteralPath (Join-Path $plugin 'internal\contracts') -Filter *.json | ForEach-Object {
-    Test-Strict (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json) $_.Name
+foreach ($contractsRoot in @(
+        (Join-Path $plugin 'internal\contracts'),
+        (Join-Path $codexPlugin 'internal\contracts'))) {
+    Get-ChildItem -LiteralPath $contractsRoot -Filter *.json | ForEach-Object {
+        Test-Strict (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json) $_.FullName
+    }
 }
 foreach ($v in $violations) { Check $false $v }
 if ($violations.Count -eq 0) { Check $true 'contract schemas accept --output-schema' }
@@ -159,6 +233,18 @@ $missing = $missing | Sort-Object -Unique
 foreach ($m in $missing) { Check $false "broken reference: $m" }
 if ($missing.Count -eq 0) { Check $true 'all plugin-root references resolve' }
 
+$missing = @()
+Get-ChildItem -LiteralPath $codexPlugin -Recurse -File | ForEach-Object {
+    [regex]::Matches((Get-Content -LiteralPath $_.FullName -Raw),
+        '<pluginRoot>/([A-Za-z0-9._/-]+)') | ForEach-Object {
+        $rel = $_.Groups[1].Value -replace '/', '\'
+        if (-not (Test-Path -LiteralPath (Join-Path $codexPlugin $rel))) { $missing += $rel }
+    }
+}
+$missing = $missing | Sort-Object -Unique
+foreach ($m in $missing) { Check $false "broken Codex reference: $m" }
+if ($missing.Count -eq 0) { Check $true 'all Codex plugin-root references resolve' }
+
 Write-Host '== static plugin'
 
 $runtime = Get-ChildItem -LiteralPath $plugin -Recurse -File -Include `
@@ -172,9 +258,53 @@ if ($runtime) {
     Check $true 'installed plugin is static'
 }
 
+$runtime = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File -Include `
+    'package.json', '*.js', '*.mjs', '*.ts', '*.py', '*.sh', 'hooks.json', `
+    '.mcp.json', 'requirements.txt', 'pyproject.toml'
+if ($runtime) {
+    Write-Host "FAIL runtime artifact in Codex plugin:"
+    $runtime | ForEach-Object { Write-Host "  $($_.FullName)" }
+    $fails++
+} else {
+    Check $true 'Codex plugin is static'
+}
+
 $inherited = Get-ChildItem -LiteralPath $plugin -Recurse -File |
     Select-String -Pattern 'specseam' -SimpleMatch -List
 Check (-not $inherited) 'no inherited terminology'
+
+$inherited = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
+    Select-String -Pattern 'specseam' -SimpleMatch -List
+Check (-not $inherited) 'Codex plugin has no inherited terminology'
+
+$foreign = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
+    Select-String -Pattern 'claude|sonnet|opus|hybrid' -List
+Check (-not $foreign) 'Codex plugin is Codex-only'
+
+$trailer = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
+    Select-String -Pattern 'Co-Authored-By:' -SimpleMatch -List
+Check (-not $trailer) 'Codex plugin has no Co-Authored-By trailer'
+
+Write-Host '== shared assets stay in parity'
+
+foreach ($f in @(
+        'internal\checklists\review.md',
+        'internal\contracts\build-result.schema.json',
+        'internal\contracts\challenge-result.schema.json',
+        'internal\contracts\review-result.schema.json',
+        'internal\prompts\build.tpl',
+        'internal\prompts\challenge.tpl',
+        'internal\prompts\plan-check.tpl',
+        'internal\templates\documents\audit.md.tpl',
+        'internal\templates\documents\delivery.md.tpl',
+        'internal\templates\documents\discovery.md.tpl',
+        'internal\templates\documents\plan.md.tpl',
+        'internal\templates\documents\research.md.tpl',
+        'internal\templates\documents\validation.md.tpl')) {
+    $left = (Get-FileHash -LiteralPath (Join-Path $plugin $f) -Algorithm SHA256).Hash
+    $right = (Get-FileHash -LiteralPath (Join-Path $codexPlugin $f) -Algorithm SHA256).Hash
+    Check ($left -eq $right) "shared asset matches: $f"
+}
 
 Write-Host ''
 if ($fails -gt 0) {

@@ -2,11 +2,10 @@
 
 Independent review of the Review Subject, remediation of what it finds, and the
 approval that authorizes delivery. Also runs the read-only audit for
-`/my-plan:audit`.
+`$my-plan:audit`.
 
-The Worker that wrote the code never reviews it. This holds in every backend and
-every fallback. If the only remaining option would merge those identities, block
-the Run instead.
+The Worker and model that wrote the code never review it. If the only available
+option would merge those identities, block the Run instead.
 
 ## The Review Subject
 
@@ -41,12 +40,7 @@ and `complexity` (does the work need to exist, and does it reuse what is there).
 Everything else is `not-applicable`, because there is no code yet to secure,
 maintain, or make accessible.
 
-**Claude-only.** One independent read-only Worker, the `my-plan-reviewer-deep`
-agent on Opus at `high`, `reviewerRole: "sole"`, owning all eleven lenses. The
-Coordinator handles the ledger and remediation. Sonnet wrote the code, so the
-reviewer is a different model as well as a different session.
-
-**Hybrid.** Two independent read-only Workers review the same subject:
+Two independent read-only Workers review the same subject:
 
 | `reviewerRole` | Worker | `ownedLenses` |
 |----------------|--------|---------------|
@@ -58,10 +52,8 @@ separate threads that have seen none of the implementation. A reviewer that
 watched the code being written reviews its own reasoning.
 
 Sharing a tier means sharing its blind spots, which is the cost of this order and
-worth naming. Two subjects are worth paying to avoid it, and they cross in
-different directions: a product judgement the user has said matters more than
-throughput goes to `my-plan-reviewer-deep` on Opus, and a diff too wide for a
-Codex thread to hold at once goes to `my-plan-reviewer` on Sonnet.
+worth naming. A product judgement the user marks as critical rotates to a fresh
+Sol session at `xhigh`; a diff too wide for one thread splits by lens or area.
 
 Escalate the technical role to Sol at `xhigh` when the subject is one deeply
 interlocking thing — a race, a transaction that can half-commit, a permission
@@ -72,18 +64,17 @@ own. Complexity belongs to the technical reviewer: judging whether code needs to
 exist is a technical call, and leaving it unassigned means nobody makes it.
 
 **An audit has no writer.** Nothing was produced by this Run, so the independence
-rule that picks a reviewer does not apply and only width decides. Hybrid: Codex
-on Terra at `high`, `reviewerRole: "sole"`. Claude-only: one `my-plan-reviewer`
-Worker on Sonnet at `high`.
+rule that picks a reviewer does not apply and only width decides. Use Terra at
+`high`, `reviewerRole: "sole"`.
 
 A whole repository is the widest subject this product reviews, and it is the one
 most likely to exceed what a Codex thread can hold. When it does, split the audit
-into `product` and `technical` roles as a hybrid review does, then split the
-technical side by lens if it is still too wide. Cross to Sonnet only when no split
-covers the repository, and say that is why: a subject nobody could read whole is a
-different result from one a Worker chose not to.
+into `product` and `technical` roles, then split the technical side by lens if it
+is still too wide. A subject nobody could read whole is a different result from
+one a Worker chose not to, so every partition must be named in the coverage
+record.
 
-Dispatch Codex Workers per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
+Dispatch Codex Workers per `<pluginRoot>/internal/codex.md`.
 
 Approval requires zero unresolved blockers from every active role.
 
@@ -103,7 +94,7 @@ finding several times and costs a round to deduplicate.
 
 ## Dispatch
 
-Build a handoff matching `${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json`
+Build a handoff matching `<pluginRoot>/internal/contracts/handoff.schema.json`
 with `role: "reviewer"` and the right `mode`:
 
 | Mode | Scope |
@@ -143,7 +134,7 @@ evidence. Closed findings and prior review history are not resent.
 
 ## Verify the result
 
-Validate against `${CLAUDE_PLUGIN_ROOT}/internal/contracts/review-result.schema.json`
+Validate against `<pluginRoot>/internal/contracts/review-result.schema.json`
 before trusting it. Check that `subjectHash` matches what you dispatched. Check
 that every finding cites a real path.
 
@@ -246,20 +237,20 @@ resolved or dispositioned, the Validation Gate green, and the final complete
 review clean.
 
 It binds to the specification hash, plan hash, base SHA, Review Subject hash,
-backend, Worker identity, and model.
+runtime, Worker identity, and model.
 
 Any later change to a Review Subject path invalidates it. Rerun affected
 validation and a renewed final review. Rendering `review.md` and `delivery.md`
 does not invalidate it; that is why they are excluded.
 
 Render `review.md` from
-`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/review.md.tpl`, from the
+`<pluginRoot>/internal/templates/documents/review.md.tpl`, from the
 structured ledger. No extra synthesis model call. It records conclusions and
 stable finding IDs, not model conversation.
 
 ## Audit mode
 
-For `/my-plan:audit`. Read-only: no worktree, no branch, no edits.
+For `$my-plan:audit`. Read-only: no worktree, no branch, no edits.
 
 Understand the architecture before judging it. An audit that reports findings
 before it understands produces noise, and noise is worse than silence.
@@ -269,7 +260,7 @@ they disagree, say which one is wrong. Do not resurface a finding an earlier aud
 recorded as not worth doing; state that it was checked.
 
 Render `audit.md` from
-`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/audit.md.tpl`. Show a concise
+`<pluginRoot>/internal/templates/documents/audit.md.tpl`. Show a concise
 recommended scope, ordered, and say what is deliberately left out.
 
 An affirmative reply on the recommended scope converts the accepted findings into

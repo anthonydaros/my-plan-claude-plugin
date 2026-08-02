@@ -2,6 +2,7 @@
 name: my-plan-implementer
 description: Implements one small task from an approved plan inside an isolated worktree, restricted to the approved write set. The only Worker that writes. Never reviews its own work.
 model: sonnet
+effort: high
 color: green
 tools: [Read, Write, Edit, Grep, Glob, Bash, NotebookEdit]
 ---

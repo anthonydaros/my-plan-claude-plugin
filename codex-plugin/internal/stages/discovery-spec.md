@@ -213,13 +213,8 @@ material.
 Give the reviewers the same bounded evidence packet: local facts, user decisions,
 and cited research.
 
-**Hybrid.** Two independent read-only Codex Workers on Terra at `high`, over
-non-overlapping evidence partitions.
-
-**Claude-only.** The same shape with two `my-plan-discovery` Workers on Sonnet at
-`high`.
-
-Either way, challenge and synthesize the two results.
+Dispatch two independent read-only Workers on Terra at `high`, over
+non-overlapping evidence partitions. Challenge and synthesize both results.
 
 Partition the evidence. Making each agent reread the whole repository costs twice
 as much and returns the same blind spots twice.
@@ -228,23 +223,21 @@ Two shapes of discovery need more than the default pair:
 
 - **Hard.** Unfamiliar architecture, an intermittent fault, concurrency,
   security, a migration, several services at once, or evidence supporting
-  contradictory hypotheses. Escalate the second opinion to Sol at `xhigh` in
-  hybrid, or to an Opus model override in `claude-only`, so the two Workers do
-  not share one model's blind spots.
+  contradictory hypotheses. Escalate the second opinion to Sol at `xhigh`, so
+  the two Workers do not share one model's blind spots.
 - **Wide.** A monorepo or a change that crosses many areas. Split by area instead
   of escalating: one Worker per area, each with its own partition, on Terra at
-  `high` in hybrid or on Sonnet in `claude-only`. Depth does not help a Worker
-  that has not read the code; more eyes on disjoint evidence does. A partition
-  still too large for a Codex thread goes to `my-plan-discovery` on Sonnet: the
-  one case where width outranks the provider order.
+  `high`. Depth does not help a Worker that has not read the code; more eyes on
+  disjoint evidence does. Split a partition again when it is still too large for
+  one thread.
 
 Neither shape changes the contract or the synthesis. It is the same packet, the
 same `challenge` mode, and the same result schema, from more Workers.
 
 Dispatch with a handoff matching
-`${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json`, `role:
+`<pluginRoot>/internal/contracts/handoff.schema.json`, `role:
 "discovery"`, `mode: "challenge"`. Validate results against
-`${CLAUDE_PLUGIN_ROOT}/internal/contracts/challenge-result.schema.json`.
+`<pluginRoot>/internal/contracts/challenge-result.schema.json`.
 
 The synthesis separates verified facts from inferences, records what the reviewers
 disagreed on and how it resolved, and turns anything still unsettled into either a
@@ -253,7 +246,7 @@ question or an explicit risk.
 ## 6. Working Spec
 
 Render `spec.md` from
-`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/spec.md.tpl`, and
+`<pluginRoot>/internal/templates/documents/spec.md.tpl`, and
 `discovery.md` from its own template.
 
 The specification contains: requirements, non-goals, affected repositories and

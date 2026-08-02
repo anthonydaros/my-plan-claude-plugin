@@ -54,11 +54,10 @@ reset, cleaned, or overwritten.
 ## Writing the plan
 
 Render `plan.md` from
-`${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/plan.md.tpl`.
+`<pluginRoot>/internal/templates/documents/plan.md.tpl`.
 
-A plan is a depth problem, so it goes to the deepest tier available. Hybrid: Sol
-at `high` via Codex, per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. Claude-only:
-the `my-plan-planner` agent, Opus at `high`.
+A plan is a depth problem, so it goes to Sol at `high` per
+`<pluginRoot>/internal/codex.md`.
 
 `high` is the working default, because a plan is rarely improved by spending
 twice as long on it. A plan that changes architecture, moves data, spans several
@@ -79,6 +78,12 @@ dispatching, and point the handoff at the copy. A Worker confined to the worktre
 which every Codex Worker is, cannot read a Run artifacts path outside it — and a
 plugin path is outside it too, so a Codex planner gets `plan.md.tpl` copied there
 as well.
+
+Render `<pluginRoot>/internal/prompts/plan-write.tpl` with the handoff path and
+dispatch it with
+`<pluginRoot>/internal/contracts/plan-result.schema.json`. Validate the result,
+recompute `planHash` from the written file, and verify that the real changed path
+is exactly the handoff's single-file write set before trusting it.
 
 Add `.my-plan/` to the worktree's `.git/info/exclude` when creating the worktree,
 so those copies never reach the Review Subject or a commit.
@@ -179,26 +184,22 @@ sequencing turns a parallel plan into a slow one for no safety gained.
 
 ## Plan review
 
-Dispatch a different Worker than the one that wrote the plan. Hybrid: Terra at
-`high` via Codex, read-only sandbox, per
-`${CLAUDE_PLUGIN_ROOT}/internal/codex.md`. Claude-only: the `my-plan-reviewer`
-agent, Sonnet at `high`, read-only. Either way the reviewer is a different model
-as well as a different session, because Sol wrote the plan in one backend and
-Opus in the other.
+Dispatch Terra at `high` in a new read-only session per
+`<pluginRoot>/internal/codex.md`. The reviewer is a different model and a
+different session because Sol wrote the plan.
 
-Terra at `high` is not the stronger reviewer; it is enough for most plan reviews
-at a fraction of the cost, which is why it goes first. Escalating it cannot mean
-Sol, which wrote the plan: when Terra reports a blocker it cannot resolve, or the
-plan touches security, concurrency, payments, infrastructure, or a data
-migration, the review crosses to `my-plan-reviewer-deep` on Opus.
+Terra at `high` is enough for most plan reviews and keeps the model boundary
+intact. When Terra reports a blocker it cannot resolve, or the plan touches
+security, concurrency, payments, infrastructure, or a data migration, rotate to
+a fresh Terra review session at `xhigh`. Never use Sol, which wrote the plan.
 
-Build a handoff matching `${CLAUDE_PLUGIN_ROOT}/internal/contracts/handoff.schema.json`
+Build a handoff matching `<pluginRoot>/internal/contracts/handoff.schema.json`
 with `role: "reviewer"`, `mode: "plan-check"`, and artifact paths and hashes for
 the specification, plan, Architecture Memory, and project skill. Pass the handoff
 path. Never paste the documents into the prompt.
 
 Validate the returned result against
-`${CLAUDE_PLUGIN_ROOT}/internal/contracts/review-result.schema.json` before
+`<pluginRoot>/internal/contracts/review-result.schema.json` before
 trusting it. Check that `subjectHash` matches the plan you sent. Invalid or
 unparseable output is a failed attempt, never an implicit approval.
 

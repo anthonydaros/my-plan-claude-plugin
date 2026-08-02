@@ -43,3 +43,39 @@ jobs:
 
       - name: Validate marketplace manifest
         run: claude plugin validate .
+
+  codex-marketplace:
+    # Codex CLI has no validate subcommand. Installing from an isolated local
+    # marketplace exercises the real ingestion and cache path instead.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Isolate Codex state
+        run: |
+          mkdir -p "$RUNNER_TEMP/codex-home"
+          echo "CODEX_HOME=$RUNNER_TEMP/codex-home" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install Codex CLI
+        run: npm install -g @openai/codex
+
+      - name: Add the repository marketplace
+        run: codex plugin marketplace add .
+
+      - name: Discover the Codex plugin
+        run: |
+          listing=$(codex plugin list --available --json)
+          printf '%s\n' "$listing" | jq -e '.available[] | select(.pluginId == "my-plan@my-plan-codex")'
+
+      - name: Install and inspect the Codex plugin
+        run: |
+          result=$(codex plugin add my-plan@my-plan-codex --json)
+          installed=$(printf '%s\n' "$result" | jq -r '.installedPath')
+          test -f "$installed/.codex-plugin/plugin.json"
+          test -f "$installed/skills/start/SKILL.md"
+          test -f "$installed/skills/start/agents/openai.yaml"
+          test -f "$installed/internal/contracts/plan-result.schema.json"

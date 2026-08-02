@@ -2,9 +2,10 @@
 
 **Describe a goal. Approve a spec once. Get reviewed code.**
 
-A Claude Code plugin that carries one approved specification through planning,
-implementation, validation, independent review, and delivery. Three commands.
-Nothing installed into your project.
+Two independent, installable plugins — one for Claude Code and one Codex-only —
+carry one approved specification through planning, implementation, validation,
+independent review, and delivery. Three commands. No runtime is installed into
+your project.
 
 ---
 
@@ -27,87 +28,100 @@ tasks later is a large diff against a session that has moved on.
 **Never its own reviewer.** The model that wrote the code is never the model that
 approves it. Not in any mode, not in any fallback.
 
-You are asked once: do you approve this spec. Everything after that runs without
-interrupting you.
+You are asked once before mutation: do you approve this spec. Work then continues
+through local commits without interruption; a separate push confirmation controls
+whether anything leaves your machine.
 
 ---
 
 ## Install
 
-Two moments, and they are not the same thing. You install the plugin once, for
-yourself. You initialize each repository the first time you use it there.
+Install the plugin once for your host, then initialize each repository the first
+time you use it there. You may install either distribution or both; they do not
+depend on each other and do not share resumable Run state.
 
-### Once, for your machine
+### Claude Code
 
 ```bash
 /plugin marketplace add anthonydaros/my-plan-claude-plugin
 /plugin install my-plan@my-plan
 ```
 
-That is the whole global install. The commands now exist in every repository you
-open, and nothing has touched a repository yet.
+### Codex
+
+```bash
+codex plugin marketplace add anthonydaros/my-plan-claude-plugin
+codex plugin add my-plan@my-plan-codex
+```
+
+Start a new Codex session after installing or updating so its bundled skills
+reload. The Codex marketplace is `my-plan-codex`; the plugin remains `my-plan`.
 
 ### Once per repository
 
-Open the repository you want to work in and run:
+| Host | Initialize |
+|------|------------|
+| Claude Code | `/my-plan:install` |
+| Codex | `$my-plan:install` |
 
+Setup reads the repository and records the verified stack, package manager,
+module boundaries, validation commands, default branch, remotes, and CI. It asks
+only what the code cannot answer.
+
+Repository facts live at `.claude/skills/my-plan-project/` for Claude Code or
+`.agents/skills/my-plan-project/` for Codex. Both distributions use
+`docs/my-plan/SEAM.md` and `docs/my-plan/runs/`. Existing agent instructions,
+skills, and documentation are never modified.
+
+The first run on a machine probes the selected host and records its preferences
+outside the repository. You may skip explicit setup: the host's `start` command
+runs it when needed. Direct setup materializes project files in the checkout;
+implicit setup keeps them outside it until spec approval creates the worktree.
+
+Append `repair`, `reconfigure`, or `migrate` to the install command:
+
+| Mode | What it does |
+|------|--------------|
+| `repair` | Re-probes and repairs missing capabilities without discarding answers |
+| `reconfigure` | Keeps verified facts and re-asks model and workflow preferences |
+| `migrate` | Moves managed files to the current schema and stops on unrecognized edits |
+
+Setup resumes rather than restarting after a missing prerequisite is fixed.
+
+### Requirements
+
+| Distribution | Required | Optional |
+|--------------|----------|----------|
+| Claude Code | Claude Code 2.1.216+, Git 2.28+, Context7 | Codex CLI, GitHub CLI, Playwright |
+| Codex-only | Codex CLI with `exec`, Git 2.28+, Context7, distinct Sol and Terra mappings | GitHub CLI, Playwright |
+
+The Codex-only distribution never falls back to Claude. Quota, authentication,
+or an unavailable independent model leaves the Run blocked and resumable.
+
+### Updating Codex
+
+Published Codex changes advance the semantic version in
+`codex-plugin/.codex-plugin/plugin.json`. Refresh and reinstall from Git with:
+
+```bash
+codex plugin marketplace upgrade my-plan-codex
+codex plugin add my-plan@my-plan-codex
 ```
-/my-plan:install
-```
 
-It reads the repository and records what it verified: stack, package manager,
-real module boundaries, the build, test, lint, and type-check commands that
-actually exist, default branch, remotes, CI. It asks only what the code cannot
-answer.
-
-Two files stay behind: the repository's verified facts at
-`.claude/skills/my-plan-project/`, and its current architecture at
-`docs/my-plan/SEAM.md`. Your `CLAUDE.md`, `AGENTS.md`, skills, and documentation
-are never modified.
-
-The first run on a given machine also does the part that is not about any
-repository: probing what you have, selecting the backend, and recording your
-preferences outside your repositories. Later repositories skip straight to the
-repository part.
-
-**You can skip this step.** `/my-plan:start` runs the same setup when it finds
-none, so a repository never needs a separate install command. The difference is
-only where those two files land. Run install and they are written to your
-checkout, because you asked for them. Let `/my-plan:start` do it and they arrive
-in the worktree after you approve the spec, so your checkout stays untouched
-while you are still deciding.
-
-### Repair, reconfigure, migrate
-
-| Command | What it does |
-|---------|--------------|
-| `/my-plan:install repair` | Re-probes and fixes what is missing or broken. Keeps the answers you already gave |
-| `/my-plan:install reconfigure` | Keeps the verified facts, re-asks the preferences |
-| `/my-plan:install migrate` | Moves managed files to the current schema. Stops on an edit it does not recognize instead of overwriting it |
-
-Setup resumes, it never restarts. Install a missing prerequisite, run it again,
-and it continues from where it stopped without re-asking anything.
-
-### What it needs
-
-**Required:** Claude Code 2.1.216+, Git 2.28+, Context7
-**Optional:** Codex CLI, GitHub CLI, Playwright
-
-Missing Codex is fine. The whole flow runs on Claude alone.
+During local development, replace a single `+codex.<cachebuster>` suffix instead
+of incrementing the release version for every test. Start a new session after
+either update.
 
 ---
 
 ## Commands
 
-| Command | What it does |
-|---------|--------------|
-| `/my-plan:start <goal>` | One goal, from question to pushed code |
-| `/my-plan:start` | Resumes. Asks which run only if several match |
-| `/my-plan:audit` | Read-only findings. Accept a scope and it delivers them |
-| `/my-plan:install` | Initialize a repository. Also repair, reconfigure, migrate |
-
-When nothing else owns the short names, `/install`, `/start`, and `/audit`
-work too.
+| Action | Claude Code | Codex |
+|--------|-------------|-------|
+| Start a goal | `/my-plan:start <goal>` | `$my-plan:start <goal>` |
+| Resume | `/my-plan:start` | `$my-plan:start` |
+| Audit | `/my-plan:audit [focus]` | `$my-plan:audit [focus]` |
+| Setup | `/my-plan:install [mode]` | `$my-plan:install [mode]` |
 
 ---
 
@@ -165,8 +179,12 @@ You appear twice: to approve the spec, and to approve the push.
 
 ## What a run looks like
 
-```
+```text
+# Claude Code
 /my-plan:start add rate limiting to the public API
+
+# Codex
+$my-plan:start add rate limiting to the public API
 ```
 
 1. **It reads your repository first.** Anything the code can answer, it does not
@@ -181,7 +199,8 @@ You appear twice: to approve the spec, and to approve the push.
    Ambiguity it cannot resolve is written into the spec as a flagged assumption,
    never guessed silently.
 5. **You approve a spec.** One paragraph and a link. Say yes in ordinary words.
-   This is the only approval, and it comes after the doubts are gone.
+   This is the only approval before local work, and it comes after the doubts are
+   gone.
 6. **It builds, in a loop.** One small task at a time: written, checked,
    reviewed. Findings go back to the writer one at a time and it reviews again.
    Nothing advances to the next task until this one is clean.
@@ -221,22 +240,21 @@ and review run again.
 
 Nobody reviews their own work.
 
-| Job | Claude only | With Codex |
-|-----|-------------|------------|
-| Discovery | Fable | Fable |
-| Write the plan | Opus | Opus |
-| Review the plan | Fable | Sol, xhigh |
-| Write the code | Sonnet | Luna |
-| Review the code | Fable | Sol xhigh + Fable |
+| Job | Codex-only | Claude Code |
+|-----|------------|-------------|
+| Discovery | Terra, high ×2 | Sonnet, high ×2 |
+| Write the plan | Sol, high | Opus, high |
+| Review the plan | Terra, high | Sonnet, high |
+| Write the code | Terra, high | Sonnet, high |
+| Review the code | Sol, high ×2 | Opus, high |
 
-If Codex runs out of quota or credits mid-run, it switches to Claude and keeps
-going. Your spec, plan, worktree, diff, findings, and validation survive the
-switch, and you are not asked to approve anything again.
+The Codex package runs every Worker through `codex exec`. Review and discovery
+receive a process-enforced read-only sandbox; planning and implementation receive
+workspace-write. Sol and Terra must resolve to different model IDs. A missing
+model, quota, or authentication blocks the Run with its work preserved.
 
-Codex reviewers run in a process-enforced read-only sandbox. Claude reviewers have
-no write tools and keep shell access, because reviewing without `git diff` is not
-reviewing. In both cases every changed path is checked against Git and the
-approved scope before it is trusted.
+The Claude package keeps its existing Codex-first hybrid mapping and its complete
+Claude-only path. Installing the Codex package does not change that behavior.
 
 ---
 
@@ -255,13 +273,16 @@ short optimistic locks, and no lock is ever held while a model is thinking.
 ```
 docs/my-plan/SEAM.md                  current architecture, one file
 docs/my-plan/runs/<run>/              one document per phase that ran
-.claude/skills/my-plan-project/       this repo's verified facts
+.claude/skills/my-plan-project/       verified facts for Claude Code
+.agents/skills/my-plan-project/       verified facts for Codex
 CHANGELOG.md                          or whatever your repo already uses
 ```
 
 Run state, worktrees, and locks live outside your repository, in an app data
 directory. They survive terminal closure, restarts, and plugin updates.
-`/my-plan:install` prints the path.
+The selected host's install command prints the path. Codex state uses
+`~/.codex/plugins/data/my-plan-my-plan/`; Claude state remains in its existing
+host data directory.
 
 No database. No daemon. No transcripts in your repo.
 
@@ -269,9 +290,11 @@ No database. No daemon. No transcripts in your repo.
 
 ## Troubleshooting
 
-**Commands do not appear.** Check `claude --version` for 2.1.216+, then
-`/reload-plugins`. The reload summary can report `0 skills` while your skills did
-reload.
+**Claude commands do not appear.** Check `claude --version` for 2.1.216+, then
+`/reload-plugins`. The reload summary can report `0 skills` while they did reload.
+
+**Codex skills do not appear.** Run `codex plugin list --json`, confirm
+`my-plan@my-plan-codex` is installed and enabled, then start a new session.
 
 **`/start` not found, but `/my-plan:start` works.** Another command owns the
 short name. Expected.
@@ -279,24 +302,32 @@ short name. Expected.
 **An agent does not run.** A project or user agent with the same name wins over a
 plugin agent. Check `.claude/agents/` and `~/.claude/agents/`.
 
+**Codex reports one model for Sol and Terra.** Run `$my-plan:install reconfigure`
+and provide a distinct mapping. One model cannot write and review the subject.
+
 **It asked something obvious.** Worth reporting. Repository facts should come from
 the scan, not from you.
 
 **A run is `BLOCKED`.** Reviews stopped making progress, or the base branch kept
 moving. Nothing was committed; the report says what is open.
 
-**You want a dry run.** `/my-plan:audit` is read-only by construction.
+**You want a dry run.** `/my-plan:audit` and `$my-plan:audit` are read-only by
+construction.
 
 ---
 
 ## Uninstall
 
 ```bash
+# Claude Code
 /plugin uninstall my-plan@my-plan
+
+# Codex
+codex plugin remove my-plan@my-plan-codex
 ```
 
-Run state lives outside your repository; `/my-plan:install` prints the path so you
-can remove it.
+Uninstalling either package does not delete its external Run state. The host's
+install command reports that path if you want to remove it separately.
 
 ---
 
