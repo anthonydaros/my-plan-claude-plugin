@@ -398,6 +398,22 @@ generated changelogs on ordinary work.
 
 Never write a secret into a tracked file. Never use `--no-verify`.
 
+**Check whether it already happened.** A dispatched commit has a window the inline
+one did not: the Worker can create the commit and the session can end before the
+result is recorded. Resume then finds a manifest that says the commit is pending
+and a repository where it is done.
+
+Ask the repository, not the manifest. `git log baseSha..HEAD` on the Run's branch,
+against the Review Subject paths. If the work is already committed, record the
+SHAs and move to the push gate. Do not dispatch again.
+
+This check has to come first, because nothing downstream would catch its absence.
+A committer dispatched onto an already-clean tree finds nothing to stage and
+either commits empty or reports success with no commits, and the write-set
+verification passes both times — no path changed, so no path is out of bounds. The
+duplicate would surface at the push gate, as a commit the user did not expect,
+which is the worst place to discover it.
+
 **The commit is dispatched, not typed here.** Run the scan above yourself — it is
 yours and it stays yours — then hand the commit to a Worker on Terra at `high`
 with `role: "committer"`, `mode: "commit"`, `commit.tpl`, a `writeSet` of exactly

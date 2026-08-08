@@ -421,6 +421,20 @@ for p in "$PLUGIN" "$CODEX_PLUGIN"; do
 
   grep -q "Effort is not a chain step" "$p/internal/stages/project.md"
   check $? "$label: an unavailable model is not answered by raising effort"
+
+  # The skip rule compares against the identity bound to the opposing role. That
+  # identity lives in run.json and nowhere else, so a resumed Run without it is
+  # free to hand the reviewer the model that wrote the code.
+  grep -qF -- '"roleBindings": {' "$p/internal/stages/project.md"
+  check $? "$label: run.json carries the active candidate per role"
+
+  grep -q "only place it exists" "$p/internal/stages/project.md"
+  check $? "$label: the skip rule reads bound identities from the manifest"
+
+  # A dispatched commit can land and the session can die before it is recorded.
+  # Re-dispatching then double-commits, and no write-set check catches it.
+  grep -q "Check whether it already happened" "$p/internal/stages/implementation.md"
+  check $? "$label: the commit is not re-dispatched over work already committed"
 done
 
 # opencode validates its contract after the model runs rather than before, which

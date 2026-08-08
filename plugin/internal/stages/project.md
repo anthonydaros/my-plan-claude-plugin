@@ -221,7 +221,9 @@ reviewer's chain, so a chain followed far enough puts the same identity on both
 sides of a review, and the check that was supposed to catch the defect becomes
 the model agreeing with itself. Before taking a candidate, compare it against the
 identity already bound to the opposing role in this Run. If they match, skip it
-and take the next one.
+and take the next one. That identity lives in `run.json`'s `roleBindings`, and
+after a session rotation it is the only place it exists — a rule that depends on
+remembering what this session dispatched is not a rule a resumed Run can keep.
 
 **A chain ends. It never wraps.** When every candidate is exhausted or skipped,
 the Run is `BLOCKED` and says which role ran out and why. A Run that stops with
@@ -545,7 +547,21 @@ stopped, so its shape cannot be left to whoever writes it first.
   "planHash": "sha256:...",
   "reviewSubjectHash": null,
   "currentTaskId": "T-03",
-  "completedTaskIds": ["T-01", "T-02"]
+  "completedTaskIds": ["T-01", "T-02"],
+  "roleBindings": {
+    "implementation": {
+      "candidate": "opencode:pro@high",
+      "position": 2,
+      "since": "2026-07-31T14:02:11Z",
+      "reason": "codex:terra@high classified as usage cap"
+    },
+    "technicalCodeReview": {
+      "candidate": "codex:sol@high",
+      "position": 1,
+      "since": "2026-07-31T13:40:02Z",
+      "reason": "first choice"
+    }
+  }
 }
 ```
 
@@ -561,6 +577,27 @@ reported on, and every Run has one from the moment it is created.
 
 `manifestRevision` increments on every write. Two sessions writing the same Run
 detect the conflict by comparing it.
+
+`roleBindings` records which candidate each role is actually running on, and it
+is not bookkeeping. Two things depend on it and neither survives without it.
+
+Chain advances are sticky for the Run. `implementation.md` narrates them, but a
+rendered document is not resumable state, and resume reads this manifest and
+nothing else. Without `roleBindings`, a Run resumed after falling back restarts
+every role at candidate one and walks straight back into the quota wall that
+moved it.
+
+The second reason is the one that matters. The skip rule compares a candidate
+against the identity already bound to the opposing role in this Run — that
+identity is exactly what `roleBindings` holds. A session that cannot read it
+cannot apply the rule, so a resumed Run would be free to hand the reviewer the
+model that wrote the code, silently, having passed every check. The independence
+guarantee would then depend on nobody's session ever being interrupted.
+
+Write the binding when a role first resolves, not only when it falls back:
+`position: 1` is a binding too, and a resumed session needs the writer's identity
+whether or not anything failed. Bindings never reset mid-Run. A new Run starts
+empty and resolves from the top of each chain.
 
 Add fields when a Run genuinely needs them, but never rename these: a Run written
 by one session must be resumable by another, and a field the reader does not know
