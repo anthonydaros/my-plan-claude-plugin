@@ -48,7 +48,8 @@ Check ($market.plugins[0].source -eq './plugin') 'marketplace publishes ./plugin
 
 $codexManifest = Get-Content -LiteralPath (Join-Path $codexPlugin '.codex-plugin\plugin.json') -Raw | ConvertFrom-Json
 Check ($codexManifest.name -eq 'my-plan') 'Codex plugin name is my-plan'
-Check ($codexManifest.version -eq '0.1.0') 'Codex plugin version is 0.1.0'
+# Pin the shape, not the number: a release must be able to bump this.
+Check ($codexManifest.version -match '^\d+\.\d+\.\d+(\+[0-9A-Za-z.-]+)?$') 'Codex plugin declares a semantic version'
 Check ($codexManifest.skills -eq './skills/') 'Codex manifest publishes only its skill root'
 Check (-not ($codexManifest.PSObject.Properties.Name -contains 'mcpServers')) 'Codex manifest has no MCP servers'
 Check (-not ($codexManifest.PSObject.Properties.Name -contains 'hooks')) 'Codex manifest has no hooks'

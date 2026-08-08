@@ -61,8 +61,10 @@ check $? "marketplace publishes ./plugin"
 has "$CODEX_PLUGIN/.codex-plugin/plugin.json" '"name": "my-plan"'
 check $? "Codex plugin name is my-plan"
 
-has "$CODEX_PLUGIN/.codex-plugin/plugin.json" '"version": "0.1.0"'
-check $? "Codex plugin version is 0.1.0"
+# Pin the shape, not the number: the Codex host resolves updates by semantic
+# version, so a release must be able to bump this without editing a test.
+grep -qE '"version": "[0-9]+\.[0-9]+\.[0-9]+(\+[0-9A-Za-z.-]+)?"' "$CODEX_PLUGIN/.codex-plugin/plugin.json"
+check $? "Codex plugin declares a semantic version"
 
 has "$CODEX_PLUGIN/.codex-plugin/plugin.json" '"skills": "./skills/"'
 check $? "Codex manifest publishes only its skill root"
