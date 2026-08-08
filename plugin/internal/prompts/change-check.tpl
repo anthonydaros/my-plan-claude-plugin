@@ -39,21 +39,6 @@ an artifact the handoff does not list, and do not treat its absence as a finding
 You are read-only. Do not write, edit, stage, or run any command that mutates the
 repository. Reading code and running read-only inspection is expected.
 
-## The code graph
-
-Your handoff's `codeGraph` field says whether you may query it. Only `fresh`
-does; `stale` and `absent` mean read the files, and neither is a defect to
-report.
-
-With `fresh`, ask it what the diff cannot tell you: which callers the change did
-not touch, which execution flows the changed code sits on, and which of those
-paths have no test. Those are the misses a small diff hides, and they feed the
-`correctness` and `tests` lenses.
-
-Then open the files. A graph answer is a place to look, never a finding — every
-finding still names a path and a line range you read. Where the graph and the
-code disagree, the code is right.
-
 ## What to review
 
 Your handoff's `ownedLenses` lists exactly the lenses you are responsible for.

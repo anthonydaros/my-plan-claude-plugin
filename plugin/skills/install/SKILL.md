@@ -23,8 +23,7 @@ Mode: $ARGUMENTS
 ## What setup must end with
 
 - Every required capability verified: Claude Code 2.1.216 or later, Git, Context7.
-- Every optional capability probed and reported: Codex CLI, GitHub CLI,
-  Playwright, and the code graph.
+- Every optional capability probed and reported: Codex CLI, GitHub CLI, Playwright.
 - A backend selected: `hybrid` if Codex passes every probe, otherwise
   `claude-only` with the missing capability named.
 - The effective model mapping shown.
@@ -48,16 +47,7 @@ written outside a worktree, because the user asked for it directly.
 - Give exact remediation for anything missing. "Install Git" is not remediation;
   the command for their platform is.
 - Missing Codex is not a failure. Report it, select `claude-only`, and continue.
-- Install no runtime, package dependency, daemon, hook, or executable, with one
-  named exception: the code graph, which the user is offered and must accept,
-  per `${CLAUDE_PLUGIN_ROOT}/internal/code-graph.md`. Nothing else is installable
-  by this setup, and a decline leaves a fully working Run.
-- **Check before installing anything, and probe each layer separately.** The
-  executable and the MCP entry are machine-wide; only the graph index belongs to
-  a repository. Setup run in a second repository must find the first two already
-  satisfied and do nothing about them. Reinstalling a package the user already
-  has, or rewriting an MCP entry they already configured, is a defect — not a
-  harmless repeat.
+- Install no runtime, package dependency, daemon, hook, or executable.
 - Write no personal path, account, repository, or credential into any managed
   file.
 - Preserve `CLAUDE.md`, `AGENTS.md`, custom skills, and existing documentation.

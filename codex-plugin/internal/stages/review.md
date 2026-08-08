@@ -179,27 +179,6 @@ the current files themselves.
 Reviewers receive only the active subject, pending Finding Ledger entries, and new
 evidence. Closed findings and prior review history are not resent.
 
-### The code graph in a review
-
-Set the handoff's `codeGraph` field before dispatching. It is `fresh` only after
-you have updated the index against this worktree in this phase, per
-`<pluginRoot>/internal/code-graph.md`; otherwise `stale` or `absent`. Do not set
-it from what a previous phase found — the implementer has written code since, and
-an index that predates the diff answers about a repository that no longer exists.
-
-What it buys a reviewer is the part a diff does not contain: callers the change
-did not touch, the flows the changed code sits on, and which of those paths no
-test covers. That feeds the `correctness` and `tests` lenses with something a
-small diff cannot show on its own.
-
-It changes nothing else. The Review Subject is still the diff, the subject hash
-is still computed from Git, the write set is still checked against Git, and a
-finding still names a path and a line range from a file the reviewer opened.
-`verdict` never comes from a query.
-
-The QA gate ignores all of this. It executes the Validation Gate, and a command's
-exit code is not something an index has an opinion about.
-
 ## Verify the result
 
 Validate against `<pluginRoot>/internal/contracts/review-result.schema.json`
@@ -346,15 +325,6 @@ correction, or it is not a finding.
 The stack guide in `references/` earns its place here more than anywhere else.
 The Project Profile already resolved the stack, and it does not change across the
 pass, so one guide covers the whole audit.
-
-The code graph, when available, is the difference between an audit that samples
-and one that knows what it skipped: the architecture overview and the communities
-say what the repository is made of, and the hub and bridge nodes say which parts
-carry everything else — which is where an audit's attention belongs first. There
-is no worktree in an audit, so `fresh` means the index was updated against the
-primary checkout in this phase. That is safe here for the same reason the audit
-is: the index is written outside the repository, and nothing in this mode writes
-to it either.
 
 Render `audit.md` from
 `<pluginRoot>/internal/templates/documents/audit.md.tpl`. Show a concise

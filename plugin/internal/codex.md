@@ -44,24 +44,6 @@ Hybrid is selected only when every one of these works: `exec`, `exec resume`,
 `-C`, the read-only sandbox, the workspace-write sandbox, JSON events, and
 `--output-schema`. A missing capability means `claude-only`, reported by name.
 
-## MCP servers are not inherited
-
-A Codex Worker sees the servers in `~/.codex/config.toml`, never the ones
-connected to the Claude session that dispatched it. The code graph in particular
-has to be declared there as well to reach a Codex Worker; setup writes both
-entries, per `${CLAUDE_PLUGIN_ROOT}/internal/code-graph.md`.
-
-Say so when it is missing rather than letting the Run look broken. A Codex Worker
-without the graph reads files, which is the same Run at a higher cost — but the
-roles most likely to notice are exactly the ones hybrid routes to Codex: plan
-creation, technical code review, the QA gate, and audit.
-
-The reverse matters more. `CRG_TOOLS` in that entry is what keeps a Codex Worker
-away from the graph's write tools, because a Codex session has no `tools:` list
-to bound it and `--sandbox read-only` does not stop an MCP server writing on its
-behalf. A Codex entry that omits `CRG_TOOLS` hands every reviewer
-`apply_refactor_tool`.
-
 ## Starting a Worker
 
 Read-only roles (discovery, plan review, code review, audit):

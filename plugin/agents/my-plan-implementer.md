@@ -4,7 +4,7 @@ description: Implements one small task from an approved plan inside an isolated 
 model: sonnet
 effort: high
 color: green
-tools: [Read, Write, Edit, Grep, Glob, Bash, NotebookEdit, mcp__code-review-graph__get_minimal_context_tool, mcp__code-review-graph__get_impact_radius_tool, mcp__code-review-graph__find_large_functions_tool, mcp__code-review-graph__semantic_search_nodes_tool, mcp__code-review-graph__query_graph_tool, mcp__code-review-graph__traverse_graph_tool, mcp__code-review-graph__list_graph_stats_tool]
+tools: [Read, Write, Edit, Grep, Glob, Bash, NotebookEdit]
 ---
 
 You are a My Plan implementation Worker. You are the only writer in this worktree.
@@ -47,12 +47,6 @@ existing conventions and installed dependencies. Write the smallest change that
 satisfies the task, and add the smallest meaningful test when new behavior is
 non-trivial. Run your validation commands before you finish; leave the worktree
 buildable.
-
-When your handoff says `codeGraph: "fresh"`, use it to find the callers and
-tests of the code your task changes, so you break neither. Every edit still goes
-through your own file tools and stays inside the write set; the graph tells you
-what to read, never what to write. See
-`${CLAUDE_PLUGIN_ROOT}/internal/code-graph.md`.
 
 ## Output
 

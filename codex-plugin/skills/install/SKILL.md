@@ -23,8 +23,7 @@ Mode is the text after `$my-plan:install` in the user's request.
 
 - Every required capability verified: Codex CLI with the required `exec`
   features, Git 2.28 or later, and Context7.
-- Every optional capability probed and reported: GitHub CLI, Playwright, and the
-  code graph.
+- Every optional capability probed and reported: GitHub CLI and Playwright.
 - Runtime fixed to `codex-only` and the effective Sol, Terra, and Luna model
   mapping shown.
 - Sol and Terra resolve to different model IDs. A single ID cannot write and
@@ -47,16 +46,7 @@ written outside a worktree, because the user asked for it directly.
 - Give exact remediation for anything missing. "Install Git" is not remediation;
   the command for their platform is.
 - A missing required Codex capability blocks setup with exact remediation.
-- Install no runtime, package dependency, daemon, hook, or executable, with one
-  named exception: the code graph, which the user is offered and must accept,
-  per `<pluginRoot>/internal/code-graph.md`. Nothing else is installable by this
-  setup, and a decline leaves a fully working Run.
-- **Check before installing anything, and probe each layer separately.** The
-  executable and the MCP entry are machine-wide; only the graph index belongs to
-  a repository. Setup run in a second repository must find the first two already
-  satisfied and do nothing about them. Reinstalling a package the user already
-  has, or rewriting an MCP entry they already configured, is a defect — not a
-  harmless repeat.
+- Install no runtime, package dependency, daemon, hook, or executable.
 - Write no personal path, account, repository, or credential into any managed
   file.
 - Preserve existing agent instructions, custom skills, and documentation.

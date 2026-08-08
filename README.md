@@ -4,8 +4,8 @@
 
 Two independent, installable plugins — one for Claude Code and one Codex-only —
 carry one approved specification through planning, implementation, validation,
-independent review, and delivery. Three commands. Nothing is installed into your
-project, and nothing runs there.
+independent review, and delivery. Three commands. No runtime is installed into
+your project.
 
 ---
 
@@ -92,27 +92,8 @@ Setup resumes rather than restarting after a missing prerequisite is fixed.
 
 | Distribution | Required | Optional |
 |--------------|----------|----------|
-| Claude Code | Claude Code 2.1.216+, Git 2.28+, Context7 | Codex CLI, GitHub CLI, Playwright, code graph |
-| Codex-only | Codex CLI with `exec`, Git 2.28+, Context7, distinct Sol and Terra mappings | GitHub CLI, Playwright, code graph |
-
-### The code graph
-
-The one optional capability setup offers to install for you, and the only thing
-it ever installs. [code-review-graph](https://github.com/tirth8205/code-review-graph)
-indexes your repository structurally, so discovery, planning, review, and audit
-can ask which callers a function has instead of reading the files to find out.
-
-Setup probes three separate layers and provisions only what is missing: the
-executable and the MCP entry are machine-wide and shared by every repository,
-and only the index itself belongs to a repository. Running setup in a second
-repository finds the first two already satisfied and builds just the index.
-
-The index is written to the same external state directory as run state, never
-into your checkout. Declining leaves a run identical in every phase, gate, and
-check — only more expensive. Cloud embeddings stay off unless you turn them on.
-
-The Codex-only distribution never falls back to Claude. Quota, authentication,
-or an unavailable independent model leaves the Run blocked and resumable.
+| Claude Code | Claude Code 2.1.216+, Git 2.28+, Context7 | Codex CLI, GitHub CLI, Playwright |
+| Codex-only | Codex CLI with `exec`, Git 2.28+, Context7, distinct Sol and Terra mappings | GitHub CLI, Playwright |
 
 ### Updating Codex
 

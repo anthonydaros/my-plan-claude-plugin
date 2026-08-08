@@ -114,55 +114,6 @@ foreach ($a in @('implementer', 'planner')) {
 $tools = (Frontmatter (Join-Path $plugin 'agents\my-plan-committer.md')) -match '^tools:'
 Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) 'committer edits no files'
 
-# Not every code-graph MCP tool is read-only, and none of their names carries a
-# Write or Edit for the checks above to catch. apply_refactor_tool edits source,
-# the wiki tools write a second architecture record, three write the index, and
-# two reach other repositories. refactor_tool matches apply_refactor_tool as a
-# substring, so one pattern covers both.
-$graphWriters = '(refactor_tool|generate_wiki_tool|get_wiki_page_tool|build_or_update_graph_tool|run_postprocess_tool|embed_graph_tool|list_repos_tool|cross_repo_search_tool)'
-foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer', 'reviewer-deep', 'committer')) {
-    $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
-    Check (-not ($tools -match $graphWriters)) "agent $a holds no writing or cross-repo graph tool"
-}
-
-# The committer runs Git and scans for secrets. It has no codebase to read.
-$tools = (Frontmatter (Join-Path $plugin 'agents\my-plan-committer.md')) -match '^tools:'
-Check (-not ($tools -match 'mcp__code-review-graph__')) 'committer queries no code graph'
-
-# The graph is an index, not an authority, and its module is the only place that
-# boundary is written down.
-foreach ($p in @($plugin, $codexPlugin)) {
-    $label = if ($p -eq $plugin) { 'plugin' } else { 'Codex' }
-    $graphDoc = Get-Content -LiteralPath (Join-Path $p 'internal\code-graph.md') -Raw
-
-    Check ($graphDoc.Contains('The graph never decides a verdict, a write set, a hash, or a gate.')) "$($label): the graph orients a phase, it does not decide one"
-    Check ($graphDoc.Contains('rebuilds against the worktree before trusting it')) "$($label): the graph is revalidated against the worktree per phase"
-    Check ($graphDoc.Contains('The index lives outside the repository')) "$($label): the graph index stays out of the user's checkout"
-    Check ($graphDoc.Contains('Never enable a cloud embedding provider without asking')) "$($label): cloud embeddings need the user, not a default"
-    Check ($graphDoc.Contains('--no-instructions --no-skills --no-hooks')) "$($label): provisioning never edits canonical docs, hooks, or skills"
-    Check ($graphDoc.Contains('CRG_TOOLS')) "$($label): the transport bounds what a non-agent-file Worker can reach"
-}
-
-Write-Host '== provisioning checks before it installs'
-
-# The executable and the MCP entry are machine-wide; only the index belongs to a
-# repository. One probe asking "does this repository have a graph?" answers no in
-# every new repository, and acting on that reinstalls what the user already has.
-foreach ($p in @($plugin, $codexPlugin)) {
-    $label = if ($p -eq $plugin) { 'plugin' } else { 'Codex' }
-    $graphDoc = Get-Content -LiteralPath (Join-Path $p 'internal\code-graph.md') -Raw
-    $projectStage = Get-Content -LiteralPath (Join-Path $p 'internal\stages\project.md') -Raw
-    $installSkill = Get-Content -LiteralPath (Join-Path $p 'skills\install\SKILL.md') -Raw
-
-    Check ($graphDoc.Contains('three separate probes, and only the third is per-repository')) "$($label): provisioning separates the machine-wide layers from the repository one"
-    Check ($graphDoc.Contains('Probe each layer before touching it, and skip every layer')) "$($label): each layer is probed before it is touched"
-    Check ($graphDoc.Contains('not rewrite it, do not normalize it, and do not re-run')) "$($label): an already-configured MCP entry is left alone"
-    Check ($projectStage.Contains('Probe the three layers separately, and provision only what is missing')) "$($label): setup provisions only the layers that failed"
-    Check ($projectStage.Contains('"mcpEntry"')) "$($label): the profile remembers the machine-wide layers across repositories"
-    Check ($installSkill.Contains('Check before installing anything, and probe each layer separately')) "$($label): the install command states the check-first rule"
-    Check ($installSkill.Contains('named exception: the code graph')) "$($label): the no-install rule names its one exception"
-}
-
 # Same-model review is the failure this product exists to prevent.
 function ModelOf([string]$agent) {
     $line = (Frontmatter (Join-Path $plugin "agents\my-plan-$agent.md")) -match '^model:'

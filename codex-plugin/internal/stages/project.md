@@ -34,64 +34,12 @@ session rather than assuming a feature from the CLI version.
 |------------|-------|------------|
 | GitHub CLI | `gh --version` and `gh auth status` | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
 | Playwright | `playwright --version`, then `playwright-cli --version`. Either counts | Recommend it for browser validation. Never block on it |
-| Code graph | Three probes, not one: `command -v code-review-graph`, then the host's MCP entry, then `code-review-graph status --json --data-dir <stateRoot>/graphs/<repo-key>` | Offer to provision only the layers that failed, per `<pluginRoot>/internal/code-graph.md`. A decline is recorded and never re-asked |
 
 Probe the flags from the help output rather than by running a real Codex turn: a
 probe that costs a model call is a probe people learn to skip.
 
 Report installed versions and whether authentication is ready. Never read, echo,
 log, or store a secret value.
-
-### The code graph
-
-The one optional capability this setup can provision rather than only report,
-because installing it is three commands and the payoff is every later phase
-reading less. `<pluginRoot>/internal/code-graph.md` owns the commands, the
-configuration, and the boundaries; this section owns only when the offer happens.
-
-Offer it at two moments and no others:
-
-1. During `$my-plan:install`, with the other probes.
-2. At the start of a Run, before the Quick Scan, when this repository has no
-   graph yet and the user has not declined for it.
-
-Second is the one that matters in practice: setup usually ran long ago, in
-another repository, and the graph is per-repository. Offering after discovery has
-already read the repository would arrive too late to save anything.
-
-**Probe the three layers separately, and provision only what is missing.** The
-executable and the MCP entry are machine-wide; the index belongs to one
-repository. A probe that only asks whether this repository has a graph answers no
-in every new repository, and acting on that answer reinstalls a package the user
-already has and rewrites an MCP entry they already configured.
-
-So the Working Profile — which is user-level, not per-repository — records the
-two global layers:
-
-```json
-"codeGraph": {
-  "executable": "/Users/…/.local/bin/code-review-graph",
-  "version": "0.9.2",
-  "mcpEntry": "configured",
-  "declined": false
-}
-```
-
-`mcpEntry` is `configured`, `missing`, or `incomplete` — the last meaning the
-entry exists without `CRG_DATA_DIR` or `CRG_TOOLS`, which is a correction to
-those keys and never a reinstall. Setup in a second repository reads this and
-starts at the index, which is the only layer that was ever about a repository.
-
-Record per repository, in the Project Profile, only whether its index exists.
-
-`declined` is permanent for that repository and is never re-asked; a capability
-that asks again every Run has stopped being an offer.
-
-An offer is not an install. Name the layers that are actually missing, where the
-index lives, and that the repository itself is not written to, then wait for an
-answer. When every layer already holds, there is nothing to offer: say what is
-already installed and move on. A user who says no gets a Run identical to
-today's.
 
 ### Runtime
 
@@ -266,7 +214,6 @@ Layout:
 │   ├── handoffs/<attempt-id>.json
 │   └── results/<attempt-id>.json
 ├── repos/<repo-key>/repo.json      # run index for this repo, not the Project Profile
-├── graphs/<repo-key>/              # code graph index, kept out of the checkout
 ├── locks/<repo-key>/
 └── worktrees/<repo-key>/<run-short>/
 ```
@@ -582,18 +529,6 @@ Build it from a complete repository inspection and existing canonical
 documentation. Populate it from verified evidence. A generic template filled with
 plausible-sounding architecture is worse than an empty file, because later phases
 will trust it.
-
-When the code graph is available, that inspection starts structurally instead of
-exhaustively: the architecture overview, the communities, the hub and bridge
-nodes, and the flows name the real module boundaries and the code everything
-depends on. Then read what they named. This is the largest single saving the
-graph offers, because it replaces reading a repository to find its shape with
-reading the parts that turned out to have one.
-
-It does not lower the evidence bar. A community is a clustering result, not a
-module boundary someone designed, and what a component is *for* comes from
-reading it and its documentation. The graph decides what to open; the file
-decides what goes in the memory.
 
 Contains only durable current architecture:
 

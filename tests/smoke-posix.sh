@@ -200,113 +200,9 @@ d_tools=$(frontmatter "$PLUGIN/agents/my-plan-reviewer-deep.md" | grep '^tools:'
 [ "$r_tools" = "$d_tools" ]
 check $? "both reviewers declare the same tool list"
 
-# The code graph's MCP tools are not all read-only, and the names carry no Write
-# or Edit for the checks above to catch. apply_refactor_tool edits source, the
-# wiki tools write a second architecture record, three tools write the index
-# itself, and two reach other repositories. A reviewer holding any of them is not
-# read-only, and an implementer holding apply_refactor_tool has a write path the
-# Coordinator never checks against the approved write set. refactor_tool matches
-# apply_refactor_tool as a substring, which is why one pattern covers both.
-graph_writers='(refactor_tool|generate_wiki_tool|get_wiki_page_tool|build_or_update_graph_tool|run_postprocess_tool|embed_graph_tool|list_repos_tool|cross_repo_search_tool)'
-for a in discovery planner implementer reviewer reviewer-deep committer; do
-  if frontmatter "$PLUGIN/agents/my-plan-$a.md" | grep -qE "^tools: \[.*$graph_writers"; then
-    fail "agent $a must not hold a graph tool that writes or leaves the repository"
-  else
-    pass "agent $a holds no writing or cross-repo graph tool"
-  fi
-done
-
-# The committer runs Git and scans for secrets. It has no codebase to read, so
-# any graph tool it held would be scope it does not need at the one point where
-# scope costs the most.
-if frontmatter "$PLUGIN/agents/my-plan-committer.md" | grep -q 'mcp__code-review-graph__'; then
-  fail "committer must not query the code graph"
-else
-  pass "committer queries no code graph"
-fi
-
-echo "== the code graph stays an index, not an authority"
-
-# The capability is optional and its module is the only place its boundaries are
-# written. Each sentence below is one a later edit could drop while leaving prose
-# that still reads correctly.
-for p in "$PLUGIN" "$CODEX_PLUGIN"; do
-  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
-
-  grep -qF 'The graph never decides a verdict, a write set, a hash, or a gate.' "$p/internal/code-graph.md"
-  check $? "$label: the graph orients a phase, it does not decide one"
-
-  # An index built from the primary checkout cannot see what the implementer
-  # wrote. Trusting one that predates the diff is worse than having none.
-  grep -q 'rebuilds against the worktree before trusting it' "$p/internal/code-graph.md"
-  check $? "$label: the graph is revalidated against the worktree per phase"
-
-  # The index must not appear inside the user's checkout: discovery is read-only
-  # there, and an untracked directory would surface in the Review Subject.
-  grep -q 'The index lives outside the repository' "$p/internal/code-graph.md"
-  check $? "$label: the graph index stays out of the user's checkout"
-
-  # A cloud embedding provider ships source-derived text to a third party, which
-  # is what discovery-spec.md already forbids for research queries.
-  grep -qF 'Never enable a cloud embedding provider without asking' "$p/internal/code-graph.md"
-  check $? "$label: cloud embeddings need the user, not a default"
-
-  # install(1) injects instructions into CLAUDE.md/AGENTS.md and writes hooks and
-  # skills unless told not to. project.md forbids exactly that.
-  grep -q -- '--no-instructions --no-skills --no-hooks' "$p/internal/code-graph.md"
-  check $? "$label: provisioning never edits CLAUDE.md, AGENTS.md, hooks, or skills"
-
-  # CRG_TOOLS is the only write boundary that reaches a Worker with no tools:
-  # frontmatter, which is every Codex and opencode Worker.
-  grep -q 'CRG_TOOLS' "$p/internal/code-graph.md"
-  check $? "$label: the transport bounds what a non-Claude Worker can reach"
-done
-
-echo "== provisioning checks before it installs"
-
-# The executable and the MCP entry are machine-wide; only the index belongs to a
-# repository. A single probe asking "does this repository have a graph?" answers
-# no in every new repository, and acting on that reinstalls a package the user
-# already has and rewrites an MCP entry they already configured. Setup runs once
-# per repository, so this is the defect that reaches every repository the user
-# owns.
-for p in "$PLUGIN" "$CODEX_PLUGIN"; do
-  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
-
-  grep -q 'three separate probes, and only the third is per-repository' "$p/internal/code-graph.md"
-  check $? "$label: provisioning separates the machine-wide layers from the repository one"
-
-  grep -qF 'Probe each layer before touching it, and skip every layer' "$p/internal/code-graph.md"
-  check $? "$label: each layer is probed before it is touched"
-
-  # An entry the user already configured is theirs. Re-running install over it is
-  # how a working setup acquires a second, conflicting one.
-  grep -q 'not rewrite it, do not normalize it, and do not re-run' "$p/internal/code-graph.md"
-  check $? "$label: an already-configured MCP entry is left alone"
-
-  # The Working Profile is user-level, so it is the only place the two global
-  # layers can be remembered across repositories.
-  grep -q 'Probe the three layers separately, and provision only what is missing' "$p/internal/stages/project.md"
-  check $? "$label: setup provisions only the layers that failed"
-
-  grep -q '"mcpEntry"' "$p/internal/stages/project.md"
-  check $? "$label: the profile remembers the machine-wide layers across repositories"
-
-  grep -qF 'Check before installing anything, and probe each layer separately' "$p/skills/install/SKILL.md"
-  check $? "$label: the install command states the check-first rule"
-
-  # install/SKILL.md forbids installing an executable. The code graph is the one
-  # exception, and leaving the blanket rule unqualified makes the two documents
-  # contradict each other, which is worse than either rule alone.
-  grep -q 'with one' "$p/skills/install/SKILL.md" &&
-    grep -q 'named exception: the code graph' "$p/skills/install/SKILL.md"
-  check $? "$label: the no-install rule names its one exception"
-done
-
 echo "== internal assets"
 
 for f in \
-  internal/code-graph.md \
   internal/stages/project.md \
   internal/stages/discovery-spec.md \
   internal/stages/planning.md \
@@ -340,7 +236,6 @@ done
 
 for f in \
   internal/codex.md \
-  internal/code-graph.md \
   internal/stages/project.md \
   internal/stages/discovery-spec.md \
   internal/stages/planning.md \

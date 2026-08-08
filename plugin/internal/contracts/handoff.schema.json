@@ -24,8 +24,7 @@
     "ownedLenses",
     "previousSubjectHash",
     "notes",
-    "validationCommands",
-    "codeGraph"
+    "validationCommands"
   ],
   "$comment": "Every property appears in required at every level, matching the strict structured-output rules the result contracts must follow. Optional fields are nullable, never absent, so a Worker never has to guess whether a missing key means empty or unset.",
   "properties": {
@@ -159,11 +158,6 @@
       "type": ["array", "null"],
       "description": "Required Project Profile commands relevant to this attempt. Null for roles that run none.",
       "items": { "type": "string", "minLength": 1 }
-    },
-    "codeGraph": {
-      "type": ["string", "null"],
-      "description": "Whether this Worker may query the code graph. Only fresh authorizes a query, and it means the Coordinator updated the index against this worktree in this phase. stale means an index exists but does not describe this checkout, absent means there is none, and both mean read the files instead. Null for roles that never query it.",
-      "enum": ["fresh", "stale", "absent", null]
     }
   }
 }

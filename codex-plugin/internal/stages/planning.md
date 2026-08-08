@@ -135,16 +135,7 @@ Rules:
 
 ## Overlap with other Runs
 
-Once the write set is fixed, run its impact radius against the code graph when
-one is `fresh`. A path the radius returns that the approved write set does not
-cover is an integration risk to state in the plan, next to the overlaps below.
-
-It is never a reason to widen the write set. The rule above stands unchanged: a
-path the tasks need but approval does not cover is a scope change that goes back
-to the specification. What the graph adds is finding that out now instead of at
-the final review.
-
-Then compare the write set against the write sets of every other
+Once the write set is fixed, compare it against the write sets of every other
 unfinished Run for this repository in state.
 
 Report any overlapping path as integration risk. Do not block on it: the Runs are
