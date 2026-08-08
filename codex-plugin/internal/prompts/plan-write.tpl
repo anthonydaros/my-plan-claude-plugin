@@ -24,6 +24,12 @@ Each task names exact paths, whether they exist, current state, intended change,
 real dependencies, test impact, and the check that proves completion. Reuse an
 existing helper, pattern, or installed dependency before adding an abstraction.
 
+Work the structure against `checklists/architecture.md` before writing the tasks.
+Every layer, interface, factory, or pattern the plan introduces answers that
+file's five questions in the plan itself, and the plan states which structure
+level it took. The reviewer checks exactly this, so an unanswered question is a
+review round that could have ended here.
+
 Size each task for a Worker that receives only that task. It should touch a
 handful of files, carry one idea, leave the worktree buildable, and need no
 unstated context. Keep a contract with its implementation and wiring. Mark tasks

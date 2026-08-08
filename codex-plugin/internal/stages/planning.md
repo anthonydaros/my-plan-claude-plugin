@@ -119,6 +119,12 @@ Rules:
 - Reuse before adding. Name the existing helper, pattern, or installed dependency
   the task should use. A new abstraction needs a reason the existing code cannot
   serve.
+- The structure is the smallest one that still holds the rules, the security, and
+  the testability the specification asks for.
+  `<pluginRoot>/internal/checklists/architecture.md` is the standard, and the
+  plan answers its five questions in writing for every layer, interface, factory,
+  or pattern it introduces. The plan reviewer checks exactly that, so an
+  unanswered question is a round that could have been avoided here.
 - Non-trivial new behavior gets a check. Auth, deletion, persistence, payment,
   cost, and external contract paths require a behavioral or integration check.
 - A refactor task touching code with no existing coverage declares a
@@ -129,7 +135,16 @@ Rules:
 
 ## Overlap with other Runs
 
-Once the write set is fixed, compare it against the write sets of every other
+Once the write set is fixed, run its impact radius against the code graph when
+one is `fresh`. A path the radius returns that the approved write set does not
+cover is an integration risk to state in the plan, next to the overlaps below.
+
+It is never a reason to widen the write set. The rule above stands unchanged: a
+path the tasks need but approval does not cover is a scope change that goes back
+to the specification. What the graph adds is finding that out now instead of at
+the final review.
+
+Then compare the write set against the write sets of every other
 unfinished Run for this repository in state.
 
 Report any overlapping path as integration risk. Do not block on it: the Runs are

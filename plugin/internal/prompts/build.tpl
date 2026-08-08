@@ -23,6 +23,15 @@ The project skill and the Architecture Memory are worth reading when listed:
 they are how this repository does things, and following them is cheaper than being
 corrected into them.
 
+`checklists/implementation.md` is the one thing to read that your handoff does not
+list, and only the parts your task's surface touches. It covers what compiling and
+passing tests does not: N+1 queries, a missing transaction, a read-check-write
+race, authorization checked per session instead of per resource, an error
+swallowed into `null`, a migration that cannot be deployed separately, and a call
+to an API that does not exist in the installed version. Those are the defects that
+come back as a remediation round, and every one of them is cheaper to avoid than
+to be told about.
+
 ## Boundaries
 
 - Work only inside the worktree named in the handoff. Never touch the primary

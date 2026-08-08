@@ -30,6 +30,12 @@ repository. You may read code and run read-only inspection.
 5. **Repository fit.** Does the plan reuse existing helpers, patterns, and
    installed dependencies, or does it add abstractions and dependencies the
    repository already has an answer for? Name the existing thing it should use.
+   `checklists/architecture.md` is what the plan was written against: a layer,
+   interface, factory, or pattern it introduces without answering that file's
+   five questions is a finding, and the correction is the simpler structure by
+   name. Structure a repository does not already use is an architectural change,
+   and arriving as a side effect of a feature is what makes it one worth
+   blocking.
 6. **Tests.** Does non-trivial new behavior get an observable-behavior check?
    Auth, deletion, persistence, payment, cost, and external contract paths require
    one. Do not demand tests for trivial code.

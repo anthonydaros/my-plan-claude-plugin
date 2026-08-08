@@ -200,9 +200,113 @@ d_tools=$(frontmatter "$PLUGIN/agents/my-plan-reviewer-deep.md" | grep '^tools:'
 [ "$r_tools" = "$d_tools" ]
 check $? "both reviewers declare the same tool list"
 
+# The code graph's MCP tools are not all read-only, and the names carry no Write
+# or Edit for the checks above to catch. apply_refactor_tool edits source, the
+# wiki tools write a second architecture record, three tools write the index
+# itself, and two reach other repositories. A reviewer holding any of them is not
+# read-only, and an implementer holding apply_refactor_tool has a write path the
+# Coordinator never checks against the approved write set. refactor_tool matches
+# apply_refactor_tool as a substring, which is why one pattern covers both.
+graph_writers='(refactor_tool|generate_wiki_tool|get_wiki_page_tool|build_or_update_graph_tool|run_postprocess_tool|embed_graph_tool|list_repos_tool|cross_repo_search_tool)'
+for a in discovery planner implementer reviewer reviewer-deep committer; do
+  if frontmatter "$PLUGIN/agents/my-plan-$a.md" | grep -qE "^tools: \[.*$graph_writers"; then
+    fail "agent $a must not hold a graph tool that writes or leaves the repository"
+  else
+    pass "agent $a holds no writing or cross-repo graph tool"
+  fi
+done
+
+# The committer runs Git and scans for secrets. It has no codebase to read, so
+# any graph tool it held would be scope it does not need at the one point where
+# scope costs the most.
+if frontmatter "$PLUGIN/agents/my-plan-committer.md" | grep -q 'mcp__code-review-graph__'; then
+  fail "committer must not query the code graph"
+else
+  pass "committer queries no code graph"
+fi
+
+echo "== the code graph stays an index, not an authority"
+
+# The capability is optional and its module is the only place its boundaries are
+# written. Each sentence below is one a later edit could drop while leaving prose
+# that still reads correctly.
+for p in "$PLUGIN" "$CODEX_PLUGIN"; do
+  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
+
+  grep -qF 'The graph never decides a verdict, a write set, a hash, or a gate.' "$p/internal/code-graph.md"
+  check $? "$label: the graph orients a phase, it does not decide one"
+
+  # An index built from the primary checkout cannot see what the implementer
+  # wrote. Trusting one that predates the diff is worse than having none.
+  grep -q 'rebuilds against the worktree before trusting it' "$p/internal/code-graph.md"
+  check $? "$label: the graph is revalidated against the worktree per phase"
+
+  # The index must not appear inside the user's checkout: discovery is read-only
+  # there, and an untracked directory would surface in the Review Subject.
+  grep -q 'The index lives outside the repository' "$p/internal/code-graph.md"
+  check $? "$label: the graph index stays out of the user's checkout"
+
+  # A cloud embedding provider ships source-derived text to a third party, which
+  # is what discovery-spec.md already forbids for research queries.
+  grep -qF 'Never enable a cloud embedding provider without asking' "$p/internal/code-graph.md"
+  check $? "$label: cloud embeddings need the user, not a default"
+
+  # install(1) injects instructions into CLAUDE.md/AGENTS.md and writes hooks and
+  # skills unless told not to. project.md forbids exactly that.
+  grep -q -- '--no-instructions --no-skills --no-hooks' "$p/internal/code-graph.md"
+  check $? "$label: provisioning never edits CLAUDE.md, AGENTS.md, hooks, or skills"
+
+  # CRG_TOOLS is the only write boundary that reaches a Worker with no tools:
+  # frontmatter, which is every Codex and opencode Worker.
+  grep -q 'CRG_TOOLS' "$p/internal/code-graph.md"
+  check $? "$label: the transport bounds what a non-Claude Worker can reach"
+done
+
+echo "== provisioning checks before it installs"
+
+# The executable and the MCP entry are machine-wide; only the index belongs to a
+# repository. A single probe asking "does this repository have a graph?" answers
+# no in every new repository, and acting on that reinstalls a package the user
+# already has and rewrites an MCP entry they already configured. Setup runs once
+# per repository, so this is the defect that reaches every repository the user
+# owns.
+for p in "$PLUGIN" "$CODEX_PLUGIN"; do
+  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
+
+  grep -q 'three separate probes, and only the third is per-repository' "$p/internal/code-graph.md"
+  check $? "$label: provisioning separates the machine-wide layers from the repository one"
+
+  grep -qF 'Probe each layer before touching it, and skip every layer' "$p/internal/code-graph.md"
+  check $? "$label: each layer is probed before it is touched"
+
+  # An entry the user already configured is theirs. Re-running install over it is
+  # how a working setup acquires a second, conflicting one.
+  grep -q 'not rewrite it, do not normalize it, and do not re-run' "$p/internal/code-graph.md"
+  check $? "$label: an already-configured MCP entry is left alone"
+
+  # The Working Profile is user-level, so it is the only place the two global
+  # layers can be remembered across repositories.
+  grep -q 'Probe the three layers separately, and provision only what is missing' "$p/internal/stages/project.md"
+  check $? "$label: setup provisions only the layers that failed"
+
+  grep -q '"mcpEntry"' "$p/internal/stages/project.md"
+  check $? "$label: the profile remembers the machine-wide layers across repositories"
+
+  grep -qF 'Check before installing anything, and probe each layer separately' "$p/skills/install/SKILL.md"
+  check $? "$label: the install command states the check-first rule"
+
+  # install/SKILL.md forbids installing an executable. The code graph is the one
+  # exception, and leaving the blanket rule unqualified makes the two documents
+  # contradict each other, which is worse than either rule alone.
+  grep -q 'with one' "$p/skills/install/SKILL.md" &&
+    grep -q 'named exception: the code graph' "$p/skills/install/SKILL.md"
+  check $? "$label: the no-install rule names its one exception"
+done
+
 echo "== internal assets"
 
 for f in \
+  internal/code-graph.md \
   internal/stages/project.md \
   internal/stages/discovery-spec.md \
   internal/stages/planning.md \
@@ -220,6 +324,10 @@ for f in \
   internal/contracts/build-result.schema.json \
   internal/contracts/commit-result.schema.json \
   internal/checklists/review.md \
+  internal/checklists/architecture.md \
+  internal/checklists/implementation.md \
+  internal/references/README.md \
+  internal/references/NOTICE.md \
   internal/templates/project-skill.md.tpl; do
   [ -f "$PLUGIN/$f" ]
   check $? "exists: $f"
@@ -232,6 +340,7 @@ done
 
 for f in \
   internal/codex.md \
+  internal/code-graph.md \
   internal/stages/project.md \
   internal/stages/discovery-spec.md \
   internal/stages/planning.md \
@@ -251,6 +360,10 @@ for f in \
   internal/contracts/build-result.schema.json \
   internal/contracts/commit-result.schema.json \
   internal/checklists/review.md \
+  internal/checklists/architecture.md \
+  internal/checklists/implementation.md \
+  internal/references/README.md \
+  internal/references/NOTICE.md \
   internal/templates/project-skill.md.tpl \
   internal/templates/project-skill-openai.yaml.tpl; do
   [ -f "$CODEX_PLUGIN/$f" ]
@@ -640,6 +753,8 @@ echo "== shared assets stay in parity"
 
 for f in \
   internal/checklists/review.md \
+  internal/checklists/architecture.md \
+  internal/checklists/implementation.md \
   internal/contracts/build-result.schema.json \
   internal/contracts/challenge-result.schema.json \
   internal/contracts/review-result.schema.json \
@@ -657,6 +772,80 @@ for f in \
   internal/templates/documents/validation.md.tpl; do
   cmp -s "$PLUGIN/$f" "$CODEX_PLUGIN/$f"
   check $? "shared asset matches: $f"
+done
+
+# The reference guides are one body of text with two homes. Listing them by name
+# would rot the moment a guide is added, so compare the directories wholesale.
+if diff -rq "$PLUGIN/internal/references" "$CODEX_PLUGIN/internal/references" >/dev/null 2>&1; then
+  pass "reference guides match across distributions"
+else
+  fail "reference guides differ across distributions"
+fi
+
+echo "== reference guides are attributed and reachable"
+
+# The guides are third-party MIT text. Redistributing them without the upstream
+# copyright is the one defect here that is not a quality problem.
+grep -q 'Copyright (c) 2025 awesome-skills' "$PLUGIN/internal/references/NOTICE.md"
+check $? "upstream copyright is preserved"
+
+grep -q 'Permission is hereby granted' "$PLUGIN/internal/references/NOTICE.md"
+check $? "upstream license text is preserved"
+
+# README.md is the only map from a stack or a concern to a file. An entry
+# pointing at nothing fails the same way a bad ${CLAUDE_PLUGIN_ROOT} path does:
+# invisibly, and only once a Run reaches it.
+missing=
+for ref in $(grep -oE '`[a-z0-9./-]+\.md`' "$PLUGIN/internal/references/README.md" |
+             tr -d '`' | grep -v '^checklists/' | sort -u); do
+  [ -f "$PLUGIN/internal/references/$ref" ] || missing="$missing $ref"
+done
+[ -z "$missing" ]
+check $? "every guide the reference index names exists${missing:+ (missing:$missing)}"
+
+# And the reverse: a guide nobody can find is a guide nobody loads.
+unindexed=
+for f in $(cd "$PLUGIN/internal/references" && find . -name '*.md' \
+           ! -name README.md ! -name NOTICE.md | sed 's|^\./||' | sort); do
+  grep -q "\`$f\`" "$PLUGIN/internal/references/README.md" || unindexed="$unindexed $f"
+done
+[ -z "$unindexed" ]
+check $? "every guide is reachable from the index${unindexed:+ (unindexed:$unindexed)}"
+
+echo "== the audit reaches the widest checklist surface"
+
+# An audit has no diff pointing it anywhere, so it is the mode that depends most
+# on the checklists and least on what the subject volunteers. Each link below is
+# a line an edit could drop while leaving prose that still reads correctly.
+for p in "$PLUGIN" "$CODEX_PLUGIN"; do
+  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
+
+  for c in architecture implementation review; do
+    grep -q "checklists/$c.md" "$p/skills/audit/SKILL.md"
+    check $? "$label: the audit command dispatches against checklists/$c.md"
+  done
+
+  grep -q 'internal/references/' "$p/skills/audit/SKILL.md"
+  check $? "$label: the audit command reaches the stack guides"
+
+  # The Worker has to know the two extra checklists are its scope in audit mode
+  # and nowhere else, or they either go unread or widen every other review.
+  grep -q 'In `audit` mode two more checklists are yours' "$p/internal/prompts/change-check.tpl"
+  check $? "$label: the audit Worker is told which checklists widen its scope"
+
+  grep -q 'In every other mode the diff is your scope' "$p/internal/prompts/change-check.tpl"
+  check $? "$label: the extra checklists do not widen a diff review"
+
+  grep -q 'widest checklist surface of any mode' "$p/internal/stages/review.md"
+  check $? "$label: audit mode states why it carries more checklist than a diff"
+done
+
+# Both checklists are read by a writer and by an audit, and the two readings have
+# different burdens of proof. A file that forgets the second one gets applied to
+# shipped code as though it were a standard for new code.
+for c in architecture implementation; do
+  grep -q 'audit' "$PLUGIN/internal/checklists/$c.md"
+  check $? "checklists/$c.md says how an audit reads it"
 done
 
 echo

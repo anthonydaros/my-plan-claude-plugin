@@ -4,8 +4,8 @@
 
 Two independent, installable plugins — one for Claude Code and one Codex-only —
 carry one approved specification through planning, implementation, validation,
-independent review, and delivery. Three commands. No runtime is installed into
-your project.
+independent review, and delivery. Three commands. Nothing is installed into your
+project, and nothing runs there.
 
 ---
 
@@ -92,8 +92,24 @@ Setup resumes rather than restarting after a missing prerequisite is fixed.
 
 | Distribution | Required | Optional |
 |--------------|----------|----------|
-| Claude Code | Claude Code 2.1.216+, Git 2.28+, Context7 | Codex CLI, GitHub CLI, Playwright |
-| Codex-only | Codex CLI with `exec`, Git 2.28+, Context7, distinct Sol and Terra mappings | GitHub CLI, Playwright |
+| Claude Code | Claude Code 2.1.216+, Git 2.28+, Context7 | Codex CLI, GitHub CLI, Playwright, code graph |
+| Codex-only | Codex CLI with `exec`, Git 2.28+, Context7, distinct Sol and Terra mappings | GitHub CLI, Playwright, code graph |
+
+### The code graph
+
+The one optional capability setup offers to install for you, and the only thing
+it ever installs. [code-review-graph](https://github.com/tirth8205/code-review-graph)
+indexes your repository structurally, so discovery, planning, review, and audit
+can ask which callers a function has instead of reading the files to find out.
+
+Setup probes three separate layers and provisions only what is missing: the
+executable and the MCP entry are machine-wide and shared by every repository,
+and only the index itself belongs to a repository. Running setup in a second
+repository finds the first two already satisfied and builds just the index.
+
+The index is written to the same external state directory as run state, never
+into your checkout. Declining leaves a run identical in every phase, gate, and
+check — only more expensive. Cloud embeddings stay off unless you turn them on.
 
 The Codex-only distribution never falls back to Claude. Quota, authentication,
 or an unavailable independent model leaves the Run blocked and resumable.
@@ -238,23 +254,102 @@ and review run again.
 
 ## Who does what
 
-Nobody reviews their own work.
+Nobody reviews their own work. Two properties decide who holds which job.
+**Width** is how much a Worker can hold at once — what discovery, a
+whole-repository audit, and a large diff need. **Depth** is how hard it reasons
+about one tangled thing — what a plan, a product judgement, and a concurrency bug
+need.
 
-| Job | Codex-only | Claude Code |
-|-----|------------|-------------|
-| Discovery | Terra, high ×2 | Sonnet, high ×2 |
-| Write the plan | Sol, high | Opus, high |
-| Review the plan | Terra, high | Sonnet, high |
-| Write the code | Terra, high | Sonnet, high |
-| Review the code | Sol, high ×2 | Opus, high |
+Every Worker also carries a reasoning effort. `high` is the working default
+everywhere; `xhigh` and `max` are escalations spent on one hard problem, not a
+setting to leave on.
+
+| Job | Codex-only | Claude Code, GPT available | Claude Code, Claude only |
+|-----|------------|----------------------------|--------------------------|
+| Discovery | Terra, high ×2 | Terra, high ×2 | Sonnet, high ×2 |
+| Findings review | Sol, xhigh | Opus, high | Opus, high |
+| Write the plan | Sol, high | Sol, high | Opus, high |
+| Review the plan | Terra, high | Terra, high | Sonnet, high |
+| Write the code | Terra, high | Terra, high | Sonnet, high |
+| Technical code review | Sol, high | Sol, high | Opus, high |
+| Product review | Sol, high | Sol, high | Opus, high |
+| QA gate | Sol, high | Sol, high | Opus, high |
+| Audit | Terra, high | Terra, high | Sonnet, high |
+| Commit | Terra, high | Sonnet, high | Sonnet, high |
+
+In Claude Code, **GPT takes every job it can hold and Claude takes what is left**.
+Claude still runs three jobs there regardless: the findings review, anything a
+Codex thread is too narrow to hold, and any review where the ladder would
+otherwise put one model on both sides.
 
 The Codex package runs every Worker through `codex exec`. Review and discovery
 receive a process-enforced read-only sandbox; planning and implementation receive
-workspace-write. Sol and Terra must resolve to different model IDs. A missing
-model, quota, or authentication blocks the Run with its work preserved.
+workspace-write. Sol and Terra must resolve to different model IDs. Installing
+one package does not change the other's behavior.
 
-The Claude package keeps its existing Codex-first hybrid mapping and its complete
-Claude-only path. Installing the Codex package does not change that behavior.
+### When a model is unavailable
+
+Every job has an **ordered list of candidates**, not one alternate. A model that
+is offline, out of quota, past a usage cap, or no longer served does not end a
+run: the job advances to the next candidate and keeps going.
+
+| Job | 1st | 2nd | 3rd | 4th |
+|-----|-----|-----|-----|-----|
+| Discovery | Terra, high | Gemini Pro, high | Sonnet, high | Opus, high |
+| Findings review | Opus, high | Sonnet, high | Sol, xhigh | — |
+| Write the plan | Sol, high | Sol, xhigh | Opus, high | Terra, high |
+| Review the plan | Terra, high | Opus, high | Sonnet, high | Luna, high |
+| Write the code | Terra, high | Gemini Pro, high | Sol, xhigh | Sonnet, high |
+| Technical code review | Sol, high | Sol, xhigh | Opus, high | Sonnet, high |
+| Product review | Sol, high | Opus, high | Sonnet, high | — |
+| QA gate | Sol, high | Terra, high | Opus, high | Sonnet, high |
+| Audit | Terra, high | Gemini Pro, high | Sol, xhigh | Sonnet, high |
+| Commit | Sonnet, high | Opus, high | Terra, high | Luna, high |
+
+**A chain is a list of candidates, not a list of instructions.** The writer's
+model appears somewhere on the reviewer's chain, so a chain walked blindly would
+eventually put the same identity on both sides of a review — and the check that
+was supposed to catch the defect becomes the model agreeing with itself. Before
+taking a candidate, it is compared against whoever already holds the opposing
+job in that run. If they match, it is skipped and the next one is taken.
+
+**A chain ends. It never wraps.** When every candidate is exhausted or skipped,
+the run is `BLOCKED` and says which job ran out and why. A run that stops with an
+honest reason costs a re-run; one that quietly reviews its own work costs
+whatever shipped.
+
+Gemini Pro, via opencode, appears on exactly three chains — discovery,
+implementation, and audit — and **never on a review chain**. Its transport
+validates a result after the model runs rather than before, which is fine for
+gathering evidence and for code about to be reviewed twice, and not fine for a
+verdict at the end of a chain.
+
+### What advances a chain, and what does not
+
+| What happened | What the run does |
+|---|---|
+| Offline, unauthenticated, out of quota, past a usage cap, out of credits, model withdrawn | Advances immediately. No retry — the next attempt fails the same way |
+| Network or provider error, transport failure | One bounded retry, then advances |
+| The model returned invalid JSON or broke its contract | A failed attempt against the **same** candidate. Not a reason to advance, and never an implicit approval |
+| The model did the work and the work was bad | Not a fallback at all. That is remediation, and it stays with the job that owns it |
+
+That last row is the one worth stating: a model returning nonsense is not a model
+being unavailable, and treating it as one hides a quality problem behind an
+infrastructure story while quietly demoting the job.
+
+**Raising effort is never the answer to an unavailable model.** Sol at `high`
+failing on quota does not become Sol at `xhigh` — same account, same limit. The
+`xhigh` entries above are for when the tier is reachable and the previous attempt
+failed on the work itself.
+
+Once a job moves down its chain it **stays there for that run**, and the move is
+recorded with the phase, the error class, the candidate that failed, the one that
+took over, and the time. The active candidate per job is written into the run
+manifest, so a run resumed in a new session still knows who wrote what — without
+it, a resumed run could hand the reviewer the model that wrote the code and pass
+every check while doing it.
+
+A fallback may reduce capability. It never merges writer and reviewer.
 
 ---
 

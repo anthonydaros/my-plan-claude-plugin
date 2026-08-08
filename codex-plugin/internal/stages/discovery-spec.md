@@ -15,6 +15,19 @@ Cover: code, canonical documentation, the project skill, the complete Architectu
 Memory, tests, configuration, and relevant history. Scan the frontmatter of past
 Run Dossiers and load only the ones relevant to this goal.
 
+Before reading the code, offer and provision the code graph if this repository
+has none — see `<pluginRoot>/internal/stages/project.md`, The code graph. It has
+to happen here, before the scan, or it saves nothing this Run.
+
+With a `fresh` graph, find the surface first and read second: minimal context,
+then a semantic search on the goal's own vocabulary, then traversal outward from
+what it returns. What comes back is a list of files to open, not an answer. The
+rule above does not move — everything the repository can tell you, you still read
+before asking the user anything.
+
+Without one, read as this section has always said. The index changes what you
+open first, never what counts as knowing.
+
 Then classify:
 
 - Existing-product change, or greenfield idea.

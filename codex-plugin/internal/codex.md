@@ -40,6 +40,18 @@ sandboxes. Probe flags from help output without spending a model call. Also run
 A missing surface or authentication blocks setup with exact remediation. Record
 `runtime: "codex-only"`; there is no alternate runtime selection.
 
+## MCP servers reach a Worker through the Codex config
+
+A Worker sees the servers declared in `~/.codex/config.toml` and nothing a parent
+session happens to have connected. The code graph has to be declared there to be
+reachable at all, per `<pluginRoot>/internal/code-graph.md`.
+
+`CRG_TOOLS` in that entry is what keeps a Worker away from the graph's write
+tools. A Codex session has no per-agent tool list to bound it, and
+`--sandbox read-only` stops the Worker writing but not an MCP server writing on
+its behalf. An entry that omits `CRG_TOOLS` hands every reviewer
+`apply_refactor_tool`.
+
 ## Prepare a Worker
 
 Render the role prompt from `<pluginRoot>/internal/prompts/` by replacing only

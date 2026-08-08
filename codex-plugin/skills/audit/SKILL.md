@@ -33,6 +33,23 @@ into a single-file review; the point of an audit is what a narrow look misses.
    read-only reviewer Workers in `audit` mode against
    `<pluginRoot>/internal/checklists/review.md`.
 
+   Two more checklists carry an audit further than the lenses alone.
+   `<pluginRoot>/internal/checklists/architecture.md` is the standard behind the
+   `complexity` lens: its five questions, asked of structure that already
+   shipped, are what turn "this feels over-built" into a finding that names the
+   simpler shape. `<pluginRoot>/internal/checklists/implementation.md` is the
+   catalogue of defects that survive working code — N+1, a missing transaction,
+   authorization checked per session instead of per resource, an error swallowed
+   into `null`, a migration that cannot be deployed separately. An audit with no
+   diff to follow needs that catalogue precisely because nothing points it at
+   where to look.
+
+   Depth per stack is in `<pluginRoot>/internal/references/`, mapped by its
+   `README.md`. An audit is where those guides pay off most: the stack is known
+   from the Project Profile and stays the same for the whole pass. Load the
+   repository's guide, plus whichever cross-cutting one the focus calls for, and
+   still no more than that.
+
 4. **Report.** Render `audit.md` from the templates. Show a concise recommended
    scope and link the full report.
 

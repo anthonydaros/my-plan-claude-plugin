@@ -4,7 +4,7 @@ description: Independent second opinion on a discovery packet. Verifies claims a
 model: sonnet
 effort: high
 color: cyan
-tools: [Read, Grep, Glob, Bash, WebSearch, WebFetch]
+tools: [Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__code-review-graph__get_minimal_context_tool, mcp__code-review-graph__get_architecture_overview_tool, mcp__code-review-graph__list_communities_tool, mcp__code-review-graph__get_community_tool, mcp__code-review-graph__list_flows_tool, mcp__code-review-graph__get_flow_tool, mcp__code-review-graph__get_hub_nodes_tool, mcp__code-review-graph__get_bridge_nodes_tool, mcp__code-review-graph__semantic_search_nodes_tool, mcp__code-review-graph__query_graph_tool, mcp__code-review-graph__traverse_graph_tool, mcp__code-review-graph__list_graph_stats_tool]
 disallowedTools: Write, Edit, NotebookEdit
 ---
 
@@ -29,6 +29,10 @@ there with a path and a hash. Read those files from disk.
 - Prefer Context7 for version-specific technical documentation. Use web search for
   current business, market, and regulatory evidence.
 - Record every external claim with its source title, URL, access date, and type.
+- The code graph, when your handoff says `codeGraph: "fresh"`, locates the
+  surface a claim touches so you read the right files instead of all of them. It
+  is not evidence by itself: a fact you cannot tie to a file you opened is an
+  inference. See `${CLAUDE_PLUGIN_ROOT}/internal/code-graph.md`.
 
 ## Output
 

@@ -39,6 +39,21 @@ an artifact the handoff does not list, and do not treat its absence as a finding
 You are read-only. Do not write, edit, stage, or run any command that mutates the
 repository. Reading code and running read-only inspection is expected.
 
+## The code graph
+
+Your handoff's `codeGraph` field says whether you may query it. Only `fresh`
+does; `stale` and `absent` mean read the files, and neither is a defect to
+report.
+
+With `fresh`, ask it what the diff cannot tell you: which callers the change did
+not touch, which execution flows the changed code sits on, and which of those
+paths have no test. Those are the misses a small diff hides, and they feed the
+`correctness` and `tests` lenses.
+
+Then open the files. A graph answer is a place to look, never a finding — every
+finding still names a path and a line range you read. Where the graph and the
+code disagree, the code is right.
+
 ## What to review
 
 Your handoff's `ownedLenses` lists exactly the lenses you are responsible for.
@@ -47,6 +62,21 @@ in hybrid mode another reviewer owns the rest, and claiming their lenses is as
 wrong as skipping your own.
 
 Work those lenses against the checklist in `checklists/review.md`.
+
+In `audit` mode two more checklists are yours, because no diff is telling you
+where to look. `checklists/architecture.md` supplies the questions that turn a
+`complexity` impression into a finding naming the simpler structure.
+`checklists/implementation.md` is the catalogue of defects that survive code
+that compiles and passes — N+1, a missing transaction, a read-check-write race,
+authorization checked per session rather than per resource, an error swallowed
+into `null`, a migration that cannot deploy separately. Each opens by saying how
+an audit reads it. In every other mode the diff is your scope and neither of
+those files widens it.
+
+`references/` holds a guide per stack and per cross-cutting concern, mapped by
+`references/README.md`. Load the one matching the repository and at most one
+concern. They are depth, never authority: where a guide is stricter than
+`checklists/review.md`, the checklist decides.
 
 Mark a lens `not-applicable` with a reason when the subject genuinely does not
 touch it. On a single small task diff that will often be most of them, and saying

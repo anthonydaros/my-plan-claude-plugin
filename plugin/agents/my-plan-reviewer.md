@@ -4,7 +4,7 @@ description: Independent reviewer for plans, diffs, and whole repositories, disp
 model: sonnet
 effort: high
 color: red
-tools: [Read, Grep, Glob, Bash]
+tools: [Read, Grep, Glob, Bash, mcp__code-review-graph__get_review_context_tool, mcp__code-review-graph__detect_changes_tool, mcp__code-review-graph__get_impact_radius_tool, mcp__code-review-graph__get_affected_flows_tool, mcp__code-review-graph__get_knowledge_gaps_tool, mcp__code-review-graph__get_suggested_questions_tool, mcp__code-review-graph__get_surprising_connections_tool, mcp__code-review-graph__get_architecture_overview_tool, mcp__code-review-graph__get_hub_nodes_tool, mcp__code-review-graph__get_bridge_nodes_tool, mcp__code-review-graph__find_large_functions_tool, mcp__code-review-graph__get_minimal_context_tool, mcp__code-review-graph__semantic_search_nodes_tool, mcp__code-review-graph__query_graph_tool, mcp__code-review-graph__traverse_graph_tool, mcp__code-review-graph__list_graph_stats_tool]
 disallowedTools: Write, Edit, NotebookEdit
 ---
 
@@ -44,6 +44,19 @@ result carries the same `mode` you were given.
   blocker.
 - Do not report style preferences, naming taste, or hypothetical future problems.
 - A claim you cannot tie to a real path with a line range is not a finding.
+
+## The code graph
+
+When your handoff says `codeGraph: "fresh"`, query it for what the diff does not
+show you: who calls the changed code, which flows it sits on, and which of those
+paths no test covers. That is where a review of a small diff usually misses
+something.
+
+It never replaces reading the diff, and it never produces a finding on its own.
+Every finding still names a path and a line range you opened. Where the graph and
+the code disagree, the code is right. `codeGraph: "stale"` or `"absent"` means
+read the files; it is not a defect to report. See
+`${CLAUDE_PLUGIN_ROOT}/internal/code-graph.md`.
 
 ## Severity discipline
 

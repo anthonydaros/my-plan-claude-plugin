@@ -27,12 +27,29 @@ accessibility findings.
 - Async work is awaited, ordered, and cancelable where ordering matters.
 - Existing callers of every modified function still hold. A signature or behavior
   change that fixes one caller and breaks its siblings is a blocker.
+- Every API, method, and library the diff calls exists in the version the
+  lockfile installs. A confident call to a function that was never in that
+  release is the defect a writing model produces most often, and it reads as
+  correct code.
+- Read-check-write on shared state uses an atomic update, a constraint, a lock,
+  or a version, rather than hoping the window is small.
+- Anything that charges, sends, or provisions is idempotent under retry. Retries
+  are bounded and are not applied to validation, authorization, or permanent
+  conflicts.
+- Outbound calls carry a timeout, and cancellation propagates.
+- A migration is separable from the deploy: the previous version of the code
+  still runs against the new schema, or the diff shows why it never has to.
 
 ## security
 
 - Input from a trust boundary is validated before use, not after.
 - No secret in a tracked file, log line, error message, or fixture.
-- Authorization is checked at the boundary that enforces it, not only in the UI.
+- Authorization is checked at the boundary that enforces it, not only in the UI,
+  and per resource rather than per session: ownership, tenant, role, or scope.
+  Authentication without that is the shape an IDOR takes.
+- The authorization filter is inside the query, not applied to what it returned.
+- Writable fields are an explicit allowlist. A raw payload persisted as-is is how
+  `role`, `isAdmin`, `ownerId`, and `tenantId` arrive from the client.
 - Injection surfaces are parameterized: SQL, shell, path, template, deserializer.
 - User-controlled data does not reach a sink that executes or renders it raw.
 - User input that reaches an LLM prompt is treated as an injection surface, with
@@ -49,6 +66,9 @@ accessibility findings.
 - Dead code, unused exports, unreachable branches, and leftover debugging are
   removed.
 - The change is consistent with the module boundaries in the Architecture Memory.
+- A failure in the new code would be diagnosable from what it logs or reports.
+  Code on a critical path that fails silently is a finding here, at the severity
+  its path deserves — not an observability wishlist.
 
 ## tests
 
@@ -143,3 +163,18 @@ Name the kind of cut so the correction is unambiguous:
 Every complexity finding names the concrete smaller replacement. This lens never
 removes required validation, error handling, security, accessibility, or explicit
 product behavior. Deleting a guard is not a simplification.
+
+## Depth, when a lens needs it
+
+`internal/references/` holds one guide per stack and one per cross-cutting
+concern, next to this checklist; `references/README.md` maps them. Load at most
+two: the repository's stack, and the concern actually in front of you.
+
+They are depth, not authority. A guide says what a defect looks like in Go or in
+React; this checklist still decides whether it is reportable, and the rules that
+outrank every guide are the ones above — a finding names a path and a line range,
+style and taste are not findings, and severity is not inflated to force
+attention. Several of those guides were written to hand a human a list of
+suggestions. This product hands a contract to another Worker.
+
+A stack with no guide is not a gap. The lenses stand without one.
