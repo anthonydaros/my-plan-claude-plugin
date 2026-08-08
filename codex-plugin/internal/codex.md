@@ -61,6 +61,8 @@ Select the result schema by role:
 | plan review | `plan-check.tpl` | `review-result.schema.json` | `read-only` |
 | implementation | `build.tpl` | `build-result.schema.json` | `workspace-write` |
 | audit or code review | `change-check.tpl` | `review-result.schema.json` | `read-only` |
+| qa | `qa.tpl` | `review-result.schema.json` | `workspace-write` |
+| commit | `commit.tpl` | `commit-result.schema.json` | `workspace-write` |
 
 The plan Worker writes exactly the `plan.md` path in its handoff and returns the
 path plus a one-line summary. The Coordinator validates the file, its hash, and
@@ -92,8 +94,22 @@ Planning and implementation use the same form with
 `--sandbox workspace-write`. Every Worker uses `--output-schema`; the planning
 result reports the path and hash of its file for the Coordinator to recompute.
 
-The sandbox is the role boundary, not a prompt convention. Never run discovery
-or review with workspace-write, even when a reviewer asks to apply a fix.
+The sandbox is the role boundary, not a prompt convention. Never run discovery or
+review with workspace-write, even when a reviewer asks to apply a fix.
+
+`qa` is the one review mode that cannot hold that boundary, because running a test
+suite writes: build output, caches, coverage files. It gets workspace-write for
+that reason and no other. Nothing else about it relaxes — it returns
+`review-result` like any reviewer, it never edits a source file, and it never
+stages or commits. What covers it instead of the sandbox is the Coordinator's
+check of changed paths against the approved write set, which runs against Git and
+does not depend on what the Worker reports. Grant it to `qa` and to nothing else
+wearing a review label.
+
+`commit` gets workspace-write because writing history is the job. It is bounded by
+the write set in its handoff and by the Coordinator recomputing the staged set,
+the resulting SHAs, and `refs/remotes` afterwards. A Worker in this mode never
+pushes; the push is the user's separate decision.
 
 ## Capture and resume the exact thread
 

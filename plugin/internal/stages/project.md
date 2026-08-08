@@ -32,12 +32,24 @@ inside Claude Code, so check your own tool availability rather than shelling out
 
 | Capability | Probe | If missing |
 |------------|-------|------------|
-| Codex CLI | `codex --version`, then `codex exec --help` and `codex exec resume --help`, checking that the help text lists `-C`, `--sandbox`, `--json`, `--output-schema`, and `-o`. Then `codex login status` for authentication | Select `claude-only`, name the missing capability, continue |
+| Codex CLI | `codex --version`, then `codex exec --help` and `codex exec resume --help`, checking that the help text lists `-C`, `--sandbox`, `--json`, `--output-schema`, and `-o`. Then `codex login status` for authentication | Skip `codex:` as a Worker prefix, name the missing capability, continue |
+| opencode CLI | `opencode --version`, then `opencode run --help`, checking for `--session`, `--format`, `--model`, `--variant`, `--agent`. Then `opencode auth list` for a `google` credential. Then one live call resolving and confirming `Pro`, per `${CLAUDE_PLUGIN_ROOT}/internal/opencode.md` | Skip `opencode:` as a Worker prefix for discovery and implementation, name the missing capability, continue |
 | GitHub CLI | `gh --version` and `gh auth status` | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
 | Playwright | `playwright --version`, then `playwright-cli --version`. Either counts | Recommend it for browser validation. Never block on it |
 
-Probe the flags from the help output rather than by running a real Codex turn: a
-probe that costs a model call is a probe people learn to skip.
+Probe the Codex flags from the help output rather than by running a real Codex
+turn: a probe that costs a model call is a probe people learn to skip. opencode
+is the exception — it has no `--output-schema` to reject a bad request before
+the model runs, so a deprecated model answers at exit 0 instead of failing, and
+only a real call catches that. `internal/opencode.md` says why and shows the
+one-time call; do not extend the same shortcut to it that Codex earns from
+having a stricter transport.
+
+Neither Codex nor opencode passing its probe changes the backend by itself.
+`hybrid` still means Codex is available; opencode only being probed and
+authenticated makes `opencode:` a legal Worker prefix for discovery and
+implementation, per Model mapping below. A Codex-less, opencode-only setup is
+still `claude-only` for every other role.
 
 Report installed versions and whether authentication is ready. Never read, echo,
 log, or store a secret value.
@@ -85,11 +97,14 @@ plugin has.
 | Role | Worker | Runs at | Falls back to |
 |------|--------|---------|---------------|
 | Discovery | `my-plan-discovery` | Sonnet, `high` | Opus, by model override on dispatch |
+| Findings review | `my-plan-reviewer-deep` | Opus, `high` | Nothing below it: the discovery pair ran on Sonnet |
 | Plan creation | `my-plan-planner` | Opus, `high` | Sonnet |
 | Plan review | `my-plan-reviewer` | Sonnet, `high` | Nothing below it: Opus wrote the plan |
 | Implementation, tests, remediation | `my-plan-implementer` | Sonnet, `high` | Opus, by model override on dispatch |
 | Code review, product review, coverage review | `my-plan-reviewer-deep` | Opus, `high` | Nothing below it: Sonnet wrote the code |
+| QA gate | `my-plan-reviewer-deep` | Opus, `high` | `my-plan-reviewer` on Sonnet, when implementation escalated to Opus |
 | Audit, where no Worker wrote the subject | `my-plan-reviewer` | Sonnet, `high` | Opus, via `my-plan-reviewer-deep` |
+| Commit | `my-plan-committer` | Sonnet, `high` | Nothing below it: it writes no code and reviews nothing |
 
 In `claude-only` the reviewer follows the writer, in both directions. Sonnet
 writes the code and Opus reviews it; if implementation escalates to Opus, code
@@ -101,13 +116,80 @@ both sides is refused, not quietly allowed.
 
 | Role | Worker | Runs at | Escalates to |
 |------|--------|---------|--------------|
-| Discovery | Two Codex Workers over disjoint partitions | Terra, `high` | Sol `xhigh` on the second opinion |
+| Discovery | Two Codex Workers over disjoint partitions, or one partition on opencode† | Terra, `high` | Sol `xhigh` on the second opinion |
+| Findings review | `my-plan-reviewer-deep`, never Codex and never opencode | Opus, `high` | Nothing below it: it is the only read of the synthesis from outside the pair that produced it |
 | Plan creation | Codex | Sol, `high` | Sol `xhigh` |
 | Plan review | Codex | Terra, `high` | Opus `high` via `my-plan-reviewer-deep`, because Sol wrote the plan |
-| Implementation, tests, remediation | Codex | Terra, `high` | Sol `xhigh`, then Sol `max` |
+| Implementation, tests, remediation | Codex, or opencode by switch or quota fallback† | Terra, `high` | Sol `xhigh`, then Sol `max` |
 | Technical code review | Codex | Sol, `high` | Sol `xhigh` |
 | Product review | Codex, in a session that saw no implementation | Sol, `high` | Opus `high` via `my-plan-reviewer-deep` |
-| Audit, where no Worker wrote the subject | Codex | Terra, `high` | Sol `xhigh` |
+| QA gate | Codex, on whichever tier did not implement | Sol `high`, or Terra `high` when Sol implemented | Opus `high` via `my-plan-reviewer-deep` when no Codex tier is independent |
+| Audit, where no Worker wrote the subject | Codex, or opencode† | Terra, `high` | Sol `xhigh` |
+| Commit | `my-plan-committer` | Sonnet, `high` | Nothing below it: it writes no code and reviews nothing |
+
+†opencode (`Pro`, Gemini 3.1 Pro via Antigravity, per
+`${CLAUDE_PLUGIN_ROOT}/internal/opencode.md`) is a Worker option for exactly
+three roles — discovery, implementation, and audit — and no others. Plan
+creation, plan review, technical and product review, the findings review, the QA
+gate, and the commit stay Codex or Claude regardless of what opencode is capable
+of.
+
+The line is not about capability. Every role opencode is kept out of either
+judges work another Worker produced or produces the artifact everything else
+binds to, and both need a transport that rejects a malformed result before the
+model runs. opencode has no `--output-schema`, so its contract is validated after
+the fact by the Coordinator; that is adequate for evidence-gathering and for
+writing code that is about to be reviewed twice, and it is not adequate for the
+verdict at the end of a chain.
+
+Audit is the role where opencode is strongest and the constraint is weakest. An
+audit has no writer — nothing in it was produced by this Run — so the
+independence rule that picks a reviewer does not apply and only width decides.
+Reading a checkout it has never seen and reporting what is there is exactly the
+work opencode `Pro` does well, and there is no author for it to be insufficiently
+independent of.
+
+**Discovery.** When opencode has passed its probe, one partition of a
+multi-partition discovery may run on opencode `Pro` instead of a second Codex
+Worker, widening vendor coverage on the same pass rather than replacing Codex.
+This is cooperation, not a fallback: both run when both are available. A
+single-partition discovery has no second Worker to give away and stays on
+Codex alone.
+
+**Implementation.** Codex `Terra` runs by default, exactly as the table says.
+opencode `Pro` takes a task instead of Codex in two cases only: the user
+explicitly names it for that task or Run — an override, `opencode:pro@high`,
+recorded the same way a `repoOverrides` entry is — or Codex fails that task on
+a quota/usage-cap classification per `codex.md`. In the quota case, opencode is
+the rung between Codex and `claude-only`: try `opencode:pro@high` before
+falling all the way back to `my-plan-implementer`. A task already escalated to
+Sol does not drop to opencode `Pro` on a later failure; that is a downgrade, not
+a fallback, and it takes `claude-only` at the matching depth instead.
+
+opencode `Pro` handles task size well and task ambiguity badly. Given a task that
+states the exact paths, the expected behavior, the edge cases, and the checks that
+prove it done, it is as capable on a complex task as on a trivial one, and it is
+the cheapest Worker here for writing code. Given a task that leaves a decision
+implicit, it decides — plausibly, and without flagging that it did. So the
+condition for routing a task to it is a property of the task, not of the task's
+difficulty: a task written to the standard `planning.md` demands is eligible
+whatever its size, and one carrying an unstated assumption is not, however small.
+Where a Run routes implementation to opencode by default, that requirement lands
+on the planner, and `planning.md` says what it means in practice.
+
+Whichever Worker implements a task, the review of that task is never
+reassigned by this: technical code review and product review keep running on
+Codex `Sol` or, when independence requires it, Claude — never on opencode. An
+opencode-written task reviewed by opencode would be the same vendor checking
+its own work with no independence gained; this profile does not wire opencode
+into any review role, so the question does not come up.
+
+**Audit.** opencode `Pro` runs a full audit when it has passed its probe, or takes
+one role of a split audit alongside Codex. Nothing about the audit changes: the
+same `change-check.tpl`, the same `review-result` contract validated the same way,
+the same lens ownership. Only the Coordinator's after-the-fact contract validation
+carries more weight, because opencode's transport does not reject a malformed
+result before the model runs.
 
 Every hybrid row falls back to its `claude-only` equivalent when a Codex call
 fails. That fallback is sticky for the Run and recorded in `implementation.md`;
@@ -181,6 +263,15 @@ Be honest about this, because the two backends are not equally strong.
 **Codex Workers** get a real sandbox. `--sandbox read-only` is enforced by the
 process, and a reviewer cannot write even if its prompt were wrong.
 
+The QA gate is the one review role that cannot have it. Running a test suite
+writes — build output, caches, coverage — so a QA Worker is dispatched
+`workspace-write` in `hybrid` and keeps `Bash` in `claude-only`. It is still a
+reviewer in every other sense: `review-result`, no source edits, no staging, no
+commit. What covers it instead of the sandbox is the same Coordinator path check
+that covers every Claude reviewer, and the commit staging exactly the named set
+rather than whatever the worktree happens to contain. Do not grant
+`workspace-write` to any other role wearing a review label.
+
 **Claude Workers** get a narrow `tools` list plus `disallowedTools`, which removes
 `Write`, `Edit`, and `NotebookEdit`. But reviewers keep `Bash`, because they need
 `git diff`, `git log`, and read-only inspection to do the job at all, and `Bash`
@@ -192,11 +283,21 @@ and a Coordinator that verifies every changed path against Git and the approved
 write set before trusting anything. That last check is what actually catches a
 violation, which is why it is not optional.
 
-Never present the Claude read-only boundary as a sandbox. In `hybrid` the
-reviewers are Codex Workers and the boundary is real, but a review that crosses
-to Claude — for independence, or for a subject too wide for a Codex thread —
-crosses out of the sandbox at the same time. Say so when it happens; the
-Coordinator's path check is what covers it from there.
+**opencode's discovery Worker** gets the same class of boundary as a Claude
+Worker, not Codex's: `opencode agent create --permissions` without `edit`
+removes the structured write tool, but `bash` stays, because discovery needs
+`git log` and read-only inspection to do the job. There is no `--sandbox` flag
+on `opencode run`. `${CLAUDE_PLUGIN_ROOT}/internal/opencode.md` covers this in
+full; the short version is that opencode discovery is exactly as strong as a
+Claude Worker's read-only boundary, backed by the same Coordinator path check,
+and never a real process sandbox.
+
+Never present the Claude or opencode read-only boundary as a sandbox. In
+`hybrid` the reviewers are Codex Workers and the boundary is real, but a review
+that crosses to Claude — for independence, or for a subject too wide for a
+Codex thread — crosses out of the sandbox at the same time, and opencode's
+discovery partition was never inside one to begin with. Say so when it
+happens; the Coordinator's path check is what covers it from there.
 
 ### Autonomous sessions
 

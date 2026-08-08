@@ -33,11 +33,11 @@
     "attemptId": { "type": "string", "minLength": 1 },
     "role": {
       "type": "string",
-      "enum": ["discovery", "planner", "implementer", "reviewer"]
+      "enum": ["discovery", "planner", "implementer", "reviewer", "committer"]
     },
     "mode": {
       "type": "string",
-      "description": "Role-specific operating mode. discovery uses challenge. planner uses plan-write. implementer uses build. reviewer uses plan-check, audit, initial, incremental, or final.",
+      "description": "Role-specific operating mode. discovery uses challenge. planner uses plan-write. implementer uses build. reviewer uses plan-check, audit, initial, incremental, final, or qa. committer uses commit.",
       "enum": [
         "challenge",
         "plan-write",
@@ -46,7 +46,9 @@
         "audit",
         "initial",
         "incremental",
-        "final"
+        "final",
+        "qa",
+        "commit"
       ]
     },
     "worktree": {
@@ -117,8 +119,8 @@
     },
     "reviewerRole": {
       "type": ["string", "null"],
-      "description": "Which reviewer this is. Product and technical reviewers own different lenses; a sole audit reviewer owns all of them. Null for non-review roles.",
-      "enum": ["product", "technical", "sole", null]
+      "description": "Which reviewer this is. Product and technical reviewers own different lenses; a sole audit reviewer owns all of them. qa is the post-approval gate that executes the Validation Gate rather than reading the diff. Null for non-review roles.",
+      "enum": ["product", "technical", "sole", "qa", null]
     },
     "ownedLenses": {
       "type": ["array", "null"],

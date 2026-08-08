@@ -58,6 +58,12 @@ For each task:
    `${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md` and the choice is per task,
    not per Run.
 
+   opencode `Pro` runs this task instead of Codex when the user names it
+   explicitly for the task or Run, or when Codex fails this task on a
+   quota/usage-cap classification — see Codex fallback, below, and the
+   Implementation paragraph under Model mapping in `project.md`. Per
+   `${CLAUDE_PLUGIN_ROOT}/internal/opencode.md`.
+
    Include a `kind: "task"` artifact: the instruction, the requirements that bear
    on this task, the paths, the dependencies already satisfied, and the checks
    that prove it done. Extract it from the plan; do not hand over the plan.
@@ -250,14 +256,25 @@ Failure classification and the exact invocations are in
 credit, and explicit provider limits fall back immediately without retry;
 transient failures get one bounded retry first.
 
+For implementation specifically, a quota/usage-cap classification does not drop
+straight to `claude-only`. Try `opencode:pro@high` first, per
+`${CLAUDE_PLUGIN_ROOT}/internal/opencode.md`, when opencode has passed its
+capability probe. Fall to `my-plan-implementer` only when opencode is
+unavailable or fails the same task too. A task already running on Sol does not
+step down to opencode `Pro` on failure — that would be a capability downgrade
+dressed as a fallback — it goes straight to the matching Claude depth instead.
+Every other role's Codex fallback goes straight to `claude-only`, unchanged:
+opencode is not wired into plan creation, review, or audit.
+
 The transition is sticky for this Run. Record phase, role, error class,
 replacement model, and time in `implementation.md`. A later Run probes Codex
 again.
 
 Fallback continues from current canonical artifacts. It never repeats discovery,
 requests approval again, or discards valid work. If a Codex Worker left a partial
-diff, verify the real changed paths against the write set first, then let Sonnet
-continue the remaining tasks in the same worktree.
+diff, verify the real changed paths against the write set first, then let
+opencode `Pro` or Sonnet — whichever this fallback resolved to — continue the
+remaining tasks in the same worktree.
 
 A fallback never merges writer and reviewer identities. If the only remaining
 option would, the Run blocks instead.
@@ -289,6 +306,11 @@ Coverage:
 
 A failing required check prevents delivery. Report the failure with its output.
 Never report a gate as green when it is not.
+
+This record is a claim until someone else runs it. The QA gate in `review.md`
+executes these same commands from a Worker that did not write the code, and
+compares what it observes against what this record says. Write the record so that
+comparison is possible: exact commands, real exit codes, no summarizing.
 
 ## Delivery
 
@@ -402,6 +424,35 @@ requires them. Do not impose semantic versioning, tags, README version edits, or
 generated changelogs on ordinary work.
 
 Never write a secret into a tracked file. Never use `--no-verify`.
+
+**The commit is dispatched, not typed here.** Run the scan above yourself — it is
+yours and it stays yours — then hand the commit to `my-plan-committer` on Sonnet,
+in both backends, with `role: "committer"`, `mode: "commit"`, a `writeSet` of
+exactly the paths this commit may contain, and the delivery manifest as an
+artifact. Validate the result against
+`${CLAUDE_PLUGIN_ROOT}/internal/contracts/commit-result.schema.json`.
+
+It is a fresh session for a reason. You have watched this entire Run and you know
+why every file is present, which is precisely what makes you a poor judge of
+whether a staged path belongs in the history. A Worker that reads the staged diff
+cold, knowing only the approved write set, catches the thing familiarity hides.
+That is the same argument that keeps the writer out of the review, applied to the
+last step where anything can still be caught.
+
+Then verify what it returned, against the repository rather than against its
+report:
+
+- `git diff --cached --name-only` and `git log` for the real staged set and the
+  real SHAs. A commit it claims that Git does not have voids the attempt.
+- Every path in every commit is inside the write set. A path outside it is a
+  violation, not a surprise to accept.
+- `git for-each-ref refs/remotes` is unchanged. `remoteRefsTouched` must be empty,
+  and this is the check that proves it rather than trusting it. A committer that
+  moved a remote ref has broken the push gate, and the Run stops there.
+
+A `status: "refused"` result is the gate working. Show the user what it refused
+and why, fix the cause, and dispatch again. Never stage around a refusal, and
+never commit the remainder to make progress.
 
 ### The push gate
 

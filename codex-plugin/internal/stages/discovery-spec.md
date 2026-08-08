@@ -243,7 +243,51 @@ The synthesis separates verified facts from inferences, records what the reviewe
 disagreed on and how it resolved, and turns anything still unsettled into either a
 question or an explicit risk.
 
-## 6. Working Spec
+## 6. Findings review
+
+The synthesis is the one artifact in discovery nothing has checked. Both partition
+Workers returned contracts the Coordinator validated, and then the Coordinator
+merged them itself — resolving disagreements, promoting inferences, and deciding
+what was settled enough to leave out. That merge is unreviewed work by the one
+participant who cannot be independent of it, and everything downstream binds to
+it: the specification, the approval hash, the plan.
+
+So one independent read-only Worker reads the synthesis against the evidence it
+cites, before any of it becomes a specification. Use Sol at `xhigh`: the
+partitions ran on Terra, and the reviewer must not share a tier with the work it
+is checking.
+
+Dispatch with `role: "discovery"`, `mode: "challenge"`, an empty `writeSet`, and
+the synthesized packet plus `discovery` and `research` artifacts. Validate against
+`<pluginRoot>/internal/contracts/challenge-result.schema.json`.
+
+It is answering three questions, and only these:
+
+- Does every fact in the synthesis still hold against the source it cites? A fact
+  whose evidence does not support it goes back to being an inference, or goes.
+- What did the merge drop? A disagreement resolved in favor of one partition
+  without stated grounds is the common case, and the grounds are what the reviewer
+  is checking.
+- What is being treated as settled that is not? Those become questions for the
+  user or explicit risks in the specification. They do not become silent
+  assumptions.
+
+Fold its `facts`, `inferences`, and `disagreements` back into the synthesis.
+Anything in its `questions` goes to the user through the Question Engine, in the
+same round shape as any other question — a reviewer does not get a private channel
+to the user, and its questions are not more urgent than the ones discovery already
+raised.
+
+Its `recommendation` is advisory. The Coordinator still owns the synthesis, and
+disagreeing with the reviewer is allowed as long as the disagreement is recorded
+with its reason. What is not allowed is dropping a contradiction because
+addressing it would reopen a question that felt closed.
+
+This gate runs before the specification exists, so it is cheap: one Worker, one
+packet, no code. The same defect found after approval costs a revision and a
+second approval.
+
+## 7. Working Spec
 
 Render `spec.md` from
 `<pluginRoot>/internal/templates/documents/spec.md.tpl`, and
@@ -285,7 +329,7 @@ reader without context, and it came from a real trade-off between genuine
 alternatives. A decision missing any of the three is just a choice. Record it and
 move on.
 
-## 7. Approval
+## 8. Approval
 
 Store one `pendingApproval` record: Run ID, repository or workspace scope,
 specification path, and the complete file hash.

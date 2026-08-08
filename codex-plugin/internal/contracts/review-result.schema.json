@@ -24,7 +24,7 @@
     "attemptId": { "type": "string", "minLength": 1 },
     "mode": {
       "type": "string",
-      "enum": ["plan-check", "audit", "initial", "incremental", "final"]
+      "enum": ["plan-check", "audit", "initial", "incremental", "final", "qa"]
     },
     "verdict": {
       "type": "string",

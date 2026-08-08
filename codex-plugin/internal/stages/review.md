@@ -78,6 +78,52 @@ Dispatch Codex Workers per `<pluginRoot>/internal/codex.md`.
 
 Approval requires zero unresolved blockers from every active role.
 
+### The QA gate
+
+Reading the diff and running it are different acts, and until here only one of
+them has been done by someone independent. The Validation Gate in
+`implementation.md` is real, but the Worker that wrote the code is the Worker that
+ran it and the Worker that reported the exit codes. Every check between there and
+here trusts that report.
+
+So once no blockers remain and before the final complete review, one read-only
+Worker executes the Validation Gate itself and reports what it observed.
+
+It runs on the tier that did not write the code, which here is always Sol at
+`high`: implementation is Terra and never Sol, for the same reason. Sol carries
+technical review, product review, and QA, and that is acceptable because none of
+them wrote the subject — but it is why QA is a separate session rather than
+another pass in the technical reviewer's thread. A Worker that already argued the
+code was correct is not the Worker to discover its tests do not run.
+
+`mode: "qa"`, `reviewerRole: "qa"`, `ownedLenses` of `tests`, `correctness`, and
+`conformance`, and the required commands in `validationCommands`. Empty
+`writeSet`: it executes commands, it does not edit. Its instructions are
+`<pluginRoot>/internal/prompts/qa.tpl`. Validate the result against
+`review-result.schema.json` like any other review.
+
+What it owns:
+
+- Run every required Project Profile command and every affected test, from the
+  handoff, not from memory of what the record says was run.
+- Compare its observed exit codes against `validation.md`. A command recorded
+  green that is not green now is a `blocker` on the `tests` lens, and the
+  discrepancy itself is the finding — whichever way it points.
+- Check that the acceptance criteria in the specification are actually exercised
+  by something that ran. A criterion no command touches is a `conformance`
+  finding, not a passing lens.
+
+A QA Worker runs commands, so it is dispatched with `--sandbox workspace-write`
+rather than the read-only sandbox every other reviewer gets. That is the one
+review role where the sandbox cannot carry the read-only boundary, and the
+Coordinator's path check against the write set is what covers it: build output,
+caches, and coverage files are byproducts, never staged, and the commit stages
+exactly the set named under Commit in `implementation.md`.
+
+A `blocked` verdict returns to remediation like any other. It does not re-run the
+whole review: the correction goes back to the implementation Worker, the affected
+commands run again, and QA re-runs. Approval waits for it to come back clean.
+
 ### Splitting a review instead of escalating
 
 A subject too large or too varied for one technical reviewer splits by specialty:
@@ -103,7 +149,8 @@ with `role: "reviewer"` and the right `mode`:
 | `audit` | No Run diff. The repository as it stands |
 | `incremental` | One task's delivery, or the delta since the last subject hash plus any pending findings |
 | `initial` | The complete Review Subject, first pass over the whole change |
-| `final` | The complete Review Subject, once more, before delivery |
+| `qa` | The Validation Gate, executed independently once no blockers remain |
+| `final` | The complete Review Subject, once more, before delivery: what the approved plan said would be delivered, against what actually was |
 
 Most review in a Run is `incremental`, one task at a time as each is delivered.
 That is deliberate: a small diff reviewed while the writer still holds its context
@@ -124,7 +171,7 @@ not:
 | Mode | Artifacts |
 |------|-----------|
 | `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
-| `initial`, `incremental`, `final` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
+| `initial`, `incremental`, `final`, `qa` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
 
 Pass the handoff path. Never concatenate documents into the prompt; reviewers read
 the current files themselves.
@@ -182,8 +229,15 @@ Approval requires zero open blockers. It does not require zero findings.
 2. Rerun the affected part of the Validation Gate.
 3. Delta review: `incremental` mode, pending findings and the changed paths only.
 4. Repeat until no blockers remain.
-5. Run one `final` complete review from every active role.
-6. Bind `REVIEW_APPROVED` to the final subject hash.
+5. Run the QA gate. A blocker here re-enters this loop at step 1.
+6. Run one `final` complete review from every active role.
+7. Bind `REVIEW_APPROVED` to the final subject hash.
+
+QA precedes the final review rather than following it, because the final review
+judges delivery against the approved plan and a subject whose tests do not
+actually pass is not ready to be judged on anything else. It also comes last among
+the checks that can still send work back: putting it after approval would mean
+either approving on an unverified run or invalidating a fresh approval.
 
 The first review is complete. Remediation reviews are not; re-reviewing unchanged
 code wastes a round and produces noise. Approval always requires one final
@@ -233,8 +287,8 @@ There is no fixed round limit while findings are actually being resolved.
 ## Approval
 
 `REVIEW_APPROVED` is created only after: every contract validated, every finding
-resolved or dispositioned, the Validation Gate green, and the final complete
-review clean.
+resolved or dispositioned, the Validation Gate green under the QA gate that
+executed it independently, and the final complete review clean.
 
 It binds to the specification hash, plan hash, base SHA, Review Subject hash,
 runtime, Worker identity, and model.

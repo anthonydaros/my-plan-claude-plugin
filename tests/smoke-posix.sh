@@ -1,7 +1,14 @@
 #!/bin/sh
 # Static checks for the My Plan plugin. Development only; never installed.
 # Fails on anything that would break plugin loading or violate the frozen spec.
-set -eu
+#
+# Deliberately not `set -e`. Every check here runs a command and hands its status
+# to check(), which counts the failure and keeps going; under `set -e` the shell
+# exits on that same failing command instead, so the first broken invariant aborts
+# the run before check() is ever reached. That produced the worst possible output:
+# exit 1 with no FAIL line and a tail of passing checks, which reads as success.
+# The failure count at the end is what decides the exit status.
+set -u
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PLUGIN="$ROOT/plugin"
@@ -128,7 +135,7 @@ echo "== agents"
 
 # Filename and frontmatter name must agree: the host lists agents by filename,
 # so a mismatch makes the agent unaddressable by the name its prompt claims.
-for a in discovery planner implementer reviewer reviewer-deep; do
+for a in discovery planner implementer reviewer reviewer-deep committer; do
   f="$PLUGIN/agents/my-plan-$a.md"
   if [ ! -f "$f" ]; then fail "missing $f"; continue; fi
 
@@ -160,6 +167,15 @@ for a in implementer planner; do
   frontmatter "$PLUGIN/agents/my-plan-$a.md" | grep -q "Write"
   check $? "$a can write"
 done
+
+# The committer writes history, not files. It needs Bash to run Git and nothing
+# that edits a tracked file: a committer that can edit can fix what the secret
+# scan just refused, which is the one thing refusing must not become negotiable.
+if frontmatter "$PLUGIN/agents/my-plan-committer.md" | grep -qE '^tools: \[.*(Write|Edit|NotebookEdit)'; then
+  fail "committer must not be able to edit files"
+else
+  pass "committer edits no files"
+fi
 
 # Plan author and plan reviewer must not be the same model, and neither must the
 # code author and the code reviewer. Same-model review is the failure this whole
@@ -196,10 +212,13 @@ for f in \
   internal/prompts/plan-check.tpl \
   internal/prompts/build.tpl \
   internal/prompts/change-check.tpl \
+  internal/prompts/qa.tpl \
+  internal/prompts/commit.tpl \
   internal/contracts/handoff.schema.json \
   internal/contracts/challenge-result.schema.json \
   internal/contracts/review-result.schema.json \
   internal/contracts/build-result.schema.json \
+  internal/contracts/commit-result.schema.json \
   internal/checklists/review.md \
   internal/templates/project-skill.md.tpl; do
   [ -f "$PLUGIN/$f" ]
@@ -223,11 +242,14 @@ for f in \
   internal/prompts/plan-check.tpl \
   internal/prompts/build.tpl \
   internal/prompts/change-check.tpl \
+  internal/prompts/qa.tpl \
+  internal/prompts/commit.tpl \
   internal/contracts/handoff.schema.json \
   internal/contracts/challenge-result.schema.json \
   internal/contracts/plan-result.schema.json \
   internal/contracts/review-result.schema.json \
   internal/contracts/build-result.schema.json \
+  internal/contracts/commit-result.schema.json \
   internal/checklists/review.md \
   internal/templates/project-skill.md.tpl \
   internal/templates/project-skill-openai.yaml.tpl; do
@@ -349,6 +371,53 @@ check $? "audit remains read-only until accepted findings become a spec"
 
 has "$CODEX_PLUGIN/internal/stages/project.md" 'docs/my-plan/SEAM.md'
 check $? "both distributions share the Architecture Memory path"
+
+echo "== the three dispatched gates keep their boundaries"
+
+# Each gate moved work the Coordinator used to do inline into a Worker whose
+# report the Coordinator must not simply believe. What makes that safe is a
+# specific verification on the Coordinator's side, and each one is a sentence a
+# later edit could drop without anything else noticing.
+
+for p in "$PLUGIN" "$CODEX_PLUGIN"; do
+  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
+
+  # Dispatching the commit is the change that could quietly hand a Worker the
+  # push. This is the check that proves it did not, rather than trusting the
+  # contract field that claims it.
+  grep -q "git for-each-ref refs/remotes" "$p/internal/stages/implementation.md"
+  check $? "$label: the committer's remote refs are verified, not trusted"
+
+  grep -q "The commit is dispatched, not typed here" "$p/internal/stages/implementation.md"
+  check $? "$label: the commit runs in a session that did not watch the Run"
+
+  # The secret scan stays the Coordinator's. A committer that owned it would be a
+  # Worker grading its own refusal.
+  grep -q "Run the scan above yourself" "$p/internal/stages/implementation.md"
+  check $? "$label: the secret scan did not move into the committer"
+
+  grep -qF -- 'status: "refused"' "$p/internal/stages/implementation.md"
+  check $? "$label: a refused commit is surfaced, not worked around"
+
+  # QA exists to run what the writer only reported running. If it ever shares a
+  # session or a model with the writer, it proves nothing.
+  grep -q "## The QA gate" "$p/internal/stages/review.md"
+  check $? "$label: the QA gate is a dispatched Worker"
+
+  grep -q "did not write the code" "$p/internal/stages/review.md"
+  check $? "$label: QA never runs on the model that wrote the code"
+
+  grep -q "## 6. Findings review" "$p/internal/stages/discovery-spec.md"
+  check $? "$label: the discovery synthesis is reviewed before it becomes a spec"
+done
+
+# The committer asserts it moved no remote ref. The field has to stay required and
+# stay documented as mandatory-empty, or the assertion becomes decorative.
+grep -q "Must be empty" "$PLUGIN/internal/contracts/commit-result.schema.json"
+check $? "commit contract forbids touching a remote ref"
+
+grep -q '"remoteRefsTouched"' "$PLUGIN/internal/contracts/commit-result.schema.json"
+check $? "commit contract requires the remote-ref assertion"
 
 echo "== field-test gaps stay closed"
 
@@ -542,9 +611,12 @@ for f in \
   internal/contracts/build-result.schema.json \
   internal/contracts/challenge-result.schema.json \
   internal/contracts/review-result.schema.json \
+  internal/contracts/commit-result.schema.json \
   internal/prompts/build.tpl \
   internal/prompts/challenge.tpl \
   internal/prompts/plan-check.tpl \
+  internal/prompts/qa.tpl \
+  internal/prompts/commit.tpl \
   internal/templates/documents/audit.md.tpl \
   internal/templates/documents/delivery.md.tpl \
   internal/templates/documents/discovery.md.tpl \

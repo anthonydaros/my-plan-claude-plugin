@@ -89,7 +89,7 @@ foreach ($s in @('install', 'start', 'audit')) {
 
 Write-Host '== agents'
 
-foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer', 'reviewer-deep')) {
+foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer', 'reviewer-deep', 'committer')) {
     $f = Join-Path $plugin "agents\my-plan-$a.md"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing agent $a"; continue }
     $fm = Frontmatter $f
@@ -108,6 +108,11 @@ foreach ($a in @('implementer', 'planner')) {
     $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
     Check ([bool]($tools -match 'Write')) "$a can write"
 }
+
+# The committer writes history, not files. One that can edit could repair what the
+# secret scan just refused, which is the one refusal that must not be negotiable.
+$tools = (Frontmatter (Join-Path $plugin 'agents\my-plan-committer.md')) -match '^tools:'
+Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) 'committer edits no files'
 
 # Same-model review is the failure this product exists to prevent.
 function ModelOf([string]$agent) {
@@ -292,9 +297,12 @@ foreach ($f in @(
         'internal\contracts\build-result.schema.json',
         'internal\contracts\challenge-result.schema.json',
         'internal\contracts\review-result.schema.json',
+        'internal\contracts\commit-result.schema.json',
         'internal\prompts\build.tpl',
         'internal\prompts\challenge.tpl',
         'internal\prompts\plan-check.tpl',
+        'internal\prompts\qa.tpl',
+        'internal\prompts\commit.tpl',
         'internal\templates\documents\audit.md.tpl',
         'internal\templates\documents\delivery.md.tpl',
         'internal\templates\documents\discovery.md.tpl',

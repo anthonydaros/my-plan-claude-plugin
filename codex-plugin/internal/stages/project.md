@@ -65,12 +65,15 @@ setting to leave on.
 | Role | Runs at | Escalation |
 |------|---------|------------|
 | Discovery | Two Terra Workers over disjoint partitions, `high` | More Terra partitions; `xhigh` for one hard question |
+| Findings review | Sol, `xhigh` | Nothing above it: it is the only read of the synthesis from outside the pair that produced it |
 | Plan creation | Sol, `high` | Sol `xhigh`, then `max` for a critical irreversible plan |
 | Plan review | Terra, `high` | A fresh Terra session at `xhigh`; never Sol, which wrote the plan |
 | Implementation, tests, remediation | Terra, `high` | Terra `xhigh`, then `max`; never Sol, which reviews the code |
 | Technical code review | Sol, `high` | A fresh Sol session at `xhigh` |
 | Product review | Sol, `high`, in a session that saw no implementation | A fresh Sol session at `xhigh` |
+| QA gate | Sol, `high`, in a session of its own | A fresh Sol session at `xhigh` |
 | Audit, where no Worker wrote the subject | Terra, `high` | More Terra partitions, then Terra `xhigh` |
+| Commit | Terra, `high` | Nothing above it: it writes no code and reviews nothing |
 
 Luna at `high` replaces Terra for implementation when the plan leaves nothing to
 decide: a rename, a CRUD endpoint, a repeated test, a type fix. Luna at `medium`

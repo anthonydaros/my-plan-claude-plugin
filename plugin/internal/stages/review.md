@@ -73,8 +73,10 @@ exist is a technical call, and leaving it unassigned means nobody makes it.
 
 **An audit has no writer.** Nothing was produced by this Run, so the independence
 rule that picks a reviewer does not apply and only width decides. Hybrid: Codex
-on Terra at `high`, `reviewerRole: "sole"`. Claude-only: one `my-plan-reviewer`
-Worker on Sonnet at `high`.
+on Terra at `high`, `reviewerRole: "sole"`, or opencode `Pro` when it has passed
+its probe — with no author to be independent of, reading a checkout it has never
+seen is the work it is best at. Claude-only: one `my-plan-reviewer` Worker on
+Sonnet at `high`.
 
 A whole repository is the widest subject this product reviews, and it is the one
 most likely to exceed what a Codex thread can hold. When it does, split the audit
@@ -86,6 +88,50 @@ different result from one a Worker chose not to.
 Dispatch Codex Workers per `${CLAUDE_PLUGIN_ROOT}/internal/codex.md`.
 
 Approval requires zero unresolved blockers from every active role.
+
+### The QA gate
+
+Reading the diff and running it are different acts, and until here only one of
+them has been done by someone independent. The Validation Gate in
+`implementation.md` is real, but the Worker that wrote the code is the Worker that
+ran it and the Worker that reported the exit codes. Every check between there and
+here trusts that report.
+
+So once no blockers remain and before the final complete review, one read-only
+Worker executes the Validation Gate itself and reports what it observed.
+
+It runs on whichever tier did not write the code. That is the whole rule, and it
+resolves differently depending on what implemented: Codex `Terra` wrote the code
+by default, so QA takes Sol at `high`; when implementation ran on Sol, on opencode
+`Pro`, or on Claude under a fallback, QA takes Terra at `high`. In `claude-only`,
+`my-plan-reviewer-deep` on Opus runs it, because Sonnet wrote the code. If no
+remaining option separates the two identities, block the Run rather than let a
+Worker confirm its own test run.
+
+`mode: "qa"`, `reviewerRole: "qa"`, `ownedLenses` of `tests`, `correctness`, and
+`conformance`, and the required commands in `validationCommands`. Empty
+`writeSet`: it executes commands, it does not edit. Validate the result against
+`review-result.schema.json` like any other review.
+
+What it owns:
+
+- Run every required Project Profile command and every affected test, from the
+  handoff, not from memory of what the record says was run.
+- Compare its observed exit codes against `validation.md`. A command recorded
+  green that is not green now is a `blocker` on the `tests` lens, and the
+  discrepancy itself is the finding — whichever way it points.
+- Check that the acceptance criteria in the specification are actually exercised
+  by something that ran. A criterion no command touches is a `conformance`
+  finding, not a passing lens.
+
+Running a suite leaves build output, caches, and coverage files in the worktree.
+Those are not part of the Review Subject and are never staged; the commit stages
+exactly the set named under Commit in `implementation.md`, so artifacts a test run
+dropped are excluded by that check rather than by hoping they were ignored.
+
+A `blocked` verdict returns to remediation like any other. It does not re-run the
+whole review: the correction goes back to the implementation Worker, the affected
+commands run again, and QA re-runs. Approval waits for it to come back clean.
 
 ### Splitting a review instead of escalating
 
@@ -112,7 +158,8 @@ with `role: "reviewer"` and the right `mode`:
 | `audit` | No Run diff. The repository as it stands |
 | `incremental` | One task's delivery, or the delta since the last subject hash plus any pending findings |
 | `initial` | The complete Review Subject, first pass over the whole change |
-| `final` | The complete Review Subject, once more, before delivery |
+| `qa` | The Validation Gate, executed independently once no blockers remain |
+| `final` | The complete Review Subject, once more, before delivery: what the approved plan said would be delivered, against what actually was |
 
 Most review in a Run is `incremental`, one task at a time as each is delivered.
 That is deliberate: a small diff reviewed while the writer still holds its context
@@ -133,7 +180,7 @@ not:
 | Mode | Artifacts |
 |------|-----------|
 | `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
-| `initial`, `incremental`, `final` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
+| `initial`, `incremental`, `final`, `qa` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
 
 Pass the handoff path. Never concatenate documents into the prompt; reviewers read
 the current files themselves.
@@ -191,8 +238,15 @@ Approval requires zero open blockers. It does not require zero findings.
 2. Rerun the affected part of the Validation Gate.
 3. Delta review: `incremental` mode, pending findings and the changed paths only.
 4. Repeat until no blockers remain.
-5. Run one `final` complete review from every active role.
-6. Bind `REVIEW_APPROVED` to the final subject hash.
+5. Run the QA gate. A blocker here re-enters this loop at step 1.
+6. Run one `final` complete review from every active role.
+7. Bind `REVIEW_APPROVED` to the final subject hash.
+
+QA precedes the final review rather than following it, because the final review
+judges delivery against the approved plan and a subject whose tests do not
+actually pass is not ready to be judged on anything else. It also comes last among
+the checks that can still send work back: putting it after approval would mean
+either approving on an unverified run or invalidating a fresh approval.
 
 The first review is complete. Remediation reviews are not; re-reviewing unchanged
 code wastes a round and produces noise. Approval always requires one final
@@ -242,8 +296,8 @@ There is no fixed round limit while findings are actually being resolved.
 ## Approval
 
 `REVIEW_APPROVED` is created only after: every contract validated, every finding
-resolved or dispositioned, the Validation Gate green, and the final complete
-review clean.
+resolved or dispositioned, the Validation Gate green under the QA gate that
+executed it independently, and the final complete review clean.
 
 It binds to the specification hash, plan hash, base SHA, Review Subject hash,
 backend, Worker identity, and model.

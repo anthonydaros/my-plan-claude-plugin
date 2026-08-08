@@ -163,6 +163,36 @@ falls; size decides how many lines there are.
 Genuinely trivial work stays one task. Splitting a two-line change into ceremony
 wastes a Run.
 
+### When the writer decides what you left out
+
+Every writer fills a gap in a task with something. The models differ only in
+whether they tell you. A task that says "add validation to the endpoint" without
+saying what counts as valid, what the failure response is, and whether existing
+callers may break gets an answer to all three, and the answer arrives as working
+code with no note attached.
+
+That is why the size rules above are not the whole standard. A small task can be
+underspecified and a large one can be complete. What decides whether a task is
+ready to dispatch is whether a writer could execute it without deciding anything
+the specification already decided:
+
+- Exact paths, named. Not "the validation module".
+- The behavior, including what happens on the failure path, stated rather than
+  implied by the happy path.
+- The edge cases this task owns, and the ones it deliberately does not, so the
+  writer neither invents them nor assumes another task covers them.
+- The check that proves it done, precise enough to run.
+
+Read each task back asking what a writer would have to guess. Whatever it is,
+write it down or make it a blocker. A guess that turns out right still cost the
+review that had to verify it; a guess that turns out wrong costs a remediation
+round and arrives disguised as working code.
+
+This matters most where implementation is routed to a Worker chosen for
+throughput or cost rather than for judgement — see the opencode note in
+`project.md`'s Model mapping. It is worth doing regardless: none of the writers
+here benefit from being made to guess.
+
 ## Order and parallelism
 
 Declare real dependencies per task, and only real ones.

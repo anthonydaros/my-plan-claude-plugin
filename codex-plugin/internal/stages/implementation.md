@@ -280,6 +280,11 @@ Coverage:
 A failing required check prevents delivery. Report the failure with its output.
 Never report a gate as green when it is not.
 
+This record is a claim until someone else runs it. The QA gate in `review.md`
+executes these same commands from a Worker that did not write the code, and
+compares what it observes against what this record says. Write the record so that
+comparison is possible: exact commands, real exit codes, no summarizing.
+
 ## Delivery
 
 Only after `REVIEW_APPROVED` binds to the current Review Subject hash.
@@ -392,6 +397,35 @@ requires them. Do not impose semantic versioning, tags, README version edits, or
 generated changelogs on ordinary work.
 
 Never write a secret into a tracked file. Never use `--no-verify`.
+
+**The commit is dispatched, not typed here.** Run the scan above yourself — it is
+yours and it stays yours — then hand the commit to a Worker on Terra at `high`
+with `role: "committer"`, `mode: "commit"`, `commit.tpl`, a `writeSet` of exactly
+the paths this commit may contain, and the delivery manifest as an artifact.
+Validate the result against
+`<pluginRoot>/internal/contracts/commit-result.schema.json`.
+
+It is a fresh thread for a reason. You have watched this entire Run and you know
+why every file is present, which is precisely what makes you a poor judge of
+whether a staged path belongs in the history. A Worker that reads the staged diff
+cold, knowing only the approved write set, catches the thing familiarity hides.
+That is the same argument that keeps the writer out of the review, applied to the
+last step where anything can still be caught.
+
+Then verify what it returned, against the repository rather than against its
+report:
+
+- `git diff --cached --name-only` and `git log` for the real staged set and the
+  real SHAs. A commit it claims that Git does not have voids the attempt.
+- Every path in every commit is inside the write set. A path outside it is a
+  violation, not a surprise to accept.
+- `git for-each-ref refs/remotes` is unchanged. `remoteRefsTouched` must be empty,
+  and this is the check that proves it rather than trusting it. A committer that
+  moved a remote ref has broken the push gate, and the Run stops there.
+
+A `status: "refused"` result is the gate working. Show the user what it refused
+and why, fix the cause, and dispatch again. Never stage around a refusal, and
+never commit the remainder to make progress.
 
 ### The push gate
 
