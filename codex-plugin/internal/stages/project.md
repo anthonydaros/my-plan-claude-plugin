@@ -65,7 +65,7 @@ setting to leave on.
 | Role | Runs at | Escalation |
 |------|---------|------------|
 | Discovery | Two Terra Workers over disjoint partitions, `high` | More Terra partitions; `xhigh` for one hard question |
-| Findings review | Sol, `xhigh` | Nothing above it: it is the only read of the synthesis from outside the pair that produced it |
+| Findings review | Sol, `xhigh` | Nothing above it; falls to Luna only where no partition ran on it |
 | Plan creation | Sol, `high` | Sol `xhigh`, then `max` for a critical irreversible plan |
 | Plan review | Terra, `high` | A fresh Terra session at `xhigh`; never Sol, which wrote the plan |
 | Implementation, tests, remediation | Terra, `high` | Terra `xhigh`, then `max`; never Sol, which reviews the code |
@@ -79,6 +79,61 @@ Luna at `high` replaces Terra for implementation when the plan leaves nothing to
 decide: a rename, a CRUD endpoint, a repeated test, a type fix. Luna at `medium`
 only when the change is mechanical outright. A task that needs a judgement call
 is not a Luna task, and downgrading one to save tokens buys another review round.
+
+### Fallback chains
+
+Escalation answers a hard subject. This answers an unavailable one. Every role has
+an ordered list of candidates, so a tier that is offline, out of quota, past a
+usage cap, or withdrawn moves the role along instead of ending the Run.
+
+| Role | 1 | 2 | 3 |
+|------|---|---|---|
+| Discovery | `terra@high` | `luna@high` | `sol@high` |
+| Findings review | `sol@xhigh` | `luna@high` | — |
+| Plan creation | `sol@high` | `terra@high` | `luna@high` |
+| Plan review | `terra@high` | `luna@high` | `sol@high` |
+| Implementation | `terra@high` | `luna@high` | `sol@high` |
+| Technical code review | `sol@high` | `luna@high` | `terra@high` |
+| Product review | `sol@high` | `luna@high` | `terra@high` |
+| QA gate | `sol@high` | `luna@high` | `terra@high` |
+| Audit | `terra@high` | `sol@high` | `luna@high` |
+| Commit | `terra@high` | `luna@high` | `sol@high` |
+
+**A chain is a list of candidates, not a list of instructions.** With three tiers
+and ten roles, the writer's tier is always somewhere on the reviewer's chain. A
+chain walked blindly therefore ends with one tier on both sides of a review, and
+the check that was supposed to catch the defect becomes the model agreeing with
+itself. Before taking a candidate, compare it against the tier already bound to
+the opposing role in this Run. If they match, skip it and take the next.
+
+**A chain ends. It never wraps.** Three tiers is a short ladder, and after the
+skip rule some roles have one real alternate. When the candidates run out, the Run
+is `BLOCKED` and names the role and the reason. A Run that stops honestly costs a
+re-run; one that quietly reviews its own work costs whatever shipped.
+
+**Effort is not a chain step.** Sol at `high` failing on quota does not become Sol
+at `xhigh`: same account, same limit, same failure one second later. Raising
+effort is a response to a hard subject and never to an unreachable tier. That is
+why this table moves sideways between tiers while the Escalation column above
+moves up within one.
+
+**Advancing is sticky and recorded.** Once a role moves along its chain it stays
+there for the Run. Record phase, role, error class, the candidate that failed, the
+one that took over, and the time, in `implementation.md`. A later Run starts from
+the top again.
+
+What advances a chain, and what does not:
+
+| Signal | Response |
+|--------|----------|
+| Offline, unauthenticated, quota, usage cap, credits exhausted, tier withdrawn or answering with an unavailability notice | Advance immediately. No retry: the next attempt fails the same way |
+| Network or provider error, transport failure | One bounded retry, then advance |
+| Contract violation, invalid JSON, schema mismatch | A failed attempt against the same candidate, not a reason to advance. Never an implicit approval |
+| The Worker did the work and returned a bad result | Not a fallback at all. That is remediation, and it stays with the role that owns it |
+
+That last row is the one worth stating: a model returning nonsense is not a model
+being unavailable, and treating it as one hides a quality problem behind an
+infrastructure story while quietly demoting the role.
 
 Two role names that resolve to the same model ID are one model, not two. If a
 user's configuration collapses Terra and Sol that way, setup may complete its

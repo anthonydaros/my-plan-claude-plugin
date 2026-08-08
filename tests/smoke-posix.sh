@@ -409,7 +409,25 @@ for p in "$PLUGIN" "$CODEX_PLUGIN"; do
 
   grep -q "## 6. Findings review" "$p/internal/stages/discovery-spec.md"
   check $? "$label: the discovery synthesis is reviewed before it becomes a spec"
+
+  # A fallback chain walked blindly puts the writer's model on the reviewer's
+  # role, which is the exact defect this product exists to prevent. The skip rule
+  # and the refusal to wrap are what keep availability from eroding independence.
+  grep -q "### Fallback chains" "$p/internal/stages/project.md"
+  check $? "$label: every role has an ordered fallback chain"
+
+  grep -q "A chain ends. It never wraps." "$p/internal/stages/project.md"
+  check $? "$label: an exhausted chain blocks instead of reusing the writer"
+
+  grep -q "Effort is not a chain step" "$p/internal/stages/project.md"
+  check $? "$label: an unavailable model is not answered by raising effort"
 done
+
+# opencode validates its contract after the model runs rather than before, which
+# is tolerable for evidence and for code about to be reviewed, and not tolerable
+# for a verdict. A chain is the likeliest place for that line to erode.
+grep -q "opencode never appears on a review chain" "$PLUGIN/internal/stages/project.md"
+check $? "no review role can fall back to opencode"
 
 # The committer asserts it moved no remote ref. The field has to stay required and
 # stay documented as mandatory-empty, or the assertion becomes decorative.

@@ -97,14 +97,14 @@ plugin has.
 | Role | Worker | Runs at | Falls back to |
 |------|--------|---------|---------------|
 | Discovery | `my-plan-discovery` | Sonnet, `high` | Opus, by model override on dispatch |
-| Findings review | `my-plan-reviewer-deep` | Opus, `high` | Nothing below it: the discovery pair ran on Sonnet |
+| Findings review | `my-plan-reviewer-deep` | Opus, `high` | Sonnet, only where no discovery partition ran on it |
 | Plan creation | `my-plan-planner` | Opus, `high` | Sonnet |
 | Plan review | `my-plan-reviewer` | Sonnet, `high` | Nothing below it: Opus wrote the plan |
 | Implementation, tests, remediation | `my-plan-implementer` | Sonnet, `high` | Opus, by model override on dispatch |
 | Code review, product review, coverage review | `my-plan-reviewer-deep` | Opus, `high` | Nothing below it: Sonnet wrote the code |
 | QA gate | `my-plan-reviewer-deep` | Opus, `high` | `my-plan-reviewer` on Sonnet, when implementation escalated to Opus |
 | Audit, where no Worker wrote the subject | `my-plan-reviewer` | Sonnet, `high` | Opus, via `my-plan-reviewer-deep` |
-| Commit | `my-plan-committer` | Sonnet, `high` | Nothing below it: it writes no code and reviews nothing |
+| Commit | `my-plan-committer` | Sonnet, `high` | Opus: it writes no code and reviews nothing, so nothing collides |
 
 In `claude-only` the reviewer follows the writer, in both directions. Sonnet
 writes the code and Opus reviews it; if implementation escalates to Opus, code
@@ -117,7 +117,7 @@ both sides is refused, not quietly allowed.
 | Role | Worker | Runs at | Escalates to |
 |------|--------|---------|--------------|
 | Discovery | Two Codex Workers over disjoint partitions, or one partition on opencode† | Terra, `high` | Sol `xhigh` on the second opinion |
-| Findings review | `my-plan-reviewer-deep`, never Codex and never opencode | Opus, `high` | Nothing below it: it is the only read of the synthesis from outside the pair that produced it |
+| Findings review | `my-plan-reviewer-deep`, never Codex and never opencode | Opus, `high` | Sonnet, then Sol `xhigh` only where no partition ran on Sol |
 | Plan creation | Codex | Sol, `high` | Sol `xhigh` |
 | Plan review | Codex | Terra, `high` | Opus `high` via `my-plan-reviewer-deep`, because Sol wrote the plan |
 | Implementation, tests, remediation | Codex, or opencode by switch or quota fallback† | Terra, `high` | Sol `xhigh`, then Sol `max` |
@@ -125,7 +125,7 @@ both sides is refused, not quietly allowed.
 | Product review | Codex, in a session that saw no implementation | Sol, `high` | Opus `high` via `my-plan-reviewer-deep` |
 | QA gate | Codex, on whichever tier did not implement | Sol `high`, or Terra `high` when Sol implemented | Opus `high` via `my-plan-reviewer-deep` when no Codex tier is independent |
 | Audit, where no Worker wrote the subject | Codex, or opencode† | Terra, `high` | Sol `xhigh` |
-| Commit | `my-plan-committer` | Sonnet, `high` | Nothing below it: it writes no code and reviews nothing |
+| Commit | `my-plan-committer` | Sonnet, `high` | Opus: it writes no code and reviews nothing, so nothing collides |
 
 †opencode (`Pro`, Gemini 3.1 Pro via Antigravity, per
 `${CLAUDE_PLUGIN_ROOT}/internal/opencode.md`) is a Worker option for exactly
@@ -195,6 +195,67 @@ Every hybrid row falls back to its `claude-only` equivalent when a Codex call
 fails. That fallback is sticky for the Run and recorded in `implementation.md`;
 `${CLAUDE_PLUGIN_ROOT}/internal/codex.md` classifies which failures fall back at
 once and which get one retry first.
+
+### Fallback chains
+
+Every role has an ordered list of candidates, not one alternate. A model that is
+offline, out of quota, past a usage cap, or no longer served is not a reason to
+end a Run: the role advances to the next candidate and keeps going.
+
+| Role | 1 | 2 | 3 | 4 |
+|------|---|---|---|---|
+| Discovery | `codex:terra@high` | `opencode:pro@high` | `claude:sonnet@high` | `claude:opus@high` |
+| Findings review | `claude:opus@high` | `claude:sonnet@high` | `codex:sol@xhigh` | — |
+| Plan creation | `codex:sol@high` | `codex:sol@xhigh` | `claude:opus@high` | `codex:terra@high` |
+| Plan review | `codex:terra@high` | `claude:opus@high` | `claude:sonnet@high` | `codex:luna@high` |
+| Implementation | `codex:terra@high` | `opencode:pro@high` | `codex:sol@xhigh` | `claude:sonnet@high` |
+| Technical code review | `codex:sol@high` | `codex:sol@xhigh` | `claude:opus@high` | `claude:sonnet@high` |
+| Product review | `codex:sol@high` | `claude:opus@high` | `claude:sonnet@high` | — |
+| QA gate | `codex:sol@high` | `codex:terra@high` | `claude:opus@high` | `claude:sonnet@high` |
+| Audit | `codex:terra@high` | `opencode:pro@high` | `codex:sol@xhigh` | `claude:sonnet@high` |
+| Commit | `claude:sonnet@high` | `claude:opus@high` | `codex:terra@high` | `codex:luna@high` |
+
+**A chain is a list of candidates, not a list of instructions.** Walking one
+blindly is how this product fails: the writer's model is always somewhere on the
+reviewer's chain, so a chain followed far enough puts the same identity on both
+sides of a review, and the check that was supposed to catch the defect becomes
+the model agreeing with itself. Before taking a candidate, compare it against the
+identity already bound to the opposing role in this Run. If they match, skip it
+and take the next one.
+
+**A chain ends. It never wraps.** When every candidate is exhausted or skipped,
+the Run is `BLOCKED` and says which role ran out and why. A Run that stops with
+an honest reason costs a re-run; one that quietly reviews its own work costs
+whatever shipped.
+
+Three rules the table cannot express:
+
+- **opencode never appears on a review chain.** Not as candidate four, not as a
+  last resort. Its transport validates the contract after the model runs rather
+  than before, and the roles it is kept out of are exactly the ones where a
+  malformed verdict is worse than no verdict.
+- **Advancing is sticky and recorded.** Once a role moves down its chain it stays
+  there for the Run. Record phase, role, error class, the candidate that failed,
+  the candidate that took over, and the time, in `implementation.md`. A later Run
+  starts from the top of the chain again.
+- **Effort is not a chain step.** Sol at `high` failing on quota does not become
+  Sol at `xhigh`; that is the same account and the same limit. Escalating effort
+  is a response to a hard subject, never to an unavailable model. The `xhigh`
+  entries above are there for the case where the tier is reachable and the
+  previous attempt failed on the work.
+
+What advances a chain, and what does not:
+
+| Signal | Response |
+|--------|----------|
+| Offline, unauthenticated, quota, usage cap, credits exhausted, model withdrawn or answering with an unavailability notice | Advance immediately. No retry: the next attempt fails the same way |
+| Network or provider error, transport failure | One bounded retry, then advance |
+| Contract violation, invalid JSON, schema mismatch | A failed attempt against the same candidate, not a reason to advance. Never an implicit approval |
+| The Worker did the work and returned a bad result | Not a fallback at all. That is remediation, and it stays with the role that owns it |
+
+That third row is the one worth stating: a model returning nonsense is not a
+model being unavailable, and treating it as one hides a quality problem behind an
+infrastructure story while quietly demoting the role.
 
 Luna at `high` replaces Terra for implementation when the plan leaves nothing to
 decide: a rename, a CRUD endpoint, a repeated test, a type fix. Luna at `medium`
