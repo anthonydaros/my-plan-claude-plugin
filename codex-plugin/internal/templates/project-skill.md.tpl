@@ -14,9 +14,11 @@ custom skills, and canonical documentation are left intact.
 
 ## Architecture Memory
 
-Read `{{architectureMemoryPath}}` completely before planning, implementing,
-auditing, reviewing, testing, or delivering. It is the current architecture; this
-file is only the entry point.
+Each Run builds its own Architecture Memory in its Run artifacts during
+discovery and purges it at completion; there is no persistent architecture
+document to load. Read the current Run's copy — the handoff names its path —
+completely before planning, implementing, auditing, reviewing, testing, or
+delivering. It is the current architecture; this file is only the entry point.
 
 ## Stack
 
@@ -52,7 +54,7 @@ Proven failures, each with the evidence that proved it. Not hypothetical warning
 
 The `references/` directory does not exist by default. It is created only when
 stack rules, validation, tooling, architecture, or review guidance cannot be
-represented by an existing canonical repository document or the Architecture
-Memory. Prefer linking the repository's own documentation over copying it here.
+represented by an existing canonical repository document. Prefer linking the
+repository's own documentation over copying it here.
 
 {{references}}

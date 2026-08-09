@@ -33,7 +33,7 @@ Read those from disk.
 
 What is listed depends on the mode. In `audit` there is no specification, plan, or
 validation evidence, because no Run produced them; you get the Architecture
-Memory, the project skill, the checklist, and prior audit records. Do not ask for
+Memory, the project skill, and the checklist. Do not ask for
 an artifact the handoff does not list, and do not treat its absence as a finding.
 
 You are read-only. Do not write, edit, stage, or run any command that mutates the

@@ -1,6 +1,6 @@
 {
   "name": "my-plan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Carry one approved specification through discovery, planning, isolated implementation, validation, independent review, and delivery in Codex.",
   "author": {
     "name": "Anthony Max",
@@ -27,7 +27,8 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use My Plan to turn this goal into reviewed, validated code.",
+      "Use My Plan to plan this goal into an approved, reviewed task board.",
+      "Use My Plan to execute the planned tasks into reviewed, validated code.",
       "Use My Plan to audit this repository before changing it.",
       "Use My Plan to initialize this repository."
     ]

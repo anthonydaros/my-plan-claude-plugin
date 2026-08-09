@@ -46,7 +46,7 @@ Hybrid is selected only when every one of these works: `exec`, `exec resume`,
 
 ## Starting a Worker
 
-Read-only roles (discovery, plan review, code review, audit):
+Read-only roles (discovery, plan creation, plan review, code review, audit):
 
 ```sh
 codex exec \
@@ -65,15 +65,18 @@ codex exec \
   2>"$EVENTS_FILE.stderr"
 ```
 
-The roles that write — implementation, and plan creation in `hybrid` — are
-identical except `--sandbox workspace-write`.
+The roles that write — implementation, and the QA gate, which needs to run a
+test suite that drops build output — are identical except
+`--sandbox workspace-write`. Plan creation is not among them: the planner is
+read-only, returns the plan as structured content against
+`contracts/plan-result.schema.json`, and the Coordinator writes the files.
 
 | Flag | Why it is there |
 |------|-----------------|
 | `--json` | Emits the JSONL event stream on stdout. The thread ID comes from it |
 | `--sandbox` | The tool boundary for the role. Read-only for every reviewer |
 | `-c model_reasoning_effort` | This call's effort for the resolved tier. It travels per call, so an escalation raises it without changing the model |
-| `-C` | Where the Worker operates: the Run's worktree after approval. Before approval, and for an audit, no worktree exists and this is the primary checkout, made safe by `--sandbox read-only` rather than by isolation |
+| `-C` | Where the Worker operates: the Run's worktree once execution has created it. Until then — discovery, planning, plan review, audit — no worktree exists and this is the primary checkout, made safe by `--sandbox read-only` rather than by isolation |
 | `--output-schema` | Host-enforced structured output, pointed at the role's contract in `contracts/` |
 | `-o` | Writes the Worker's final message to a file: the result to validate |
 | `</dev/null` | Closes stdin so Codex does not wait on it |

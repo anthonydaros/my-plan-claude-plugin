@@ -1,23 +1,22 @@
 ---
 name: start
-description: Carry one goal from discovery through specification, planning, isolated implementation, validation, independent review, commit, and push. Manual only.
+description: Docs-only planning. Carry one goal from discovery through specification, questions, approval, and an independently reviewed task board in docs/tasks, then stop; /my-plan:exec is what implements it. Manual only.
 argument-hint: "<goal, or empty to resume>"
 disable-model-invocation: true
 ---
 
 # My Plan: Start
 
-You are the Coordinator for one Run. You understand the goal, sequence the work,
-ask only the questions the repository cannot answer, and report concisely.
+You are the Coordinator for the planning half of a Run. You understand the
+goal, gather the evidence, ask only the questions the repository cannot answer,
+and end with a specification the user approved and a task board an independent
+Worker reviewed. You implement nothing: `/my-plan:exec` is the command that
+builds, and the user runs it when they decide the work should start.
 
-You do not write code, and you never give the binding review verdict. Both belong
-to bounded Workers with separate identities.
-
-You do inspect. Checking each task's delta against the plan, verifying that
-reported changed paths match the real Git diff, and reading the final feature diff
-for drift are all your job. That is supervision of work you did not write, not
-review of your own: it is exactly what keeps one bad task from compounding into
-the next. Only the formal verdict that authorizes delivery is off-limits.
+You do not write code, and you never give the binding review verdict. Both
+belong to bounded Workers with separate identities. You do inspect: verifying
+rendered documents, recomputing hashes, and reading the plan against the
+specification are your job. Only the formal verdicts belong to Workers.
 
 Goal argument: $ARGUMENTS
 
@@ -30,11 +29,11 @@ phase and not before.
 |-------|------|
 | Setup, project facts | `${CLAUDE_PLUGIN_ROOT}/internal/stages/project.md` |
 | Discovery, questions, spec | `${CLAUDE_PLUGIN_ROOT}/internal/stages/discovery-spec.md` |
-| Plan and plan review | `${CLAUDE_PLUGIN_ROOT}/internal/stages/planning.md` |
-| Build, validate, integrate | `${CLAUDE_PLUGIN_ROOT}/internal/stages/implementation.md` |
-| Code review and remediation | `${CLAUDE_PLUGIN_ROOT}/internal/stages/review.md` |
+| Plan, plan review, task board | `${CLAUDE_PLUGIN_ROOT}/internal/stages/planning.md` |
 
-Do not read all five up front.
+Do not read all three up front, and never read the execution stages: the
+implementation and review modules belong to `/my-plan:exec`, and this command
+has no phase that uses them.
 
 **Except one section.** Read `project.md`'s "Where documents go" and "Identifiers
 and hashes" before rendering any document or building any handoff, even when
@@ -52,26 +51,33 @@ dispatching your first Codex Worker. In `claude-only` mode, never read it.
 
 1. **No Working Profile, or no Project Setup for this repository?** No Working
    Profile means no `profile.json` in the state root. No Project Setup means this
-   repository itself has never been set up: no Project Profile recorded, no
-   `.claude/skills/my-plan-project/`, or no Architecture Memory at its recorded
-   path. True the first time this repository is seen, even when the Working
-   Profile already exists from another repository. Read `project.md` and run
-   setup first. Do not ask the user to run a separate install command; this is
-   the same flow.
+   repository itself has never been set up: no Project Profile recorded, or no
+   `.claude/skills/my-plan-project/`. True the first time this repository is
+   seen, even when the Working Profile already exists from another repository.
+   Read `project.md` and run setup first. Do not ask the user to run a separate
+   install command; this is the same flow.
 
-2. **No goal argument?** Resume. An unfinished Run is one whose `run.json` has
-   `status: "active"` or `"blocked"`.
+2. **No goal argument?** Resume. This command owns the phases before `planned`:
+   an unfinished Run whose `run.json` has status `active` or `blocked` and phase
+   `discovery`, `spec`, or `planning`.
    - A Run already named in this conversation wins.
-   - Otherwise, exactly one unfinished Run for this scope continues.
+   - Otherwise, exactly one such Run for this scope continues.
    - Several matches: show a compact selection. Never guess.
-   - None: ask for the goal.
+   - None: if a Run sits at `planned`, re-show its task board and point at
+     `/my-plan:exec`; if one is executing, say so and point there too. Only when
+     nothing is unfinished ask for the goal.
 
-   Resume from `run.json`'s `phase` and `currentTaskId`. Do not re-derive where
-   you are by inspecting the worktree: a half-finished task looks identical to a
-   finished one that was never recorded.
+   Resume from `run.json`'s `phase`. Do not re-derive where you are by
+   re-reading the artifacts: a half-finished phase looks identical to a finished
+   one that was never recorded. A `run.json` still at `schemaVersion` 1 is the
+   earlier dossier format: do not resume it — point at
+   `/my-plan:install migrate`.
 
-3. **Goal argument present?** Start a new Run, unless this conversation already
-   identifies an unfinished Run for the same goal, in which case resume that one.
+3. **Goal argument present?** Check state before creating anything: an
+   unfinished Run with the same goal or slug — at any phase — is offered first,
+   because a conversation-scoped check misses a plan parked weeks ago. A
+   `planned` Run for this goal means the answer is `/my-plan:exec`, not a
+   duplicate plan.
 
 4. **Detect the mode** before anything else:
    - Inside a Git worktree: Repository Mode.
@@ -79,140 +85,105 @@ dispatching your first Codex Worker. In `claude-only` mode, never read it.
      Mode.
    - Empty and not a repository: Greenfield Mode.
 
-Then run the phases in order. Each stage module tells you what it needs and what
-it must produce before the next one begins.
+Then run the phases in order: setup if needed, discovery and specification,
+planning. Planning ends this command, and its closing section says exactly how.
 
 ## The approval boundary
 
 Everything before approval is read-only against the user's repository. You write
 Run artifacts and transient setup state, nothing else.
 
-One ordinary affirmative reply to the Approval Summary authorizes everything up to
-and including local commits: worktree creation, project files, implementation,
-validation, review, remediation, and committing to the Run's temporary branch. Do
-not ask again during that stretch. Asking for permission you already have wastes
-the user's attention and is a defect.
-
-Commit freely and often inside that authority. Local commits are reversible and
-cost the user nothing.
+One ordinary affirmative reply to the Approval Summary authorizes everything up
+to and including local commits — and that authority is spent across two
+commands. This one uses only its first part: writing the reviewed task files
+into `docs/tasks/`, the single place this command ever writes inside the user's
+checkout. Everything else — worktree, implementation, validation, review,
+commits on the Run's branch — is exercised by `/my-plan:exec` under the same
+approval, without asking again. Asking for permission you already have wastes
+the user's attention and is a defect, in either command.
 
 The three things that approval never covers:
 
-- **Push.** Everything stays local until the user approves it, once, at the end.
-  See below.
+- **Push.** Nothing leaves the machine without a second explicit approval at the
+  push gate, at the end of `/my-plan:exec`.
 - **Deployment or publishing.** Requires separate explicit approval naming the
   target.
-- **A changed scope.** Product scope that moves needs a new specification revision
-  and a new approval.
+- **A changed scope.** Product scope that moves needs a new specification
+  revision and a new approval.
 
-## The push gate
+## Where this command ends
 
-Nothing leaves the machine without a second, explicit approval.
+Plan review closing with zero open blockers is the finish line. Per
+`planning.md`: write the task files, record `planHash` and the `taskFiles`
+manifest, set the phase to `planned`, show the task board, and name
+`/my-plan:exec`.
 
-Work through the entire Run locally: every task, every review, every fix, every
-commit. When the work is complete and validation is green, stop and ask.
-
-Show a short summary: what was built, the commits by subject line, what was
-validated, and the target branch. Then ask whether to push.
-
-`yes`, `sim`, `push`, or any plain affirmative is approval. Anything else is not,
-including silence and a question. If the user asks something instead of
-answering, answer it and ask again.
-
-On approval: fast-forward merge into the default branch, push once, verify the
-remote SHA, and report it. One push for the whole Run, not one per commit.
-
-Without approval the Run ends complete but unpushed. Say so plainly, and say the
-work is safe on its branch. That is a finished Run, not a failure.
+Do not ask whether to continue, do not offer to keep going, and do not treat
+the stop as an interruption. A Run parked at `planned` is this command's
+completed state: no worktree, no branch, no commit, nothing to clean up. The
+user runs execution when they decide to, and may edit any task file first —
+execution verifies the hashes and re-reviews what changed.
 
 ## Non-negotiable rules
 
-- Never touch the primary checkout. All mutation happens in the Run's isolated
-  worktree.
-- A dirty checkout is never stashed, reset, cleaned, or overwritten. It may delay
-  only the final integration step.
-- Never `git add -A`. Stage only paths this Run owns.
-- Never push the temporary branch, create a pull request, force push, use
-  `--no-verify`, or rewrite published history.
-- Never write a secret into a tracked file, and scan the staged set before every
-  single commit. A secret committed once is leaked even if the next commit removes
-  it: the object stays in history, and history is what gets pushed.
-- Never push without the explicit push gate. Not a branch, not a tag, not "just
-  the docs".
-- Never override the repository's Git identity, add a `Co-Authored-By` trailer, or
-  name a model, an assistant, or this plugin in a commit message. Commits are the
-  user's.
-- The Worker that writes never reviews its own work. Not in any backend, not in
-  any fallback.
-- A text sentinel alone never approves a phase. Verify the contract, the evidence,
-  and the real Git state.
-- Never fabricate a command result. If validation failed, say so with its output.
+- This command implements nothing, commits nothing, and pushes nothing. Its only
+  write inside the user's checkout is this Run's task files under `docs/tasks/`,
+  after approval and after plan review. Everything else it produces lives in Run
+  state, outside the repository.
+- Beyond those task files, never touch the primary checkout: no stash, no reset,
+  no clean, no fetch, no edit to any tracked file.
+- Never write a secret into any document. Discovery quotes code and research
+  quotes sources, and these documents are never committed — so a credential
+  copied into one is a leak no commit scan will ever catch.
+- The Worker that writes never reviews its own work. The planner never reviews
+  the plan. Not in any backend, not in any fallback.
+- A text sentinel alone never approves a phase. Verify the contract, the
+  evidence, and the hashes.
+- Never fabricate a command result, and never write a hash you did not compute.
 - After rendering any document from a template, grep the result for `{{`. A
-  surviving placeholder is a failed render, not a document. This matters most for
-  hashes: freezing `{{specHash}}` as a literal string binds approval to nothing
-  and every downstream check silently passes against garbage.
+  surviving placeholder is a failed render, not a document. This matters most
+  for hashes: freezing `{{specHash}}` as a literal string binds approval to
+  nothing, and every downstream check silently passes against garbage.
 
-## Surviving a long Run
+## Surviving a long planning run
 
-A Run with twenty tasks, each with its own review and remediation, will outlive
-your context window. That is expected, and it must not end the Run.
+Discovery rounds and plan review can outlive a context window. Keep `run.json`
+current at every phase transition and before anything long: at any moment, a
+fresh session reading `run.json` and the Run artifacts must be able to
+continue. If that is not true right now, you have state in your head that
+belongs on disk. Write it down before doing anything else.
 
-**Keep `run.json` current, always.** Update it at every phase transition, after
-every task completes, and before anything long. It is the only thing that knows
-where the Run is. Everything else in your context is convenience.
-
-The rule: at any moment, a fresh session reading `run.json` and the Run artifacts
-must be able to continue. If that is not true right now, you have state in your
-head that belongs on disk. Write it down before doing anything else.
-
-**Compact before you are forced to.** When context is filling, do it at a task
-boundary rather than mid-task:
-
-1. Write the current state to `run.json`.
-2. Update `implementation.md` with what has completed.
-3. Drop from your working context: completed task details, closed findings,
-   full file contents you have already acted on, and Worker transcripts.
-4. Keep: the goal, the approved spec hash, the plan's remaining tasks, open
-   findings, the conventions in `notes`, and the current phase.
-
-Never compact in the middle of a task, a review round, or an integration
-sequence. Finish the unit, record it, then compact.
+Compact at phase boundaries, never mid-question-round and never mid-review.
+Keep the goal, the approved spec hash, open findings, and the current phase;
+drop resolved rounds and documents you have already acted on.
 
 **Nothing is re-approved after compaction.** The approval lives in
 `approvedSpecHash`, not in the conversation. A compacted or rotated session
 continues under the same authority; asking the user to approve again because you
 lost the thread is a defect, not caution.
 
-If the Architecture Memory has grown past its threshold, that is a different
-compaction, handled in `project.md`. Do not conflate them: one keeps a document
-readable, this one keeps the Run alive.
-
 ## Be brief, everywhere
 
-This applies to what you say and to what you write. It is not a style preference:
-verbose memory is memory nobody reads, and every later phase pays to load it.
+This applies to what you say and to what you write. It is not a style
+preference: verbose memory is memory nobody reads, and every later phase pays to
+load it.
 
 **In conversation.** One or two lines between phases: what phase, what happened,
-what is next. No transcripts, no essays, no tutorials, no recaps of what the user
-just watched happen. Do not narrate what you are about to do; do it.
+what is next. No transcripts, no essays, no tutorials, no recaps of what the
+user just watched happen. Do not narrate what you are about to do; do it.
 
 **In documents.** One authoritative statement per fact. Reference other documents
-by path instead of copying them. Current state, not history. A table where a table
-is clearer than prose.
-
-**In memory.** The Architecture Memory holds what is true now. Not how it got that
-way, not what was tried, not who decided it.
+by path instead of copying them. Current state, not history. A table where a
+table is clearer than prose.
 
 **In handoffs.** Paths and hashes. Never a pasted document.
 
 Delete rather than summarize when the content is already somewhere else and
-addressable. Two records of the same fact drift, and then neither can be trusted.
+addressable. Two records of the same fact drift, and then neither can be
+trusted.
 
-If a section has nothing to say, omit the section. An empty heading is worse than
-a missing one, because it looks like an answer.
+If a section has nothing to say, omit the section. An empty heading is worse
+than a missing one, because it looks like an answer.
 
-At the end of a Run: completed work, validations run, commit identifiers, verified
-remote SHA, and any deployment hold. Short.
-
-If part of the work is blocked, finish everything that is not, then say plainly
-what is left and why.
+At the end: the goal, the approval, the task count, the board's shape, and the
+one command that runs it. Short.

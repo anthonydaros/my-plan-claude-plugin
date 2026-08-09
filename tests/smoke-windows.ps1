@@ -63,7 +63,7 @@ Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace ca
 
 Write-Host '== public skills'
 
-foreach ($s in @('install', 'start', 'audit')) {
+foreach ($s in @('install', 'start', 'audit', 'exec')) {
     $f = Join-Path $plugin "skills\$s\SKILL.md"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing $s"; continue }
     $fm = Frontmatter $f
@@ -74,7 +74,7 @@ foreach ($s in @('install', 'start', 'audit')) {
 
 Write-Host '== Codex public skills'
 
-foreach ($s in @('install', 'start', 'audit')) {
+foreach ($s in @('install', 'start', 'audit', 'exec')) {
     $f = Join-Path $codexPlugin "skills\$s\SKILL.md"
     $meta = Join-Path $codexPlugin "skills\$s\agents\openai.yaml"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing Codex skill $s"; continue }
@@ -141,11 +141,14 @@ Check ([bool]$rule) 'commit authorship rule is stated to the Coordinator'
 Write-Host '== push is gated, commits are scanned'
 
 $startSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\start\SKILL.md') -Raw
+$execSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\exec\SKILL.md') -Raw
 $implStage = Get-Content -LiteralPath (Join-Path $plugin 'internal\stages\implementation.md') -Raw
 
-Check ($startSkill -like '*push gate*') 'the push gate is stated to the Coordinator'
+Check ($execSkill -like '*push gate*') 'the push gate is stated to the executing Coordinator'
+Check ($startSkill -like '*push gate*') 'planning names the push gate it never reaches'
 Check ($implStage -like '*## The push gate*') 'delivery stops at the push gate'
 Check (-not ($startSkill -like '*remediation, commit, fast-forward integration, and push*')) 'spec approval stops at local commits'
+Check (-not ($execSkill -like '*remediation, commit, fast-forward integration, and push*')) 'exec never claims approval covers the push'
 Check ($implStage -like '*Before every commit: check what you are about to publish*') 'staged sets are scanned before commit'
 
 foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
@@ -153,11 +156,12 @@ foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer '))
 }
 
 $codexStart = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\start\SKILL.md') -Raw
+$codexExec = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\exec\SKILL.md') -Raw
 $codexImpl = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\implementation.md') -Raw
 $codexDiscovery = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\discovery-spec.md') -Raw
 $codexTransport = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\codex.md') -Raw
 
-Check ($codexStart.Contains('push gate')) 'Codex push gate is stated to the Coordinator'
+Check ($codexExec.Contains('push gate')) 'Codex push gate is stated to the executing Coordinator'
 Check ($codexImpl.Contains('## The push gate')) 'Codex delivery stops at the push gate'
 Check ($codexDiscovery.Contains('It never authorizes the push')) 'Codex spec approval stops at local commits'
 Check ($codexImpl.Contains('Before every commit: check what you are about to publish')) 'Codex staged sets are scanned before commit'
@@ -179,12 +183,12 @@ Check ($codexProject.Contains('%USERPROFILE%\.codex\plugins\data\my-plan-my-plan
 Check ($codexProject.Contains('.agents/skills/my-plan-project/')) 'Codex setup owns only the .agents Project Skill'
 Check (-not (Test-Path -LiteralPath (Join-Path $codexPlugin 'agents'))) 'Codex plugin installs no global agents'
 Check ($codexStart.Contains('Everything before approval is read-only against the user')) 'pre-approval repository state is read-only'
-Check ($codexStart.Contains("All mutation happens in the Run's isolated")) 'approved mutation stays in the isolated worktree'
+Check ($codexExec.Contains("All mutation happens in the Run's isolated")) 'approved mutation stays in the isolated worktree'
 Check ($codexTransport.Contains('One bounded retry, then mark the Run blocked')) 'transient Worker failure gets one retry'
 Check ($codexTransport.Contains('quota, usage cap, credits, unavailable model')) 'quota and model failures block without fallback'
 Check ($codexTransport.Contains('Never resume a last or most')) 'Worker continuation requires an exact thread'
 Check ($codexAudit.Contains('Read-only until findings are accepted')) 'audit remains read-only until accepted findings become a spec'
-Check ($codexProject.Contains('docs/my-plan/SEAM.md')) 'both distributions share the Architecture Memory path'
+Check ($codexProject.Contains('artifacts/architecture.md')) 'both distributions share the volatile Architecture Memory path'
 
 Write-Host '== contracts are strict-mode clean'
 
@@ -301,11 +305,13 @@ foreach ($f in @(
         'internal\references\NOTICE.md',
         'internal\contracts\build-result.schema.json',
         'internal\contracts\challenge-result.schema.json',
+        'internal\contracts\plan-result.schema.json',
         'internal\contracts\review-result.schema.json',
         'internal\contracts\commit-result.schema.json',
         'internal\prompts\build.tpl',
         'internal\prompts\challenge.tpl',
         'internal\prompts\plan-check.tpl',
+        'internal\prompts\plan-write.tpl',
         'internal\prompts\qa.tpl',
         'internal\prompts\commit.tpl',
         'internal\templates\documents\audit.md.tpl',
@@ -313,6 +319,8 @@ foreach ($f in @(
         'internal\templates\documents\discovery.md.tpl',
         'internal\templates\documents\plan.md.tpl',
         'internal\templates\documents\research.md.tpl',
+        'internal\templates\documents\spec.md.tpl',
+        'internal\templates\documents\task.md.tpl',
         'internal\templates\documents\validation.md.tpl')) {
     $left = (Get-FileHash -LiteralPath (Join-Path $plugin $f) -Algorithm SHA256).Hash
     $right = (Get-FileHash -LiteralPath (Join-Path $codexPlugin $f) -Algorithm SHA256).Hash

@@ -26,8 +26,10 @@ there with a path and a hash. Read those files from disk.
 - Web queries must be generic and sanitized. Never send repository code, secrets,
   personal data, customer identifiers, or confidential business details to a
   search provider.
-- Prefer Context7 for version-specific technical documentation. Use web search for
-  current business, market, and regulatory evidence.
+- Prefer a verified documentation MCP — Context7 or equivalent — for
+  version-specific technical documentation, and any indexing or LSP tool the
+  handoff notes as available for navigating code. Use web search for current
+  business, market, and regulatory evidence.
 - Record every external claim with its source title, URL, access date, and type.
 
 ## Output

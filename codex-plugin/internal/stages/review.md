@@ -10,12 +10,14 @@ option would merge those identities, block the Run instead.
 ## The Review Subject
 
 The exact Run-owned Git diff proposed for delivery: code, tests, configuration,
-memory, specification, plan, implementation record, and validation evidence.
+and the changelog entry.
 
-Excluded: `review.md` and `delivery.md`. They record this subject's outcome, so
-they cannot be inside it. Those two files are limited to fixed-template Markdown
-at their exact Run Dossier paths and may never contain product code,
-configuration, or executable content.
+The Run's documents — specification, plan, implementation record, validation
+evidence, and the `review.md` and `delivery.md` that record this subject's own
+outcome — live in Run artifacts outside the repository, so none of them can
+appear in the diff; a Run document surfacing as a changed path is itself a
+blocker. Reviewers read those documents from the artifact paths in the handoff
+and judge the diff against them.
 
 Hash the subject before dispatching review. Run `git add -N` over the Run-owned
 paths first: untracked files are invisible to `git diff`, and a subject hashed
@@ -89,12 +91,15 @@ here trusts that report.
 So once no blockers remain and before the final complete review, one read-only
 Worker executes the Validation Gate itself and reports what it observed.
 
-It runs on the tier that did not write the code, which here is always Sol at
-`high`: implementation is Terra and never Sol, for the same reason. Sol carries
-technical review, product review, and QA, and that is acceptable because none of
-them wrote the subject — but it is why QA is a separate session rather than
-another pass in the technical reviewer's thread. A Worker that already argued the
-code was correct is not the Worker to discover its tests do not run.
+It runs on a tier that did not write the code. Implementation defaults to
+Terra or Luna, so QA defaults to Sol at `high`; when the implementation chain
+in `project.md` moved a task to Sol, QA for that subject takes Terra instead,
+and when no tier is left that did not implement, the Run blocks rather than let
+a Worker confirm its own test run. Sol carrying technical review, product
+review, and QA at once is acceptable because none of them wrote the subject —
+but it is why QA is a separate session rather than another pass in the
+technical reviewer's thread. A Worker that already argued the code was correct
+is not the Worker to discover its tests do not run.
 
 `mode: "qa"`, `reviewerRole: "qa"`, `ownedLenses` of `tests`, `correctness`, and
 `conformance`, and the required commands in `validationCommands`. Empty
@@ -170,7 +175,8 @@ not:
 
 | Mode | Artifacts |
 |------|-----------|
-| `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
+| `plan-check` | Specification, the plan, every task file, Architecture Memory, project skill. The subject hash is the plan hash over the plan document and the task files together |
+| `audit` | Architecture Memory, project skill, checklist. There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
 | `initial`, `incremental`, `final`, `qa` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
 
 Pass the handoff path. Never concatenate documents into the prompt; reviewers read
@@ -295,7 +301,7 @@ runtime, Worker identity, and model.
 
 Any later change to a Review Subject path invalidates it. Rerun affected
 validation and a renewed final review. Rendering `review.md` and `delivery.md`
-does not invalidate it; that is why they are excluded.
+cannot invalidate it: they live in Run artifacts, outside the subject entirely.
 
 Render `review.md` from
 `<pluginRoot>/internal/templates/documents/review.md.tpl`, from the
@@ -309,9 +315,10 @@ For `$my-plan:audit`. Read-only: no worktree, no branch, no edits.
 Understand the architecture before judging it. An audit that reports findings
 before it understands produces noise, and noise is worse than silence.
 
-Confront the code against the Architecture Memory and prior audit records. When
-they disagree, say which one is wrong. Do not resurface a finding an earlier audit
-recorded as not worth doing; state that it was checked.
+Confront the code against this Run's Architecture Memory — the one discovery
+just built. When they disagree, say which one is wrong. Earlier audits left no
+records behind; the changelog is the only history, so every finding is judged
+against the repository as it stands, not against what a previous audit decided.
 
 An audit gets the widest checklist surface of any mode, because it is the only
 one with no diff telling it where to look. Alongside `checklists/review.md`,
@@ -333,6 +340,8 @@ recommended scope, ordered, and say what is deliberately left out.
 An affirmative reply on the recommended scope converts the accepted findings into
 a Working Spec. Render it, show its Approval Summary, and take the ordinary
 affirmative that freezes it as `approvedSpecHash`. Only then enter planning.
+Planning ends this command at the task board, phase `planned`; `$my-plan:exec`
+is what executes it.
 
 One command, two confirmations. Accepting a list of findings is not the same as
 approving the specification written from them, and planning binds to a

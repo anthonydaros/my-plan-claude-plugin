@@ -16,14 +16,24 @@ Mode is the text after `$my-plan:install` in the user's request.
 - `repair`: re-probe capabilities and fix what setup left broken. Do not discard
   answers the user already gave.
 - `reconfigure`: keep verified facts, re-ask the preference questions.
-- `migrate`: move managed files to the current schema. Preserve any edit you do
-  not recognize by stopping for reconciliation rather than overwriting it.
+- `migrate`: upgrade a repository initialized by an earlier version to the
+  current format, per `project.md` Part 5 — state schemas, Project Skill,
+  legacy dossier files, unfinished Runs. Preserve any edit you do not recognize
+  by stopping for reconciliation rather than overwriting it.
+
+Setup detects the earlier dossier format by itself — `docs/my-plan/` in the
+repository, `runDocsRoot` in `project.json`, a `run.json` at `schemaVersion` 1
+— and enters that migration whatever mode was invoked. Running plain install on
+an already-installed repository is always safe: it verifies, repairs, and
+upgrades; it never restarts and never discards answers.
 
 ## What setup must end with
 
 - Every required capability verified: Codex CLI with the required `exec`
-  features, Git 2.28 or later, and Context7.
-- Every optional capability probed and reported: GitHub CLI and Playwright.
+  features, and Git 2.28 or later.
+- Every optional capability probed and reported: Context7, GitHub CLI,
+  Playwright, and any documentation, indexing, or LSP tooling the session
+  exposes. Optional tools speed the work up and are never depended on.
 - Runtime fixed to `codex-only` and the effective Sol, Terra, and Luna model
   mapping shown.
 - Sol and Terra resolve to different model IDs. A single ID cannot write and
@@ -32,6 +42,9 @@ Mode is the text after `$my-plan:install` in the user's request.
   every later Run checks to decide whether setup already happened, so nothing else
   serves as that signal.
 - The state root path reported to the user, so they know where Run state lives.
+- No earlier format left behind: a repository showing any signal from
+  `project.md` Part 5 has been migrated, or has its remaining per-Run choices
+  reported to the user.
 
 When run inside a repository, setup may also materialize the Project Profile,
 Project Skill, and Architecture Memory. This is the one case where those files are
@@ -55,9 +68,10 @@ written outside a worktree, because the user asked for it directly.
 
 ## Autonomous sessions
 
-Explain the child-session boundaries: discovery and review use the read-only
-sandbox; planning and implementation use workspace-write with explicit write
-sets. The parent session keeps its current permission profile.
+Explain the child-session boundaries: discovery, planning, and review use the
+read-only sandbox; implementation, the QA gate, and the commit use
+workspace-write with explicit write sets. The parent session keeps its current
+permission profile.
 
 Unrestricted bypass is an advanced opt-in only. Present the host's own safety
 warning, require an explicit choice, and never enable it silently or through

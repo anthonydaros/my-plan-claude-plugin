@@ -17,13 +17,23 @@ Mode: $ARGUMENTS
 - `repair`: re-probe capabilities and fix what setup left broken. Do not discard
   answers the user already gave.
 - `reconfigure`: keep verified facts, re-ask the preference questions.
-- `migrate`: move managed files to the current schema. Preserve any edit you do
-  not recognize by stopping for reconciliation rather than overwriting it.
+- `migrate`: upgrade a repository initialized by an earlier version to the
+  current format, per `project.md` Part 5 — state schemas, Project Skill,
+  legacy dossier files, unfinished Runs. Preserve any edit you do not recognize
+  by stopping for reconciliation rather than overwriting it.
+
+Setup detects the earlier dossier format by itself — `docs/my-plan/` in the
+repository, `runDocsRoot` in `project.json`, a `run.json` at `schemaVersion` 1
+— and enters that migration whatever mode was invoked. Running plain install on
+an already-installed repository is always safe: it verifies, repairs, and
+upgrades; it never restarts and never discards answers.
 
 ## What setup must end with
 
-- Every required capability verified: Claude Code 2.1.216 or later, Git, Context7.
-- Every optional capability probed and reported: Codex CLI, GitHub CLI, Playwright.
+- Every required capability verified: Claude Code 2.1.216 or later and Git.
+- Every optional capability probed and reported: Context7, Codex CLI, GitHub
+  CLI, Playwright, and any documentation, indexing, or LSP tooling the session
+  exposes. Optional tools speed the work up and are never depended on.
 - A backend selected: `hybrid` if Codex passes every probe, otherwise
   `claude-only` with the missing capability named.
 - The effective model mapping shown.
@@ -33,10 +43,13 @@ Mode: $ARGUMENTS
   every later Run checks to decide whether setup already happened, so nothing else
   serves as that signal.
 - The state root path reported to the user, so they know where Run state lives.
+- No earlier format left behind: a repository showing any signal from
+  `project.md` Part 5 has been migrated, or has its remaining per-Run choices
+  reported to the user.
 
-When run inside a repository, setup may also materialize the Project Profile,
-Project Skill, and Architecture Memory. This is the one case where those files are
-written outside a worktree, because the user asked for it directly.
+When run inside a repository, setup may also materialize the Project Profile
+and Project Skill. The Architecture Memory is not among them: each Run builds
+its own during discovery, in Run state, and purges it at completion.
 
 ## Rules
 

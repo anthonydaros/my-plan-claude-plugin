@@ -92,7 +92,7 @@ check $? "Codex marketplace category is Development"
 
 echo "== public skills"
 
-for s in install start audit; do
+for s in install start audit exec; do
   f="$PLUGIN/skills/$s/SKILL.md"
   if [ ! -f "$f" ]; then fail "missing $f"; continue; fi
 
@@ -111,7 +111,7 @@ done
 
 echo "== Codex public skills"
 
-for s in install start audit; do
+for s in install start audit exec; do
   f="$CODEX_PLUGIN/skills/$s/SKILL.md"
   meta="$CODEX_PLUGIN/skills/$s/agents/openai.yaml"
   if [ ! -f "$f" ]; then fail "missing Codex skill $s"; continue; fi
@@ -211,6 +211,7 @@ for f in \
   internal/stages/implementation.md \
   internal/stages/review.md \
   internal/prompts/challenge.tpl \
+  internal/prompts/plan-write.tpl \
   internal/prompts/plan-check.tpl \
   internal/prompts/build.tpl \
   internal/prompts/change-check.tpl \
@@ -218,6 +219,7 @@ for f in \
   internal/prompts/commit.tpl \
   internal/contracts/handoff.schema.json \
   internal/contracts/challenge-result.schema.json \
+  internal/contracts/plan-result.schema.json \
   internal/contracts/review-result.schema.json \
   internal/contracts/build-result.schema.json \
   internal/contracts/commit-result.schema.json \
@@ -231,7 +233,7 @@ for f in \
   check $? "exists: $f"
 done
 
-for d in discovery research spec plan implementation validation review audit delivery; do
+for d in discovery research spec plan task implementation validation review audit delivery; do
   [ -f "$PLUGIN/internal/templates/documents/$d.md.tpl" ]
   check $? "exists: documents/$d.md.tpl"
 done
@@ -267,7 +269,7 @@ for f in \
   check $? "exists in Codex plugin: $f"
 done
 
-for d in discovery research spec plan implementation validation review audit delivery; do
+for d in discovery research spec plan task implementation validation review audit delivery; do
   [ -f "$CODEX_PLUGIN/internal/templates/documents/$d.md.tpl" ]
   check $? "exists in Codex plugin: documents/$d.md.tpl"
 done
@@ -276,8 +278,11 @@ echo "== push is gated, commits are scanned"
 
 # Two invariants a prompt edit could quietly undo, both of which leak or publish
 # something the user did not agree to.
+grep -rq "push gate" "$PLUGIN/skills/exec/SKILL.md"
+check $? "the push gate is stated to the executing Coordinator"
+
 grep -rq "push gate" "$PLUGIN/skills/start/SKILL.md"
-check $? "the push gate is stated to the Coordinator"
+check $? "planning names the push gate it never reaches"
 
 grep -rq "## The push gate" "$PLUGIN/internal/stages/implementation.md"
 check $? "delivery stops at the push gate"
@@ -288,11 +293,18 @@ check $? "delivery stops at the push gate"
 # an innocuous future sentence, which is the acceptable cost of a tripwire. The
 # positive check after it is the real guarantee: the section must say the push is
 # not covered.
-if grep -q "remediation, commit, fast-forward integration, and push" "$PLUGIN/skills/start/SKILL.md"; then
-  fail "spec approval still claims to authorize push"
-else
-  pass "spec approval stops at local commits"
-fi
+for s in start exec; do
+  if grep -q "remediation, commit, fast-forward integration, and push" "$PLUGIN/skills/$s/SKILL.md"; then
+    fail "$s: spec approval still claims to authorize push"
+  else
+    pass "$s: spec approval stops at local commits"
+  fi
+  if grep -qE ', and push\.' "$PLUGIN/skills/$s/SKILL.md"; then
+    fail "$s: approval list shape claims the push"
+  else
+    pass "$s: no approval list shape claims the push"
+  fi
+done
 
 if grep -qE ', and push\.' "$PLUGIN/internal/stages/discovery-spec.md"; then
   fail "approval section claims to authorize push (discovery-spec)"
@@ -364,7 +376,7 @@ check $? "Codex plugin installs no global agents"
 has "$CODEX_PLUGIN/skills/start/SKILL.md" 'Everything before approval is read-only against the user'
 check $? "pre-approval repository state is read-only"
 
-has "$CODEX_PLUGIN/skills/start/SKILL.md" "All mutation happens in the Run's isolated"
+has "$CODEX_PLUGIN/skills/exec/SKILL.md" "All mutation happens in the Run's isolated"
 check $? "approved mutation stays in the isolated worktree"
 
 has "$CODEX_PLUGIN/internal/codex.md" 'One bounded retry, then mark the Run blocked'
@@ -379,8 +391,72 @@ check $? "Worker continuation requires an exact thread"
 has "$CODEX_PLUGIN/skills/audit/SKILL.md" 'Read-only until findings are accepted'
 check $? "audit remains read-only until accepted findings become a spec"
 
-has "$CODEX_PLUGIN/internal/stages/project.md" 'docs/my-plan/SEAM.md'
-check $? "both distributions share the Architecture Memory path"
+has "$CODEX_PLUGIN/internal/stages/project.md" 'artifacts/architecture.md'
+check $? "Codex Architecture Memory is the volatile Run artifact"
+
+has "$PLUGIN/internal/stages/project.md" 'artifacts/architecture.md'
+check $? "both distributions share the volatile Architecture Memory path"
+
+echo "== the planning/execution boundary holds"
+
+# start is docs-only and exec is the only command that mutates. Each check pins
+# a sentence or a reference an edit could drop while leaving prose that still
+# reads correctly, and any one of them failing means the split quietly healed.
+for p in "$PLUGIN" "$CODEX_PLUGIN"; do
+  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
+
+  # A start that loads the implementation stage has regained the whole pipeline.
+  if grep -q "stages/implementation.md" "$p/skills/start/SKILL.md"; then
+    fail "$label: start loads the implementation stage"
+  else
+    pass "$label: start never loads the implementation stage"
+  fi
+
+  grep -q "stages/implementation.md" "$p/skills/exec/SKILL.md"
+  check $? "$label: exec loads the implementation stage"
+
+  grep -q 'set `phase` to `planned`' "$p/internal/stages/planning.md"
+  check $? "$label: planning parks the Run at planned"
+
+  grep -q '`planning`, `planned`, `implementation`' "$p/internal/stages/project.md"
+  check $? "$label: the phase enum carries the planned boundary"
+
+  # exec runs under the recorded approval; a re-ask would be a third gate.
+  grep -q 'approvedSpecHash' "$p/skills/exec/SKILL.md"
+  check $? "$label: exec verifies the recorded approval instead of re-asking"
+
+  # The task files are working state in the primary checkout, never history.
+  grep -q 'files are never staged and never committed' "$p/internal/stages/implementation.md"
+  check $? "$label: task files never reach the staged set"
+
+  # Planning must stay inert against the repository; a fetch is a ref write.
+  grep -q 'Planning never fetches' "$p/internal/stages/planning.md"
+  check $? "$label: planning never fetches"
+
+  # Volatility is a promise: completion deletes the Run's working papers.
+  grep -q 'Purge the Run' "$p/internal/stages/implementation.md"
+  check $? "$label: completion purges the Run's volatile state"
+done
+
+echo "== the migration path exists"
+
+# Repositories initialized by the dossier format must have a way forward, and
+# both entry commands must refuse a schemaVersion 1 manifest instead of
+# guessing at it.
+for p in "$PLUGIN" "$CODEX_PLUGIN"; do
+  label=$([ "$p" = "$PLUGIN" ] && echo plugin || echo Codex)
+
+  grep -q "Migration from the dossier format" "$p/internal/stages/project.md"
+  check $? "$label: project.md defines the dossier-format migration"
+
+  grep -q "Part 5" "$p/skills/install/SKILL.md"
+  check $? "$label: install routes into the migration"
+
+  for s in start exec; do
+    grep -q 'schemaVersion` 1' "$p/skills/$s/SKILL.md"
+    check $? "$label: $s refuses the earlier manifest format"
+  done
+done
 
 echo "== the three dispatched gates keep their boundaries"
 
@@ -654,18 +730,22 @@ for f in \
   internal/checklists/implementation.md \
   internal/contracts/build-result.schema.json \
   internal/contracts/challenge-result.schema.json \
+  internal/contracts/plan-result.schema.json \
   internal/contracts/review-result.schema.json \
   internal/contracts/commit-result.schema.json \
   internal/prompts/build.tpl \
   internal/prompts/challenge.tpl \
   internal/prompts/plan-check.tpl \
+  internal/prompts/plan-write.tpl \
   internal/prompts/qa.tpl \
   internal/prompts/commit.tpl \
   internal/templates/documents/audit.md.tpl \
+  internal/templates/documents/task.md.tpl \
   internal/templates/documents/delivery.md.tpl \
   internal/templates/documents/discovery.md.tpl \
   internal/templates/documents/plan.md.tpl \
   internal/templates/documents/research.md.tpl \
+  internal/templates/documents/spec.md.tpl \
   internal/templates/documents/validation.md.tpl; do
   cmp -s "$PLUGIN/$f" "$CODEX_PLUGIN/$f"
   check $? "shared asset matches: $f"

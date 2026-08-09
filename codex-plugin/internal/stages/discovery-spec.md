@@ -11,15 +11,23 @@ artifacts and transient setup state, nothing else.
 Read before asking anything. Every question you ask that the repository could have
 answered spends the user's attention on work you should have done.
 
-Cover: code, canonical documentation, the project skill, the complete Architecture
-Memory, tests, configuration, and relevant history. Scan the frontmatter of past
-Run Dossiers and load only the ones relevant to this goal.
+Cover: code, canonical documentation, the project skill, tests, configuration,
+and relevant history. There is no memory from earlier Runs to load — their
+documents died with them — so the repository's changelog is the record of what
+shipped before, and this scan is what rebuilds the architectural picture.
+Render what it verifies into this Run's Architecture Memory at
+`artifacts/architecture.md`, per `project.md` Part 4; every later phase of this
+Run reads it from there.
 
 Then classify:
 
 - Existing-product change, or greenfield idea.
 - The business domain it belongs to.
 - The repository's existing vocabulary for the concepts in the goal.
+
+Navigate with the best tools the Working Profile verified — an LSP, an indexing
+MCP such as Serena, the host's search — and fall back to plain reading when none
+exists. The tool changes the speed, never the burden of proof.
 
 In Workspace Mode, read lightweight metadata for every repository in the snapshot,
 then narrow deeper reading to the ones the goal actually touches.
@@ -50,7 +58,8 @@ evidence and the code is not.
 Once a trigger fires, research runs automatically. Do not ask for a separate
 command or permission.
 
-- Context7 for version-specific technical documentation.
+- A documentation MCP — Context7 or an equivalent the Working Profile verified —
+  for version-specific technical documentation; web search otherwise.
 - Web search for current business, market, and regulatory evidence.
 - Regulated or high-stakes claims need a primary or official source where one
   exists.
@@ -90,6 +99,13 @@ does not interrupt the user.
 
 One question at a time. Wait for the answer before the next one. A batch of
 questions gets batch-quality answers.
+
+Ask as you would ask a product owner or tech lead: decision-level, in product
+terms, never about implementation mechanics the repository can settle. Arrive
+with the answer proposed — what the evidence shows, what you recommend and why,
+what the alternatives cost — never an open-ended request to think for you. A
+question that only confirms what the evidence already shows is rhetorical: skip
+it and record the fact. The budget is spent on what genuinely shapes the tasks.
 
 Walk the design tree branch by branch, resolving dependencies between decisions in
 order. A question whose answer depends on an unanswered question comes second.
@@ -304,17 +320,17 @@ is not a criterion.
 The decision register records both user answers and automatic Recommendation
 Authority decisions, marked by source.
 
-The preliminary write set must include the Run's own paperwork as well as the
-product paths: the Run Dossier directory, the Architecture Memory when this Run
-updates it, the Project Skill when this Run materializes it, and the repository's
-changelog whenever the change is visible to a user of the software — the path the
-repository already uses, or `CHANGELOG.md` when none exists yet. Those files end
-up in the reviewed diff and the commit, so approval has to cover them. Omitting
-them does not make the Run safer; it makes the final review block on the Run's own
-records. The changelog earns its place for a sharper reason: delivery may not
-write outside the approved set, so a changelog missing here is a changelog the
-Run is forbidden to write later — the omission silently decides no entry will
-exist.
+The preliminary write set is the product paths plus one Run document: the
+repository's changelog whenever the change is visible to a user of the software
+— the path the repository already uses, or `docs/CHANGELOG.md` when none exists
+yet. The changelog is the only record of this Run that ships with the work, and
+delivery may not write outside the approved set, so a changelog missing here is
+a changelog the Run is forbidden to write later — the omission silently decides
+no entry will exist.
+
+Nothing else of the Run's appears in the set. Its working documents live in Run
+state, outside the repository, and its task files are managed by the Run itself
+and never staged.
 
 Durable current architecture belongs in the Architecture Memory, not here. Task
 decisions belong here, not there.
@@ -350,9 +366,13 @@ If the user changes scope before approving, revise the specification and the
 summary. If they push back on something you recommended, that is their decision:
 record it and proceed with their choice.
 
-One affirmative reply authorizes everything downstream that stays local:
-worktree, project files, implementation, validation, review, remediation, and
-commits on the Run's branch. Do not ask again at each phase.
+One affirmative reply authorizes everything downstream that stays local: the
+task files, the worktree, implementation, validation, review, remediation, and
+commits on the Run's branch. Do not ask again at each phase. The authority
+crosses commands: planning parks the Run as `planned`, and `$my-plan:exec`
+executes under this same approval without asking for it again. Approval
+authorizes the work; `$my-plan:exec` schedules it. Stopping at `planned` is not
+asking again, and starting execution is not a new approval.
 
 It never authorizes the push. Nothing leaves the machine until the push gate at
 the end of the Run, where the user approves once more, having seen the work. And

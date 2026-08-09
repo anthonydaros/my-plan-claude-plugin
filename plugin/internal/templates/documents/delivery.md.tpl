@@ -39,10 +39,9 @@ Remote, default branch, and the integration method: non-force fast-forward only.
 | Commit | Message | Paths |
 |--------|---------|-------|
 
-Staged paths equal the approved product write set plus every Run Dossier
-document present under this Run's own docs directory, matched against the nine
-standard names (discovery, research, spec, plan, implementation, validation,
-review, audit, delivery). Nothing else. No `git add -A`.
+Staged paths equal the approved product write set, including the changelog when
+the change is user-visible. Nothing else. No `git add -A`. The Run's working
+documents live outside the repository, and its task files are never staged.
 
 ## Integration preconditions
 

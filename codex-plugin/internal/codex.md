@@ -47,27 +47,29 @@ Render the role prompt from `<pluginRoot>/internal/prompts/` by replacing only
 instructions, never the contents of a specification, plan, task, diff, or other
 Run document.
 
-Copy every artifact a sandboxed Worker needs into `<worktree>/.my-plan/`, list
-each copy and hash in the handoff, and add `.my-plan/` to the worktree's local
-Git exclude. This includes a reviewer checklist and a planner template when the
-role needs them. A handoff never names a path the Worker cannot read.
+For a workspace-write Worker, copy every artifact it needs into
+`<worktree>/.my-plan/`, list each copy and hash in the handoff, and add
+`.my-plan/` to the worktree's local Git exclude. A read-only Worker dispatched
+before the worktree exists — discovery, plan creation, plan review, an audit —
+reads the absolute paths its handoff lists instead, exactly as discovery always
+has. Either way, a handoff never names a path the Worker cannot read.
 
 Select the result schema by role:
 
 | Role or mode | Prompt | Schema | Sandbox |
 |--------------|--------|--------|---------|
 | discovery | `challenge.tpl` | `challenge-result.schema.json` | `read-only` |
-| plan creation | `plan-write.tpl` | `plan-result.schema.json` | `workspace-write` |
+| plan creation | `plan-write.tpl` | `plan-result.schema.json` | `read-only` |
 | plan review | `plan-check.tpl` | `review-result.schema.json` | `read-only` |
 | implementation | `build.tpl` | `build-result.schema.json` | `workspace-write` |
 | audit or code review | `change-check.tpl` | `review-result.schema.json` | `read-only` |
 | qa | `qa.tpl` | `review-result.schema.json` | `workspace-write` |
 | commit | `commit.tpl` | `commit-result.schema.json` | `workspace-write` |
 
-The plan Worker writes exactly the `plan.md` path in its handoff and returns the
-path plus a one-line summary. The Coordinator validates the file, its hash, and
-its write boundary directly. Every JSON-returning role uses provider-enforced
-structured output.
+The plan Worker writes nothing: it returns the plan document and every task
+file as content inside its result, and the Coordinator writes the files,
+verifies the terminator line and the task count, and computes the hashes. Every
+role uses provider-enforced structured output.
 
 ## Start a Worker
 
@@ -90,9 +92,9 @@ codex exec \
   2>"$EVENTS_FILE.stderr"
 ```
 
-Planning and implementation use the same form with
+Implementation, the QA gate, and the commit use the same form with
 `--sandbox workspace-write`. Every Worker uses `--output-schema`; the planning
-result reports the path and hash of its file for the Coordinator to recompute.
+result carries the plan itself, which the Coordinator writes and hashes.
 
 The sandbox is the role boundary, not a prompt convention. Never run discovery or
 review with workspace-write, even when a reviewer asks to apply a fix.

@@ -78,4 +78,6 @@ jobs:
           test -f "$installed/.codex-plugin/plugin.json"
           test -f "$installed/skills/start/SKILL.md"
           test -f "$installed/skills/start/agents/openai.yaml"
+          test -f "$installed/skills/exec/SKILL.md"
+          test -f "$installed/skills/exec/agents/openai.yaml"
           test -f "$installed/internal/contracts/plan-result.schema.json"

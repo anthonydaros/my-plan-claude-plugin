@@ -11,12 +11,14 @@ the Run instead.
 ## The Review Subject
 
 The exact Run-owned Git diff proposed for delivery: code, tests, configuration,
-memory, specification, plan, implementation record, and validation evidence.
+and the changelog entry.
 
-Excluded: `review.md` and `delivery.md`. They record this subject's outcome, so
-they cannot be inside it. Those two files are limited to fixed-template Markdown
-at their exact Run Dossier paths and may never contain product code,
-configuration, or executable content.
+The Run's documents — specification, plan, implementation record, validation
+evidence, and the `review.md` and `delivery.md` that record this subject's own
+outcome — live in Run artifacts outside the repository, so none of them can
+appear in the diff; a Run document surfacing as a changed path is itself a
+blocker. Reviewers read those documents from the artifact paths in the handoff
+and judge the diff against them.
 
 Hash the subject before dispatching review. Run `git add -N` over the Run-owned
 paths first: untracked files are invisible to `git diff`, and a subject hashed
@@ -179,7 +181,8 @@ not:
 
 | Mode | Artifacts |
 |------|-----------|
-| `audit` | Architecture Memory, project skill, checklist, and prior audit records (`kind: "audit"`). There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
+| `plan-check` | Specification, the plan, every task file, Architecture Memory, project skill. The subject hash is the plan hash over the plan document and the task files together |
+| `audit` | Architecture Memory, project skill, checklist. There is no specification, plan, or validation evidence in an Audit Run, and `ownedLenses` therefore omits `conformance`: there is nothing approved to conform to |
 | `initial`, `incremental`, `final`, `qa` | Specification, plan, validation evidence, Architecture Memory, project skill, checklist |
 
 Pass the handoff path. Never concatenate documents into the prompt; reviewers read
@@ -304,7 +307,7 @@ backend, Worker identity, and model.
 
 Any later change to a Review Subject path invalidates it. Rerun affected
 validation and a renewed final review. Rendering `review.md` and `delivery.md`
-does not invalidate it; that is why they are excluded.
+cannot invalidate it: they live in Run artifacts, outside the subject entirely.
 
 Render `review.md` from
 `${CLAUDE_PLUGIN_ROOT}/internal/templates/documents/review.md.tpl`, from the
@@ -318,9 +321,10 @@ For `/my-plan:audit`. Read-only: no worktree, no branch, no edits.
 Understand the architecture before judging it. An audit that reports findings
 before it understands produces noise, and noise is worse than silence.
 
-Confront the code against the Architecture Memory and prior audit records. When
-they disagree, say which one is wrong. Do not resurface a finding an earlier audit
-recorded as not worth doing; state that it was checked.
+Confront the code against this Run's Architecture Memory — the one discovery
+just built. When they disagree, say which one is wrong. Earlier audits left no
+records behind; the changelog is the only history, so every finding is judged
+against the repository as it stands, not against what a previous audit decided.
 
 An audit gets the widest checklist surface of any mode, because it is the only
 one with no diff telling it where to look. Alongside `checklists/review.md`,
@@ -342,6 +346,8 @@ recommended scope, ordered, and say what is deliberately left out.
 An affirmative reply on the recommended scope converts the accepted findings into
 a Working Spec. Render it, show its Approval Summary, and take the ordinary
 affirmative that freezes it as `approvedSpecHash`. Only then enter planning.
+Planning ends this command at the task board, phase `planned`; `/my-plan:exec`
+is what executes it.
 
 One command, two confirmations. Accepting a list of findings is not the same as
 approving the specification written from them, and planning binds to a

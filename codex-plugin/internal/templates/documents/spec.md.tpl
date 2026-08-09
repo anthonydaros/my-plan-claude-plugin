@@ -68,16 +68,14 @@ What could go wrong, its impact, and how the plan reduces it.
 Every path this Run is authorized to modify. A path outside this set stops the
 Run.
 
-It always includes the Run's own paperwork, because those files are part of the
-reviewed diff and get committed with the work:
-
-- `<runDocsRoot>/runs/<run-id>-<slug>/` — the Run Dossier directory.
-- The Architecture Memory at `architectureMemoryPath`, when this Run updates it.
-- `.agents/skills/my-plan-project/`, when this Run materializes or migrates it.
-- The repository's changelog, when this Run's change is user-visible.
-
-List them explicitly. Leaving them out does not protect anything: it just means
-the final review finds Run-owned documents in the diff with no authorization
-behind them, and blocks delivery over the Run's own records.
+It always includes the repository's changelog when this Run's change is visible
+to a user of the software — the path the repository already uses, or
+`docs/CHANGELOG.md` when none exists yet. The changelog is the one Run document
+that ships with the work, and delivery may only write inside this set, so
+leaving it out silently decides that no entry will exist.
 
 Then the product paths the work actually touches.
+
+Nothing else of the Run's belongs here. Its working documents live outside the
+repository and are never committed, and its task files are managed by the Run
+itself and never staged.

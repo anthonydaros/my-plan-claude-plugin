@@ -29,9 +29,9 @@ not reportable.
 
 ## Confronted with project memory
 
-Where current code disagrees with the Architecture Memory, and which one is
-wrong. Stale findings from earlier audit records are not repeated; state that they
-were checked.
+Where current code disagrees with this Run's Architecture Memory, and which one
+is wrong. Earlier audits left no records behind; every finding is judged against
+the repository as it stands.
 
 ## Recommended scope
 
@@ -40,5 +40,6 @@ ahead of the others. Say what is deliberately left out.
 
 ## Not worth doing
 
-Findings that are real but not worth the change. Recording these stops a later
-audit from resurfacing them as new.
+Findings that are real but not worth the change, each with the reason. This
+section is for the user deciding scope; it is the deliberate-deferral record
+they will not otherwise have, because this report dies with the Run.

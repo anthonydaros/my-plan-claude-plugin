@@ -1,10 +1,90 @@
 # Stage: Implementation
 
 Build the reviewed plan in the isolated worktree, prove it works, and deliver it.
-Covers task execution, the Validation Gate, commit, integration, and push.
+Covers worktree creation, task execution, the Validation Gate, commit,
+integration, and push. Entered from `$my-plan:exec` against a Run whose phase is
+`planned` or later; that skill's entry checks have already verified the spec,
+the plan, and the task files before this stage begins.
 
 No user gate exists in this stage. The approved specification already authorized
-all of it. Asking for permission you already have is a defect, not caution.
+all of it, and invoking `$my-plan:exec` was the user deciding when. Asking for
+permission you already have is a defect, not caution.
+
+## Before the first task: the worktree
+
+Runs once, when the phase is exactly `planned`. A Run resumed later than that
+already has a worktree, and re-entering here would re-resolve a base that is
+already fixed.
+
+1. Fetch and resolve the latest default-branch base. Record the exact base SHA.
+   A repository with no remote skips the fetch; local `main` is the base.
+2. Compare what moved since planning:
+   `git diff --name-only <plannedBase>..<baseSha>`, where `plannedBase` comes
+   from the plan's frontmatter, intersected with the write set and the paths
+   the task files declare. A hit on a task's path, or a path a task names as
+   existing that no longer does, goes back through `plan-check` over the
+   affected tasks before any code is written: the plan was reviewed against a
+   repository that has since moved. A hit only on the wider write set is
+   reported as risk, and execution proceeds. If `plannedBase` is unreachable —
+   force-pushed away, shallow history — fall back to checking that every path
+   the tasks name as existing still exists, and say that the weaker check is
+   the one that ran. Repeat planning's Overlap comparison against other
+   unfinished Runs in the same pass; that snapshot may be weeks old.
+3. Create a Run-unique temporary branch, named `my-plan/<run-id>`, and an
+   external worktree at that SHA under
+   `<stateRoot>/worktrees/<repo-key>/<run-short>/`. In Workspace Mode, one
+   worktree per affected repository.
+4. Write `baseSha`, `branch`, and `worktree` to `run.json` immediately, in one
+   manifest update, before anything else happens. A crash between creation and
+   this write leaves a branch no manifest explains. On re-entry, non-null
+   values at phase `planned` mean creation already happened: resume from the
+   next step and never re-resolve the base — the recorded `baseSha` wins. A
+   branch that already exists when this step tries to create it is either this
+   Run's own interrupted entry — a crash after creation, before the write — or
+   another session's. Adopt it only when all three hold: the Run's worktree is
+   registered at the expected path, its status is clean, and the branch tip
+   still equals the base just resolved, meaning nothing was ever built on it.
+   Then record the real values in `run.json` and continue. Anything else —
+   commits on the branch, a dirty tree, an unregistered branch — is not yours
+   to adopt: stop and say so.
+5. Set `phase` to `implementation` under the same discipline every manifest
+   write uses: re-read `manifestRevision` first, increment it, and treat a
+   revision that moved underneath as another session's Run.
+
+In Greenfield Mode, steps 1 to 3 do not apply: there is no repository to fetch
+from and no base to resolve. Revalidate before mutating anything: the directory
+must still be empty apart from the task files this Run wrote, exactly as
+`taskFiles` records them, and the Git identity must still be the one recorded
+in the specification. Time passed between planning and execution, and
+`git init` over a directory someone has since put files into is not the
+operation the user approved. Any unexpected file aborts the mutation and goes
+back to the user as evidence.
+
+Greenfield discovery records the Git identity in the specification's decision
+register, because an empty directory has no repository to read one from. If the
+configured identity differs from the recorded one, stop and ask: committing
+under an identity the user did not approve is not recoverable by editing a
+file.
+
+Then:
+
+```sh
+git init -b main            # requires Git 2.28+, verified during setup
+git commit --allow-empty -m "Initialize repository"
+git rev-parse HEAD          # this is baseSha
+git worktree add -b my-plan/<run-id> <worktree-path> <baseSha>
+```
+
+The Bootstrap Commit is empty by construction: no scaffold, no feature code, no
+configuration. Everything else happens inside the worktree afterwards. The task
+files stay untracked where they are; the bootstrap commits nothing.
+
+Worktree creation takes a short atomic repository lock. Release it immediately.
+A lock is never held while a model reasons.
+
+The primary checkout is never stashed, reset, cleaned, or overwritten, and this
+stage writes nothing into it with one exception: the Run's own task files,
+which it deletes one by one as their tasks complete, and never stages.
 
 ## Tasks
 
@@ -55,11 +135,13 @@ For each task:
    `<pluginRoot>/internal/codex.md`. A mechanical task may use Luna only when
    Luna resolves to a model distinct from Sol; Sol remains reserved for review.
 
-   Include a `kind: "task"` artifact: the instruction, the requirements that bear
-   on this task, the paths, the dependencies already satisfied, and the checks
-   that prove it done. Extract it from the plan; do not hand over the plan.
+   Include a `kind: "task"` artifact: the task's own file from `<tasksDir>`,
+   plus the conventions accumulated in `notes`. Planning wrote that file for
+   exactly this reader — it already carries the paths, the behavior, the edge
+   cases, and the checks — so there is nothing to extract and no plan to hand
+   over.
 
-   **Write it to `<worktree>/.my-plan/task.md`, and add `.my-plan/` to the
+   **Copy it to `<worktree>/.my-plan/task.md`, and add `.my-plan/` to the
    worktree's `.git/info/exclude`.** A Codex Worker is confined to the worktree
    and cannot read Run state outside it, so the artifact has to live inside; and
    anything inside that Git tracks would show up in the Review Subject as a path
@@ -165,14 +247,23 @@ For each task:
    `taskId`. Do not merge their findings into one queue; the writers are different
    sessions and identical finding ids can mean different defects.
 
-8. **Stage and record.** Stage only paths this task and this Run own. Never
-   `git add -A`. Confirm the completed plan checkbox against the actual diff, then
-   update `implementation.md`, rendering it from
+8. **Stage, record, then delete the task file.** Stage only paths this task and
+   this Run own. Never `git add -A`. Confirm the task's delta against what its
+   task file promised, then update `implementation.md` in Run artifacts,
+   rendering it from
    `<pluginRoot>/internal/templates/documents/implementation.md.tpl` on
    the first task.
 
    Staging is the checkpoint. The next task's delta is then measured against the
    index, so each review sees only what is new.
+
+   Record the task in `run.json` — `completedTaskIds`, `currentTaskId` — and
+   only then delete its file from `<tasksDir>` and drop it from `taskFiles`.
+   The record always precedes the deletion: a deleted file with no record is a
+   task that will be run twice. The file's absence is what tells the user the
+   task is done, and the shrinking directory is the visible progress bar. Task
+   files are never staged and never committed; deleting one is housekeeping in
+   the primary checkout, not part of the Review Subject.
 
 ## Between tasks, shed what you no longer need
 
@@ -204,9 +295,9 @@ not after they fail.
 
 **Splitting a task revises the plan.** Do not invent task IDs on the fly and
 dispatch them: the plan was independently reviewed, and work that never appeared
-in it was never reviewed either. Update `plan.md` with the new task IDs, their
-paths, dependencies, and checks; run `plan-check` over the revision; renew the
-plan hash; then dispatch. The review is cheap because only the changed section is
+in it was never reviewed either. Update `plan.md`'s task table, write the new
+task files into `<tasksDir>`, delete the file of the task they replace; run
+`plan-check` over the revision; renew `planHash` and `taskFiles`; then dispatch. The review is cheap because only the changed section is
 new, and skipping it means the write set, the dependencies, and the checks of the
 work you are about to run had no independent look at all.
 
@@ -300,6 +391,11 @@ toolchain, dependency set, and base that may all have moved since. Trusting that
 record is exactly the "a text sentinel alone never approves a phase" failure,
 wearing a hash.
 
+The same rule covers the push gate: commits produced in an earlier session are
+never pushed on that session's green record. Rerun the required commands first,
+even when the base has not moved — a `DONE_LOCAL` Run whose push the user
+finally approves gets this revalidation before anything leaves the machine.
+
 A failure here returns to remediation. It does not block the Run.
 
 ### Manifest
@@ -317,7 +413,11 @@ Before committing, record what shipped in the repository's changelog.
 
 Adopt whatever the repository already uses: `CHANGELOG.md`, a `changelog/`
 directory, release notes, or the convention its history shows. Create
-`CHANGELOG.md` in Keep a Changelog form only when none exists.
+`docs/CHANGELOG.md` in Keep a Changelog form only when none exists.
+
+The changelog is the Run's only permanent record in the repository. The working
+documents die with the Run, so this entry is written for a reader who will
+never see the paperwork behind it.
 
 Write one entry for the Run, from the user's point of view: what changed for
 someone using this software, grouped as added, changed, fixed, or removed. Not
@@ -388,9 +488,17 @@ Write the message about what changed and why, in the repository's existing commi
 style. If the repo uses conventional commits, use them; if it does not, do not
 introduce them.
 
-Stage exactly the Review Subject plus the two fixed-template evidence records,
-`review.md` and `delivery.md`. Verify the staged path list equals that set before
-committing. Never `git add -A`.
+Stage exactly the approved write set as the diff realized it: the product
+paths, plus the changelog when the change is user-visible. Verify the staged
+path list equals that set before committing. Never `git add -A`.
+
+Nothing else exists to stage. The Run's working documents — including
+`review.md` and `delivery.md`, which record this very commit's approval — live
+in Run artifacts outside the repository, and the task files are never staged:
+they are the Run's scaffolding in the primary checkout, already shrinking as
+tasks complete, and none of them belong in the history. A staged path outside
+the write set is a blocker, reported with the path, whatever it is and however
+reasonable it looks.
 
 Version bumps and tags only when the Project Profile or the approved specification
 requires them. Do not impose semantic versioning, tags, README version edits, or
@@ -469,6 +577,11 @@ If approval does not come, the Run is finished and unpushed. Record it, tell the
 user the work is committed and safe on its branch and how to push it themselves,
 and stop. Do not push later on the assumption they meant yes.
 
+A Run parked `DONE_LOCAL` that way re-enters at exactly this gate:
+`$my-plan:exec` on such a Run comes straight here — never back through
+implementation — reruns the required validation commands per Cold resume
+revalidates, shows this same summary, and asks again.
+
 Never treat the specification approval as covering this. That approval was given
 before any code existed.
 
@@ -514,6 +627,15 @@ record the delivered subject hash alongside them, in the pinned form
 already carries. The in-flight hash stops being recomputable once the index
 moves; the delivered form is the one that still verifies weeks later.
 
+In the same step, append this Run to `repos/<repo-key>/repo.json.runs[]`:
+`runId`, `status`, `finalSha`, `completedAt`. A Run's own artifacts die with
+it; this index is the only durable list of a repository's Runs, and it is what
+keeps completed and cancelled Runs enumerable after their state is purged. In
+Workspace Mode, repeat this per repository the Run touched, each under its own
+`repoKey` with its own `finalSha`. Check first whether an entry for this
+`runId` already exists in that `repo.json`; a Completion step re-run after a
+resumed session records nothing twice.
+
 Create no post-push documentation commit. The approved specification stays
 unchanged.
 
@@ -521,6 +643,35 @@ Remove the worktree and temporary branch only after remote SHA verification. In
 a repository with no remote there will never be one to wait for: the verified
 local fast-forward — the default branch resolving to the Run's final commit —
 takes its place. Preserve unintegrated or dirty Runs for recovery.
+
+Do this only once status is `DONE`, `DONE_LOCAL`, or `READY_FOR_DEPLOY` and the
+final commit is confirmed on the target branch: a `DONE_LOCAL` from a declined
+push has no commit there yet, so its worktree stays for the eventual push.
+Never remove a worktree carrying changes this Run has not staged, committed,
+and had reviewed — that deletes unassessed work instead of deferring it.
+
+Before removing, confirm the worktree is clean: `git -C <worktree-path> status
+--porcelain` returns nothing. A non-empty result — staged, modified, or
+untracked — is unassessed work, indistinguishable from a dirty Run, and this
+step preserves it exactly like one: leave the worktree in place instead of
+removing it, and revisit on the next session. Never pass `--force` to `git
+worktree remove` to push past a non-empty status; forcing is what turns this
+safeguard into the data loss it exists to prevent.
+
+Run the removal from the main checkout, never from inside the worktree being
+removed: `git worktree remove <worktree-path>`, then `git branch -d
+my-plan/<run-id>`. The Run is not closed until this succeeds; a worktree still
+on disk is a Run still open, whatever `run.json` says.
+
+Purge the Run's state in the same closing step and under the same condition:
+delete `<stateRoot>/runs/<run-id>/` — the artifacts were working documents, and
+the changelog entry that shipped is the record — and confirm `<tasksDir>` holds
+no file of this Run's, which should already be true because each was deleted as
+its task completed. Remove the task directory itself only when this Run created
+it and it is now empty. A `DONE_LOCAL` from a declined push keeps its artifacts
+exactly as it keeps its worktree: the eventual push still needs the evidence,
+and the purge happens when that push finally verifies, or when the user cancels
+the Run instead.
 
 Final status:
 
@@ -543,7 +694,9 @@ approval naming the target.
 ### Final report
 
 Short: completed work, validations run, commit identifiers, verified remote SHA,
-and any deployment hold. The Run Dossier and local Run state hold the detail.
+and any deployment hold. The changelog entry carries the user-facing record and
+`repos/<repo-key>/repo.json` the identifiers; the working documents are gone
+with the Run, which is what they were for.
 
 If something was blocked, say plainly what and why. Never report success you did
 not verify.

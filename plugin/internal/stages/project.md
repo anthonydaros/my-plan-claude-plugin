@@ -1,6 +1,7 @@
 # Stage: Project
 
-Environment setup, repository facts, and the two durable memory artifacts. Loaded
+Environment setup, repository facts, the Project Skill, and the per-Run
+Architecture Memory. Loaded
 by `/my-plan:install`, and automatically by the other actions when setup is
 missing.
 
@@ -22,7 +23,6 @@ fails its probe is not supported.
 |------------|-------|------------|
 | Claude Code 2.1.216+ | `claude --version`, compared numerically | Give the exact upgrade command for their platform |
 | Git 2.28+ | `git --version`. 2.28 is the floor because `git init -b` needs it | Give the exact install command for their platform |
-| Context7 | One real documentation query that returns content | Give the exact connection steps |
 
 Claude must expose: structured questions, `WebSearch`, `WebFetch`, model
 selection, isolated agents, and the native file and shell tools. You are running
@@ -34,8 +34,17 @@ inside Claude Code, so check your own tool availability rather than shelling out
 |------------|-------|------------|
 | Codex CLI | `codex --version`, then `codex exec --help` and `codex exec resume --help`, checking that the help text lists `-C`, `--sandbox`, `--json`, `--output-schema`, and `-o`. Then `codex login status` for authentication | Skip `codex:` as a Worker prefix, name the missing capability, continue |
 | opencode CLI | `opencode --version`, then `opencode run --help`, checking for `--session`, `--format`, `--model`, `--variant`, `--agent`. Then `opencode auth list` for a `google` credential. Then one live call resolving and confirming `Pro`, per `${CLAUDE_PLUGIN_ROOT}/internal/opencode.md` | Skip `opencode:` as a Worker prefix for discovery and implementation, name the missing capability, continue |
+| Context7 | One real documentation query that returns content | Research falls back to web search |
 | GitHub CLI | `gh --version` and `gh auth status` | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
 | Playwright | `playwright --version`, then `playwright-cli --version`. Either counts | Recommend it for browser validation. Never block on it |
+
+**Auxiliary tools are probed, used, and never required.** Record whatever this
+session actually exposes — documentation MCPs such as Context7, code-navigation
+or indexing MCPs such as Serena, LSP servers, the host's own search — and use
+what passed wherever it beats raw reading: discovery, research, planning, and
+review all navigate faster with an index than with grep. A missing tool changes
+nothing but speed, and no phase may depend on one the Working Profile did not
+verify.
 
 Probe the Codex flags from the help output rather than by running a real Codex
 turn: a probe that costs a model call is a probe people learn to skip. opencode
@@ -310,7 +319,7 @@ Check what already owns each bare name. Look at the skills and commands visible 
 this session, plus `.claude/skills/`, `.claude/commands/`, `~/.claude/skills/`,
 and `~/.claude/commands/`. A name defined in any of them wins over a plugin skill.
 
-For each of `/install`, `/start`, `/audit`:
+For each of `/install`, `/start`, `/exec`, `/audit`:
 
 - Free: the bare alias works. Report it.
 - Owned by a personal, project, enterprise, or other plugin command: that command
@@ -325,6 +334,12 @@ Be honest about this, because the two backends are not equally strong.
 
 **Codex Workers** get a real sandbox. `--sandbox read-only` is enforced by the
 process, and a reviewer cannot write even if its prompt were wrong.
+
+The planner touches no repository either: the hybrid planner runs read-only
+and returns the plan as structured content for the Coordinator to write, and
+the claude-only planner agent writes the same Run-state paths itself. The only
+workspace-write roles are implementation, the QA gate, and the commit, and all
+three run inside the worktree that execution created.
 
 The QA gate is the one review role that cannot have it. Running a test suite
 writes — build output, caches, coverage — so a QA Worker is dispatched
@@ -442,7 +457,8 @@ first 12 characters in documents; keep the full digest in Run state.
 |------|---------------|
 | Artifact hash | The file's exact bytes |
 | Spec hash | `spec.md`'s exact bytes, which is what approval freezes |
-| Review Subject hash | The output of `git diff <baseSha>` restricted to Run-owned paths, excluding `review.md` and `delivery.md` |
+| Plan hash | `plan.md`'s exact bytes, then every task file's exact bytes in ascending filename order, one SHA-256 over the concatenation. The plan and its task files are one subject; `taskFiles` additionally records each file's own hash so an edit is located per file |
+| Review Subject hash | The output of `git diff <baseSha>` restricted to the approved write set |
 | Delivered subject hash | `git diff <integrationBase> <finalSha>` under the same restriction: the committed form of the Review Subject, recorded at completion. The integration base is `<baseSha>` until a rebase moves it; after one it is the SHA the branch was replayed onto, because a diff from the original base would hash upstream work the Run never wrote |
 | Snapshot hash, when no diff exists (audit) | `git rev-parse HEAD^{tree}` |
 
@@ -526,7 +542,7 @@ stopped, so its shape cannot be left to whoever writes it first.
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "manifestRevision": 7,
   "runId": "20260731-7c41",
   "slug": "add-input-validation",
@@ -541,7 +557,10 @@ stopped, so its shape cannot be left to whoever writes it first.
   "baseSha": "ba62788...",
   "branch": "my-plan/20260731-7c41",
   "worktree": "/abs/path/to/worktree",
-  "runDocsRoot": "docs/my-plan",
+  "tasksDir": "docs/tasks",
+  "taskFiles": [
+    { "path": "docs/tasks/T-03-validate-order-id.md", "sha256": "9f2c..." }
+  ],
   "pendingApproval": null,
   "approvedSpecHash": "sha256:...",
   "planHash": "sha256:...",
@@ -565,15 +584,43 @@ stopped, so its shape cannot be left to whoever writes it first.
 }
 ```
 
-`phase` is one of `discovery`, `spec`, `planning`, `implementation`,
-`validation`, `review`, `delivery`.
+`phase` is one of `discovery`, `spec`, `planning`, `planned`, `implementation`,
+`validation`, `review`, `delivery`. `planned` is the boundary between the two
+commands: `/my-plan:start` ends there, and `/my-plan:exec` begins there.
 
-`status` is one of `active`, `blocked`, `done`, `done_local`,
+`status` is one of `active`, `blocked`, `cancelled`, `done`, `done_local`,
 `ready_for_deploy`. It is never absent: a Run with no status cannot be resumed or
 reported on, and every Run has one from the moment it is created.
 
+`cancelled` is the terminal state for a Run the user decides never to execute.
+Either command, asked to cancel, sets it, deletes the Run's task files from the
+repository's task directory, and purges the Run's state directory, leaving only
+the entry this writes to `repos/<repo-key>/repo.json`. A Run that execution has
+already entered gets its worktree and branch removed first, under
+`implementation.md`'s removal protocol — from the main checkout, never forcing
+past a dirty status; a dirty worktree blocks the cancellation instead of
+deleting unassessed work. Without a terminal state an abandoned plan reappears
+in every future selection, forever.
+
+`baseSha`, `branch`, and `worktree` are null until `/my-plan:exec` creates the
+worktree. A `planned` Run has no branch and no worktree anywhere; a resumed
+session must not treat those nulls as corruption. Once execution creates the
+worktree it writes all three in the same manifest update, immediately, before
+anything else happens — a crash between creation and that write is otherwise
+indistinguishable from a Run that never entered execution.
+
+`tasksDir` is where the Run's task files live in the repository, `docs/tasks`
+unless the user overrode it. `taskFiles` records the path and content SHA-256 of
+every task file this Run owns there. It is what detects a user edit between
+planning and execution, per file, and it shrinks as execution deletes completed
+tasks.
+
 `mode` is `repository`, `workspace`, or `greenfield`. In Workspace Mode add a
 `repositories` array carrying the per-repository fields.
+
+`schemaVersion` 2 is the current form. A `run.json` still at 1 is the earlier
+dossier format: neither command resumes it until the migration in Part 5
+upgrades it.
 
 `manifestRevision` increments on every write. Two sessions writing the same Run
 detect the conflict by comparing it.
@@ -637,60 +684,64 @@ ambiguous validation command, or a preference between two equally valid options.
 Record in the Project Skill's `project.json`, inside the repository: the profile,
 its schema version, and the source hash of each file the facts came from. This is
 a different file from `repos/<repo-key>/repo.json` in the state root, which only
-indexes this repository's Runs and holds no project facts. Also record `architectureMemoryPath` and
-`runDocsRoot`.
+indexes this repository's Runs and holds no project facts. Also record `tasksDir`
+when the user overrides the default `docs/tasks/`.
 
 ### Where documents go
 
-Two destinations, and using the wrong one breaks the read-only promise.
+Three destinations, each with a different lifetime, and using the wrong one
+breaks a promise.
 
-**Before approval**, every document is a Run artifact under
-`<stateRoot>/runs/<run-id>/artifacts/`. Discovery, research, the specification,
-and an audit report all live there. They are outside the user's repository, so
-nothing in the primary checkout changes while the user is still deciding.
+**Working documents live in Run state and die with the Run.** Discovery,
+research, the specification, the plan, the Architecture Memory, an audit report,
+and every evidence record — implementation, validation, review, delivery — are
+rendered under `<stateRoot>/runs/<run-id>/artifacts/`. They are outside the
+user's repository, so nothing in the checkout changes while the user is
+deciding, and they are volatile: completion or cancellation purges the whole
+directory. The permanent record of what a Run did is the changelog entry it
+shipped, not its paperwork. Every rendered document is a sibling inside that
+one directory — that is what makes the relative `records:` links in `spec.md`
+resolve, and what keeps Parallel Runs from writing over each other.
 
-**After approval**, they are materialized into the repository inside the isolated
-worktree, together with every other approved change.
+**Task files live in the repository and die one by one.** After spec approval,
+planning writes one file per task under `<tasksDir>` — `docs/tasks/` by default
+— in the primary checkout, the one place this product writes outside a
+worktree. They are working state made visible: the user can read and edit them
+between planning and execution, execution deletes each one as its task
+completes, and they are never staged and never committed.
 
-`runDocsRoot` defaults to `docs/my-plan/`. Each Run owns one directory under it:
+The repository-side structure is host-neutral and identical across both
+distributions of My Plan: the same task directory, the same task file format,
+the same changelog. Either host — or a human — reads the same board. Run state
+stays with the host that planned the Run, because the approval and its hashes
+live there, so a board is executed by the host that planned it.
 
-```text
-<runDocsRoot>/runs/<run-id>-<slug>/
-├── discovery.md
-├── research.md
-├── spec.md
-├── plan.md
-├── implementation.md
-├── validation.md
-├── review.md
-├── audit.md
-└── delivery.md
-```
+**The changelog lives in the repository and stays.** Written inside the
+worktree during delivery, part of the Review Subject, committed with the work.
+`docs/CHANGELOG.md` when the repository has no changelog convention of its own;
+an existing convention wins.
 
-Every rendered document is a sibling inside that directory. That is what makes the
-relative `records:` links in `spec.md` resolve, and what keeps Parallel Runs from
-writing over each other.
+When a stage says to render a document, its destination is
+`<stateRoot>/runs/<run-id>/artifacts/<name>.md`. Do not invent another path.
 
 Only phases that actually ran get a document. `research.md` exists only when
 research happened, `audit.md` only for an Audit Run, and everything from
-`implementation.md` onward only after approval. Never render an empty document to
-complete a set.
+`implementation.md` onward only during execution. Never render an empty
+document to complete a set.
 
-When a stage says to render a document, its destination is
-`<runDocsRoot>/runs/<run-id>-<slug>/<name>.md` in the worktree, or the Run
-artifacts directory if approval has not happened yet. Do not invent a third path.
-
-An Audit Run is read-only from start to finish: its report stays in Run artifacts
-and reaches the repository only if the user accepts a scope and the work proceeds.
+An Audit Run is read-only from start to finish: its report stays in Run
+artifacts and reaches the repository only if the user accepts a scope and the
+work proceeds through planning and execution.
 
 ### Where these files go
 
 | Invocation | Where |
 |------------|-------|
 | `/my-plan:install` in a repository | Materialize directly. The user asked for it |
-| First `/my-plan:start` or `/my-plan:audit` in an uninitialized repository | Transient profile in Run state. Materialize files in the worktree after approval |
+| First `/my-plan:start` or `/my-plan:audit` in an uninitialized repository | Transient profile in Run state, for this Run's own use. Nothing is materialized into the repository; `/my-plan:install` is how project files come to exist |
 
-This keeps discovery read-only and the primary checkout clean.
+This keeps discovery read-only, the primary checkout clean, and project files a
+decision the user makes rather than a side effect of running a Run.
 
 ## Part 3: Project Skill
 
@@ -721,14 +772,19 @@ Workspace Mode creates one independent Project Skill per child repository.
 
 ## Part 4: Architecture Memory
 
-One file per repository. Default path `docs/my-plan/SEAM.md`. Adopt an equivalent
-existing document if the repository already has one, and record the resolved path
-as `architectureMemoryPath`.
+One document per Run, at `<stateRoot>/runs/<run-id>/artifacts/architecture.md`.
+It is volatile: discovery builds it, every later phase of the same Run reads it,
+and completion purges it with the rest of the Run's artifacts. The next Run's
+discovery builds its own from the repository as it stands then. The repository
+itself is the memory; this document is one Run's verified reading of it, kept
+exactly as long as the Run needs it.
 
 Build it from a complete repository inspection and existing canonical
-documentation. Populate it from verified evidence. A generic template filled with
-plausible-sounding architecture is worse than an empty file, because later phases
-will trust it.
+documentation — an `ARCHITECTURE.md` or equivalent the repository already
+maintains is evidence to read, never a file to adopt or modify. Populate it from
+verified evidence. A generic template filled with plausible-sounding
+architecture is worse than an empty file, because later phases of this Run will
+trust it.
 
 Contains only durable current architecture:
 
@@ -747,25 +803,68 @@ artifacts.
 Existing ADRs are evidence. Read them, carry their active consequences into the
 Architecture Memory, and modify nothing. This product never generates ADRs.
 
-### Compaction
-
 Write densely from the first version: one authoritative definition per subject,
 references instead of duplicated contracts, current facts instead of history.
+If it grows past roughly 20,000 tokens — character count divided by four is
+close enough — compact it before planning reads it: remove redundancy, increase
+density, replace duplication with references. A memory nobody can afford to
+load serves nobody, and this document has no later Run to be compacted for.
 
-After creation and after every architectural update, estimate the token count.
-Character count divided by four is close enough to decide this; a calibrated
-estimator would make the same call.
+## Part 5: Migration from the dossier format
 
-- At or below 20,000 tokens: do nothing. Compaction below the threshold is busywork.
-- Above 20,000 tokens: compact inside the current Run, before delivery. Remove
-  redundancy and obsolete history, increase density, group repetitive listings,
-  replace duplication with references. Then remeasure.
+Earlier versions of this plugin committed a Run Dossier under `docs/my-plan/`,
+kept a persistent Architecture Memory at `docs/my-plan/SEAM.md`, ran one
+command from goal to push, and wrote `run.json` at `schemaVersion` 1 with
+`runDocsRoot` and no task files. This section upgrades all of it. It runs when
+`/my-plan:install migrate` is invoked, and setup enters it by itself when any signal below
+is present, whatever mode was asked for — an installed repository is never left
+half-migrated in silence, and re-running install on an installed repository is
+always safe: it verifies, repairs, and upgrades; it never restarts.
 
-Compaction must preserve: overview, stack and versions, directory structure,
-architectural principles, patterns and their locations, data flows, contracts,
-configuration requirements, and build and deployment commands.
+Signals of the earlier format:
 
-There is no separate maintenance Run and no public compaction command.
+| Signal | Where |
+|--------|-------|
+| `docs/my-plan/` exists | the repository |
+| `project.json` records `runDocsRoot` or `architectureMemoryPath` | Project Skill |
+| A `run.json` at `schemaVersion` 1, or carrying `runDocsRoot` | state root |
+| A Project Skill pointing at a persistent Architecture Memory | Project Skill |
 
-A bug fix updates the Architecture Memory only when it changes architecture or
-corrects an architectural fact.
+What migration does, in order:
+
+1. **Upgrade the plugin-owned state.** Rewrite every `run.json` to
+   `schemaVersion` 2: drop `runDocsRoot`, add `tasksDir` and an empty
+   `taskFiles`, keep every other field. Re-render the Project Skill from the
+   current templates and drop `runDocsRoot` and `architectureMemoryPath` from
+   `project.json` — preserving any edit you do not recognize by stopping for
+   reconciliation, never by overwriting. Re-probe capabilities: Context7 is no
+   longer required, and the auxiliary-tool inventory is new. These files are
+   the plugin's own; no confirmation is needed.
+
+2. **Offer, never seize, the legacy repository files.** `docs/my-plan/` — the
+   dossiers and `SEAM.md` — is tracked history the new format no longer reads
+   or maintains. List what is there and ask once: delete from the working
+   tree, or keep. Deletion is a working-tree edit the user commits themselves;
+   migration never commits, never pushes, and never rewrites history. While a
+   legacy `SEAM.md` remains, discovery reads it as evidence like any other
+   repository document, so keeping it breaks nothing — it is simply no longer
+   written to.
+
+3. **Triage unfinished Runs, one by one.** For every `run.json` with status
+   `active` or `blocked`:
+   - Pre-approval phases (`discovery`, `spec`): the schema upgrade above is
+     enough, and `/my-plan:start` resumes them normally.
+   - Post-approval phases: the old approval froze a write set that includes
+     dossier paths the new format forbids, so the Run cannot be re-bound
+     silently. Present three options and take the user's choice per Run.
+     **Convert**: revise the specification only by removing the paperwork
+     entries from its write set, take one ordinary approval of that revision —
+     a revision is exactly what re-approval exists for — re-plan the remaining
+     work into task files, and keep the branch, the worktree, and every
+     commit, so execution resumes where the work stopped. **Cancel**: the
+     `cancelled` path, worktree removal protocol included. **Leave blocked**:
+     nothing is touched and the Run waits.
+
+4. **Report.** What was upgraded, what was deleted or kept, and each Run's
+   disposition. Migration is idempotent and resumable: run it again and it
+   finds nothing left to do, or continues where it stopped.

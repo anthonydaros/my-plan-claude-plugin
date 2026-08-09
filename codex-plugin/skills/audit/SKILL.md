@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Read-only repository-wide audit covering architecture, correctness risk, security, maintainability, unnecessary complexity, product behavior, and relevant design and accessibility. Accepted findings become a spec and enter delivery without another command. Manual only.
+description: Read-only repository-wide audit covering architecture, correctness risk, security, maintainability, unnecessary complexity, product behavior, and relevant design and accessibility. Accepted findings become a spec and a reviewed task board; $my-plan:exec delivers them. Manual only.
 ---
 
 # My Plan: Audit
@@ -56,13 +56,16 @@ into a single-file review; the point of an audit is what a narrow look misses.
 5. **Hand off.** An affirmative reply on the recommended scope converts the
    accepted findings into a Working Spec. Render it, show its Approval Summary,
    and take the ordinary affirmative that freezes it as `approvedSpecHash`. Then
-   continue into planning exactly as `$my-plan:start` would.
+   continue into planning exactly as `$my-plan:start` would, and end exactly
+   where it ends: the Run parks at `planned` with its reviewed task files in
+   `docs/tasks/`, and `$my-plan:exec` is the command that implements them.
 
-   This is one command, not two. But planning binds to a specification hash, and
-   accepting a list of findings is not the same as approving the specification
-   written from them. Skipping that step would enter planning with nothing to bind
-   to, and the whole approval chain downstream verifies against a hash that was
-   never produced.
+   Acceptance and approval are two confirmations inside one command, and both
+   are needed. Planning binds to a specification hash, and accepting a list of
+   findings is not the same as approving the specification written from them.
+   Skipping that step would enter planning with nothing to bind to, and the
+   whole approval chain downstream verifies against a hash that was never
+   produced.
 
    A non-affirmative reply is feedback, selection, or reprioritization. Revise and
    ask again. Nothing changes until the user affirms.
@@ -129,14 +132,16 @@ simplification. A single small test is the floor, never flag it as bloat.
 ## Rules
 
 - Read-only until findings are accepted. No worktree, no branch, no edits. The
-  report itself goes to Run artifacts, not into the repository.
-- Confront the code against the Architecture Memory and prior audit records. When
-  they disagree, say which one is wrong.
-- Do not repeat a finding an earlier audit recorded as not worth doing. State that
-  it was checked.
+  report itself goes to Run artifacts, not into the repository. After acceptance
+  the only repository write is still the task files planning produces; the
+  worktree and the branch belong to `$my-plan:exec`.
+- Confront the code against this Run's Architecture Memory — the one the Quick
+  Scan just built. When they disagree, say which one is wrong.
+- Earlier audits leave no records behind; the changelog is the only history.
+  Judge every finding against the repository as it stands.
 - Every finding needs a real path with a line range. A claim you cannot locate is
   not a finding.
-- Finding IDs are stable semantic keys, so a later audit merges instead of
+- Finding IDs are stable semantic keys, so successive rounds merge instead of
   duplicating.
 - Do not report style, taste, or hypothetical futures. An audit that pads its
   count is one nobody reads twice.
