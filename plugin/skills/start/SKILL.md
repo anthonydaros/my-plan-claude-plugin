@@ -50,9 +50,14 @@ dispatching your first Codex Worker. In `claude-only` mode, never read it.
 
 ## Route
 
-1. **No Working Profile?** That means no `profile.json` in the state root. Read
-   `project.md` and run setup first. Do not ask the user to run a separate install
-   command; this is the same flow.
+1. **No Working Profile, or no Project Setup for this repository?** No Working
+   Profile means no `profile.json` in the state root. No Project Setup means this
+   repository itself has never been set up: no Project Profile recorded, no
+   `.claude/skills/my-plan-project/`, or no Architecture Memory at its recorded
+   path. True the first time this repository is seen, even when the Working
+   Profile already exists from another repository. Read `project.md` and run
+   setup first. Do not ask the user to run a separate install command; this is
+   the same flow.
 
 2. **No goal argument?** Resume. An unfinished Run is one whose `run.json` has
    `status: "active"` or `"blocked"`.

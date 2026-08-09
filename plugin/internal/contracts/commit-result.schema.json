@@ -45,7 +45,7 @@
     },
     "stagedPaths": {
       "type": "array",
-      "description": "The staged set as observed by git diff --cached --name-only, not as intended. The Coordinator compares this against the Review Subject plus review.md and delivery.md.",
+      "description": "The staged set as observed by git diff --cached --name-only, not as intended. The Coordinator compares this against the approved product write set plus every Run Dossier document present under this Run's docs directory matching one of the nine standard names.",
       "items": { "type": "string", "minLength": 1 }
     },
     "refusedPaths": {

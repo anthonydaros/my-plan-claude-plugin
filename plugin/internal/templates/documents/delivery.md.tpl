@@ -39,8 +39,10 @@ Remote, default branch, and the integration method: non-force fast-forward only.
 | Commit | Message | Paths |
 |--------|---------|-------|
 
-Staged paths equal the Review Subject plus this file and `review.md`. Nothing
-else. No `git add -A`.
+Staged paths equal the approved product write set plus every Run Dossier
+document present under this Run's own docs directory, matched against the nine
+standard names (discovery, research, spec, plan, implementation, validation,
+review, audit, delivery). Nothing else. No `git add -A`.
 
 ## Integration preconditions
 

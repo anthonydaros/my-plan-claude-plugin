@@ -419,6 +419,29 @@ Stage exactly the Review Subject plus the two fixed-template evidence records,
 `review.md` and `delivery.md`. Verify the staged path list equals that set before
 committing. Never `git add -A`.
 
+Compute that set fresh, immediately before this dispatch: the approved product
+write set, union every file present under `<runDocsRoot>/runs/<run-id>-<slug>/`
+in the worktree right now whose name is one of the nine Run Dossier documents —
+`discovery.md`, `research.md`, `spec.md`, `plan.md`, `implementation.md`,
+`validation.md`, `review.md`, `audit.md`, `delivery.md`. List the directory and
+match against this fixed set of names, instead of naming documents by phase up
+front. A phase-name list drafted once and never revisited misses whichever of
+`discovery.md`, `research.md`, or `audit.md` rendered after it was written, and
+misses a `validation.md` or `implementation.md` a remediation round re-rendered
+after the same list was drafted. A document present in the worktree under one of
+these nine names and missing from the staged set was not excluded by anything
+the user decided; it ships to `main` as code with its own record left stranded
+in a worktree nobody is coming back to delete.
+
+A path in that directory matching none of the nine names is not silently staged
+and not silently skipped: it is a blocker, reported with the path, the same way
+an unexpected staged path outside the write set already is. `review.md`'s
+Approval section already invalidates `REVIEW_APPROVED` the moment any Review
+Subject path — `spec.md`, `plan.md`, `implementation.md`, `validation.md`, the
+same four this directory scan can find — changes after approval; this step does
+not re-review, it only guarantees every rendered document that approval already
+covers is the one that actually reaches the commit.
+
 Version bumps and tags only when the Project Profile or the approved specification
 requires them. Do not impose semantic versioning, tags, README version edits, or
 generated changelogs on ordinary work.
@@ -541,6 +564,15 @@ record the delivered subject hash alongside them, in the pinned form
 already carries. The in-flight hash stops being recomputable once the index
 moves; the delivered form is the one that still verifies weeks later.
 
+In the same step, append this Run to `repos/<repo-key>/repo.json.runs[]`:
+`runId`, `status`, `finalSha`, `completedAt`. `docs/my-plan/runs/` holds one
+Run's own dossier; this index is the only list of all of a repository's Runs,
+and a Run recorded only in its own dossier leaves that list a Run behind. In
+Workspace Mode, repeat this per repository the Run touched, each under its own
+`repoKey` with its own `finalSha`. Check first whether an entry for this
+`runId` already exists in that `repo.json`; a Completion step re-run after a
+resumed session records nothing twice.
+
 Create no post-push documentation commit. The approved specification stays
 unchanged.
 
@@ -548,6 +580,25 @@ Remove the worktree and temporary branch only after remote SHA verification. In
 a repository with no remote there will never be one to wait for: the verified
 local fast-forward — the default branch resolving to the Run's final commit —
 takes its place. Preserve unintegrated or dirty Runs for recovery.
+
+Do this only once status is `DONE`, `DONE_LOCAL`, or `READY_FOR_DEPLOY` and the
+final commit is confirmed on the target branch: a `DONE_LOCAL` from a declined
+push has no commit there yet, so its worktree stays for the eventual push. Never
+remove a worktree carrying changes this Run has not staged, committed, and had
+reviewed — that deletes unassessed work instead of deferring it.
+
+Before removing, confirm the worktree is clean: `git -C <worktree-path> status
+--porcelain` returns nothing. A non-empty result — staged, modified, or
+untracked — is unassessed work, indistinguishable from a dirty Run, and this
+step preserves it exactly like one: leave the worktree in place instead of
+removing it, and revisit on the next session. Never pass `--force` to `git
+worktree remove` to push past a non-empty status; forcing is what turns this
+safeguard into the data loss it exists to prevent.
+
+Run the removal from the main checkout, never from inside the worktree being
+removed: `git worktree remove <worktree-path>`, then `git branch -d
+my-plan/<run-id>`. The Run is not closed until this succeeds; a worktree still
+on disk is a Run still open, whatever `run.json` says.
 
 Final status:
 
