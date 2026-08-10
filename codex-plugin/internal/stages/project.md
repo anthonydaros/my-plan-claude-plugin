@@ -28,6 +28,16 @@ The parent session must expose structured user questions and native file and
 shell tools. Discovery also needs a web research capability. Check the current
 session rather than assuming a feature from the CLI version.
 
+Probe the structured-question capability by looking for a native multi-choice
+question tool in your own available tools, then by using it: ask one low-stakes
+confirmation question with it before relying on it for anything binding. Do not
+conclude it is missing by reasoning about the session in the abstract, and do
+not match on a specific tool name remembered from training — Codex CLI has
+renamed this tool before and will again. `codex exec` (headless) never exposes
+one; an interactive session normally does. If the probe genuinely fails in an
+interactive session, block and report the exact tool list you saw, so the
+report is falsifiable rather than a guess.
+
 **Optional. Report and continue.**
 
 | Capability | Probe | If missing |
