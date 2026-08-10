@@ -92,14 +92,19 @@ So once no blockers remain and before the final complete review, one read-only
 Worker executes the Validation Gate itself and reports what it observed.
 
 It runs on a tier that did not write the code. Implementation defaults to
-Terra or Luna, so QA defaults to Sol at `high`; when the implementation chain
-in `project.md` moved a task to Sol, QA for that subject takes Terra instead,
-and when no tier is left that did not implement, the Run blocks rather than let
-a Worker confirm its own test run. Sol carrying technical review, product
-review, and QA at once is acceptable because none of them wrote the subject —
-but it is why QA is a separate session rather than another pass in the
-technical reviewer's thread. A Worker that already argued the code was correct
-is not the Worker to discover its tests do not run.
+OpenCode Pro or, when that transport is unavailable, Terra or Luna, so QA
+defaults to Sol at `high`; when the implementation chain in `project.md`
+moved a task to Sol, QA for that subject takes Terra instead, and when no
+tier is left that did not implement, the Run blocks rather than let a Worker
+confirm its own test run. QA itself stays pure Codex regardless of what
+implemented — it never resolves to `claude:` or `opencode:`. When
+Implementation resolved to OpenCode, the easy case: neither Sol nor Terra
+wrote the code, so QA is unconstrained by the Sol/Terra split and simply runs
+at Sol `high` as normal, with no tier-mapping decision to make. Sol carrying
+technical review, product review, and QA at once is acceptable because none of
+them wrote the subject — but it is why QA is a separate session rather than
+another pass in the technical reviewer's thread. A Worker that already argued
+the code was correct is not the Worker to discover its tests do not run.
 
 `mode: "qa"`, `reviewerRole: "qa"`, `ownedLenses` of `tests`, `correctness`, and
 `conformance`, and the required commands in `validationCommands`. Empty

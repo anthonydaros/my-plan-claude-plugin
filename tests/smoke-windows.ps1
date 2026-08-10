@@ -177,7 +177,7 @@ Write-Host '== Codex lifecycle contract'
 
 $codexProject = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\project.md') -Raw
 $codexAudit = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\audit\SKILL.md') -Raw
-Check ($codexProject.Contains('Record it in `profile.json` and every')) 'codex-only runtime is recorded in profiles and Runs'
+Check ($codexProject.Contains('runtime: "codex-hosted"')) 'codex-hosted runtime is recorded in profiles and Runs'
 Check ($codexProject.Contains('~/.codex/plugins/data/my-plan-my-plan/')) 'Codex state uses its own POSIX root'
 Check ($codexProject.Contains('%USERPROFILE%\.codex\plugins\data\my-plan-my-plan\')) 'Codex state uses its own Windows root'
 Check ($codexProject.Contains('.agents/skills/my-plan-project/')) 'Codex setup owns only the .agents Project Skill'
@@ -288,8 +288,30 @@ $inherited = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
 Check (-not $inherited) 'Codex plugin has no inherited terminology'
 
 $foreign = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
-    Select-String -Pattern 'claude|sonnet|opus|hybrid' -List
-Check (-not $foreign) 'Codex plugin is Codex-only'
+    Select-String -Pattern 'hybrid' -SimpleMatch -List
+Check (-not $foreign) 'Codex plugin never claims the plugin/ hybrid backend'
+
+# Claude and OpenCode are now legitimate, scoped to exactly two roles each.
+# What survives the old blanket ban is a scoped check: these terms are legal
+# only in the two transport docs that dispatch them and in the roles' own
+# rows, never in a stage a chain-scope leak would reach silently.
+$codexPlanning = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\planning.md') -Raw
+$scopedFiles = @{
+    'skills\start\SKILL.md'          = $codexStart
+    'skills\audit\SKILL.md'          = $codexAudit
+    'internal\stages\discovery-spec.md' = $codexDiscovery
+    'internal\stages\planning.md'    = $codexPlanning
+}
+foreach ($rel in $scopedFiles.Keys) {
+    $leaked = $scopedFiles[$rel] -match 'claude|opus|sonnet|opencode'
+    Check (-not $leaked) "$rel stays untouched by the mixed-transport change"
+}
+
+Check ($codexProject.Contains("Claude never appears outside Technical code review's and Product review's")) "Claude's chain scope is stated explicitly"
+Check ($codexProject.Contains("OpenCode never appears outside Implementation's chain")) "OpenCode's chain scope is stated explicitly"
+Check ($codexProject.Contains('| Implementation | `opencode:pro@high` | `terra@high` | `luna@high` | `sol@high` |')) "Implementation's chain leads with OpenCode, falls back to the Codex-only ladder"
+Check ($codexProject.Contains('| Technical code review | `claude:opus@high` | `sol@high` | `luna@high` | `terra@high` |')) "Technical code review's chain leads with Claude, falls back to the Codex-only ladder"
+Check ($codexTransport.Contains('runtime: "codex-hosted"')) 'codex.md records the codex-hosted runtime, not codex-only'
 
 $trailer = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
     Select-String -Pattern 'Co-Authored-By:' -SimpleMatch -List

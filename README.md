@@ -3,11 +3,11 @@
 **Describe a goal. Approve a spec once. Get a task board. Execute it when you
 decide. Get reviewed code.**
 
-Two independent, installable plugins — one for Claude Code and one Codex-only —
-carry one approved specification through planning, isolated implementation,
-validation, independent review, and delivery, split into two commands: `start`
-plans, `exec` executes, and nothing is built until you run the second one. Four
-commands. No runtime is installed into your project.
+Two independent, installable plugins — one hosted by Claude Code and one
+hosted by Codex — carry one approved specification through planning, isolated
+implementation, validation, independent review, and delivery, split into two
+commands: `start` plans, `exec` executes, and nothing is built until you run
+the second one. Four commands. No runtime is installed into your project.
 
 ---
 
@@ -112,7 +112,13 @@ and commits all preserved), cancel, or leave blocked.
 | Distribution | Required | Optional |
 |--------------|----------|----------|
 | Claude Code | Claude Code 2.1.216+, Git 2.28+ | Context7, Codex CLI, GitHub CLI, Playwright, other MCP/LSP tools |
-| Codex-only | Codex CLI with `exec`, Git 2.28+, distinct Sol and Terra mappings | Context7, GitHub CLI, Playwright, other MCP/LSP tools |
+| Codex | Codex CLI with `exec`, Git 2.28+, distinct Sol and Terra mappings | Context7, GitHub CLI, Playwright, Claude Code CLI, opencode, other MCP/LSP tools |
+
+Codex is the fixed host for its distribution — it always runs setup and
+always dispatches every Worker. Claude Code CLI and opencode are optional
+enhancements, not alternate hosts: when installed and authenticated, they
+become the first candidate for two roles each (see "Who does what" below);
+when absent, that distribution behaves exactly as it always has.
 
 Optional tools are probed at setup and used when present — a documentation MCP
 for library docs, an indexing MCP or LSP for code navigation. None is ever a
@@ -309,15 +315,15 @@ Every Worker also carries a reasoning effort. `high` is the working default
 everywhere; `xhigh` and `max` are escalations spent on one hard problem, not a
 setting to leave on.
 
-| Job | Codex-only | Claude Code, GPT available | Claude Code, Claude only |
-|-----|------------|----------------------------|--------------------------|
+| Job | Codex | Claude Code, GPT available | Claude Code, Claude only |
+|-----|-------|-----------------------------|--------------------------|
 | Discovery | Terra, high ×2 | Terra, high ×2 | Sonnet, high ×2 |
 | Findings review | Sol, xhigh | Opus, high | Opus, high |
 | Write the plan | Sol, high | Sol, high | Opus, high |
 | Review the plan | Terra, high | Terra, high | Sonnet, high |
-| Write the code | Terra, high | Terra, high | Sonnet, high |
-| Technical code review | Sol, high | Sol, high | Opus, high |
-| Product review | Sol, high | Sol, high | Opus, high |
+| Write the code | OpenCode Pro, high | Terra, high | Sonnet, high |
+| Technical code review | Claude Opus, high | Sol, high | Opus, high |
+| Product review | Claude Opus, high | Sol, high | Opus, high |
 | QA gate | Sol, high | Sol, high | Opus, high |
 | Audit | Terra, high | Terra, high | Sonnet, high |
 | Commit | Terra, high | Sonnet, high | Sonnet, high |
@@ -327,19 +333,30 @@ Claude still runs four jobs there regardless: the commit, the findings review,
 anything a Codex thread is too narrow to hold, and any review where the ladder
 would otherwise put one model on both sides.
 
-The Codex package runs every Worker through `codex exec`. Review, discovery, and
+In Codex, **GPT takes every job by default, and two jobs prefer a named
+outside model when it's installed and authenticated**: writing the code
+prefers OpenCode's Gemini, and both review jobs prefer Claude's Opus. Neither
+preference changes who hosts the run — Codex still runs setup and dispatches
+every Worker, including the Claude and OpenCode ones — and neither is
+required: without Claude Code CLI or opencode installed, all three jobs run
+exactly as they did before, entirely within Sol, Terra, and Luna.
+
+The Codex package runs every Worker through its own CLI. Review, discovery, and
 planning receive a process-enforced read-only sandbox — the planner returns the
 plan as structured content and never writes — while implementation, the QA
-gate, and the commit receive workspace-write. Sol and Terra must resolve to different model IDs. Installing
-one package does not change the other's behavior.
+gate, and the commit receive workspace-write. The one exception is Claude-CLI
+review: `claude` has no sandbox flag at all, so that boundary is a tool
+allowlist plus the same after-the-fact Git check that covers every dispatched
+gate in this product, not a process sandbox. Sol and Terra must resolve to
+different model IDs. Installing one package does not change the other's
+behavior.
 
 ### When a model is unavailable
 
 Every job has an **ordered list of candidates**, not one alternate. A model that
 is offline, out of quota, past a usage cap, or no longer served does not end a
 run: the job advances to the next candidate and keeps going. The chains below
-are the Claude Code distribution's; the Codex-only package applies the same
-rules within Sol, Terra, and Luna.
+are the Claude Code distribution's.
 
 | Job | 1st | 2nd | 3rd | 4th |
 |-----|-----|-----|-----|-----|
@@ -353,6 +370,22 @@ rules within Sol, Terra, and Luna.
 | QA gate | Sol, high | Terra, high | Opus, high | Sonnet, high |
 | Audit | Terra, high | Gemini Pro, high | Sol, xhigh | Sonnet, high |
 | Commit | Sonnet, high | Opus, high | Terra, high | Luna, high |
+
+The Codex distribution's chains are entirely within Sol, Terra, and Luna for
+every job except the three named above, where an installed, authenticated
+Claude Code CLI or opencode is the first candidate and the existing
+Codex-only chain is the fallback — a repository without either CLI runs
+exactly the chain it always has:
+
+| Job | 1st | 2nd | 3rd | 4th |
+|-----|-----|-----|-----|-----|
+| Write the code | OpenCode Pro, high | Terra, high | Luna, high | Sol, high |
+| Technical code review | Claude Opus, high | Sol, high | Luna, high | Terra, high |
+| Product review | Claude Opus, high | Sol, high | Luna, high | Terra, high |
+
+Claude never appears on a Codex chain outside the two review jobs; OpenCode
+never appears outside writing the code. Neither ever appears on the QA gate,
+which stays independent of whichever vendor actually wrote the code.
 
 **A chain is a list of candidates, not a list of instructions.** The writer's
 model appears somewhere on the reviewer's chain, so a chain walked blindly would

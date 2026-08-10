@@ -1,8 +1,11 @@
-# Runtime: Codex-only Workers
+# Transport: Codex Workers
 
 How the Coordinator runs bounded Workers as child Codex sessions. Every stage
-rule still holds: path-only handoffs, contract-shaped results, process-enforced
-read-only review, and a model that never reviews a subject it wrote.
+rule still holds: path-only handoffs, contract-shaped results, and a model
+that never reviews a subject it wrote. Read-only review is process-enforced
+for every role dispatched on this transport; Technical code review and
+Product review may instead resolve to `internal/claude-cli.md`, which is
+weaker on that specific point and says so.
 
 ## Model aliases and effort
 
@@ -38,7 +41,12 @@ sandboxes. Probe flags from help output without spending a model call. Also run
 `codex login status` without reading or storing credentials.
 
 A missing surface or authentication blocks setup with exact remediation. Record
-`runtime: "codex-only"`; there is no alternate runtime selection.
+`runtime: "codex-hosted"`; Codex is unconditionally the host, and this file
+documents Codex's own transport, which every role but two uses. Technical code
+review, Product review, and Implementation may resolve to a different Worker
+transport — `internal/claude-cli.md` and `internal/opencode.md` — when the
+corresponding CLI passed its own capability probe; every rule in this file
+still governs whichever role stays on Codex.
 
 ## Prepare a Worker
 

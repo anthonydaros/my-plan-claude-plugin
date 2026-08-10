@@ -54,6 +54,19 @@ command if no feature name in the list plausibly matches.
 | Context7 | One real documentation query that returns content | Research falls back to web search |
 | GitHub CLI | `gh --version` and `gh auth status` | Note it. Required only when an approved action needs GitHub itself, such as creating a remote. Existing remotes use Git directly |
 | Playwright | `playwright --version`, then `playwright-cli --version`. Either counts | Recommend it for browser validation. Never block on it |
+| Claude Code CLI | Every probe named in `internal/claude-cli.md` | Technical code review and Product review stay pure Codex; report the missing capability by name |
+| opencode CLI | Every probe named in `internal/opencode.md`, static then live | Implementation stays pure Codex; report the missing capability by name |
+
+Neither Claude CLI nor opencode passing its probe changes anything about
+Codex's role as host — Codex still runs setup and dispatches every Worker.
+Passing the probe only makes `claude:opus` a legal first candidate for
+Technical code review and Product review, and `opencode:pro` a legal first
+candidate for Implementation. This is setup-time pruning, not a per-Run
+fallback: when either probe fails or the CLI is absent, that candidate is
+never entered into the role's chain at all, so the role starts at exactly
+today's first candidate, with no fallback recorded and no `roleBindings`
+churn — a repository without these CLIs behaves byte-identically to before
+they existed.
 
 **Auxiliary tools are probed, used, and never required.** Record whatever this
 session actually exposes — documentation MCPs such as Context7, code-navigation
@@ -71,9 +84,19 @@ log, or store a secret value.
 
 ### Runtime
 
-The only runtime is `codex-only`. Record it in `profile.json` and every
-`run.json`. A failed required probe leaves setup incomplete with the exact reason;
-it never selects another host or silently weakens a boundary.
+Record `runtime: "codex-hosted"` in `profile.json` and every `run.json`. A
+failed required probe leaves setup incomplete with the exact reason; it never
+selects another host or silently weakens a boundary.
+
+Two axes, and only one of them ever varies. **Host** is who runs setup, asks
+every question, and dispatches every Worker — always Codex, unconditionally,
+for the life of this distribution. **Worker transport** is which CLI actually
+executes one role's call, and for eight of ten roles that is also always
+Codex. Only Technical code review, Product review, and Implementation may
+resolve to a different transport (`claude:` or `opencode:`, see Model mapping
+and Fallback chains below), and only when the corresponding CLI passed its
+capability probe. "It never selects another host" is about the first axis and
+stays true regardless of which Worker transport a given role lands on.
 
 ### Model mapping
 
@@ -96,9 +119,9 @@ setting to leave on.
 | Findings review | Sol, `xhigh` | Nothing above it; falls to Luna only where no partition ran on it |
 | Plan creation | Sol, `high` | Sol `xhigh`, then `max` for a critical irreversible plan |
 | Plan review | Terra, `high` | A fresh Terra session at `xhigh`; never Sol, which wrote the plan |
-| Implementation, tests, remediation | Terra, `high` | Terra `xhigh`, then `max`; never Sol, which reviews the code |
-| Technical code review | Sol, `high` | A fresh Sol session at `xhigh` |
-| Product review | Sol, `high`, in a session that saw no implementation | A fresh Sol session at `xhigh` |
+| Implementation, tests, remediation | OpenCode Pro, `high` | Terra `high` when OpenCode is unavailable; `xhigh`, then `max`, on Terra; never Sol, which reviews the code |
+| Technical code review | Claude Opus, `high` | A fresh Opus session at `xhigh` |
+| Product review | Claude Opus, `high`, in a session that saw no implementation | A fresh Opus session at `xhigh` |
 | QA gate | Sol, `high`, in a session of its own | A fresh Sol session at `xhigh` |
 | Audit, where no Worker wrote the subject | Terra, `high` | More Terra partitions, then Terra `xhigh` |
 | Commit | Terra, `high` | Nothing above it: it writes no code and reviews nothing |
@@ -114,28 +137,44 @@ Escalation answers a hard subject. This answers an unavailable one. Every role h
 an ordered list of candidates, so a tier that is offline, out of quota, past a
 usage cap, or withdrawn moves the role along instead of ending the Run.
 
-| Role | 1 | 2 | 3 |
-|------|---|---|---|
-| Discovery | `terra@high` | `luna@high` | `sol@high` |
-| Findings review | `sol@xhigh` | `luna@high` | — |
-| Plan creation | `sol@high` | `terra@high` | `luna@high` |
-| Plan review | `terra@high` | `luna@high` | `sol@high` |
-| Implementation | `terra@high` | `luna@high` | `sol@high` |
-| Technical code review | `sol@high` | `luna@high` | `terra@high` |
-| Product review | `sol@high` | `luna@high` | `terra@high` |
-| QA gate | `sol@high` | `luna@high` | `terra@high` |
-| Audit | `terra@high` | `sol@high` | `luna@high` |
-| Commit | `terra@high` | `luna@high` | `sol@high` |
+| Role | 1 | 2 | 3 | 4 |
+|------|---|---|---|---|
+| Discovery | `terra@high` | `luna@high` | `sol@high` | — |
+| Findings review | `sol@xhigh` | `luna@high` | — | — |
+| Plan creation | `sol@high` | `terra@high` | `luna@high` | — |
+| Plan review | `terra@high` | `luna@high` | `sol@high` | — |
+| Implementation | `opencode:pro@high` | `terra@high` | `luna@high` | `sol@high` |
+| Technical code review | `claude:opus@high` | `sol@high` | `luna@high` | `terra@high` |
+| Product review | `claude:opus@high` | `sol@high` | `luna@high` | `terra@high` |
+| QA gate | `sol@high` | `luna@high` | `terra@high` | — |
+| Audit | `terra@high` | `sol@high` | `luna@high` | — |
+| Commit | `terra@high` | `luna@high` | `sol@high` | — |
 
 **A chain is a list of candidates, not a list of instructions.** With three tiers
 and ten roles, the writer's tier is always somewhere on the reviewer's chain. A
-chain walked blindly therefore ends with one tier on both sides of a review, and
-the check that was supposed to catch the defect becomes the model agreeing with
-itself. Before taking a candidate, compare it against the tier already bound to
-the opposing role in this Run. If they match, skip it and take the next. That
-tier lives in `run.json`'s `roleBindings`, and after a session rotation it is the
-only place it exists — a rule that depends on remembering what this session
-dispatched is not a rule a resumed Run can keep.
+chain walked blindly therefore ends with one identity on both sides of a review,
+and the check that was supposed to catch the defect becomes the model agreeing
+with itself. Before taking a candidate, compare it against the identity already
+bound to the opposing role in this Run. If they match, skip it and take the
+next. That identity lives in `run.json`'s `roleBindings`, and after a session
+rotation it is the only place it exists — a rule that depends on remembering
+what this session dispatched is not a rule a resumed Run can keep.
+
+A candidate's identity is the resolved model ID for `codex:` — Sol, Terra, and
+Luna can and do collide with each other — and the literal transport-plus-model
+pair for `claude:`/`opencode:`, which can never collide with a Codex tier or
+with each other: an Opus session, a Gemini session through opencode, and a
+Codex-resolved GPT ID are three different providers. Adding Claude and OpenCode
+as candidates therefore adds no new collision risk to the skip rule, only more
+identities it already knows how to compare.
+
+- **Claude never appears outside Technical code review's and Product review's
+  chain.** Not as a fourth candidate anywhere else, not as a last resort for
+  discovery, planning, QA, or the commit.
+- **OpenCode never appears outside Implementation's chain.** Not on Technical
+  code review's or Product review's chain, not on QA's, which must stay
+  independent of whichever vendor actually wrote the code regardless of which
+  one that was.
 
 **A chain ends. It never wraps.** Three tiers is a short ladder, and after the
 skip rule some roles have one real alternate. When the candidates run out, the Run
@@ -184,12 +223,23 @@ only one side of either pair, persist the Run and block.
 
 ### Read-only boundary
 
-Discovery, plan creation, plan review, code review, and audit always start with
-`--sandbox read-only`. The process boundary prevents writes even when a prompt
-is wrong; the planner returns the plan as content and the Coordinator writes
-the files. Implementation, the QA gate, and the commit use
-`--sandbox workspace-write` inside the worktree execution created, bounded by
-the handoff write set and verified against Git by the Coordinator.
+Discovery, plan creation, plan review, audit, and any code review dispatched
+on Codex always start with `--sandbox read-only`. The process boundary
+prevents writes even when a prompt is wrong; the planner returns the plan as
+content and the Coordinator writes the files. Implementation, the QA gate,
+and the commit use `--sandbox workspace-write` inside the worktree execution
+created, bounded by the handoff write set and verified against Git by the
+Coordinator.
+
+Be honest about the one case that differs. When Technical code review or
+Product review resolves to `claude:opus`, there is no `--sandbox` flag on
+`claude` at all — the boundary is a host-enforced tool allowlist
+(`--tools "Read,Grep,Glob,Bash"`, see `internal/claude-cli.md`), not a process
+sandbox, and `Bash` in that list can still write. What covers the gap is the
+same thing that covers every dispatched gate in this product: the
+Coordinator's own check of changed paths against Git and the approved write
+set, run after the Worker returns, independent of what the Worker reports.
+Never present a Claude-CLI review as sandboxed.
 
 ### Autonomous sessions
 
@@ -359,7 +409,7 @@ stopped, so its shape cannot be left to whoever writes it first.
   "slug": "add-input-validation",
   "goal": "add input validation to the task API",
   "mode": "repository",
-  "runtime": "codex-only",
+  "runtime": "codex-hosted",
   "phase": "implementation",
   "status": "active",
   "repoKey": "task-api-75d0b10a",

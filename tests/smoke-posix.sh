@@ -240,6 +240,8 @@ done
 
 for f in \
   internal/codex.md \
+  internal/claude-cli.md \
+  internal/opencode.md \
   internal/stages/project.md \
   internal/stages/discovery-spec.md \
   internal/stages/planning.md \
@@ -358,8 +360,8 @@ check $? "Codex planning and plan review use opposing models"
 
 echo "== Codex lifecycle contract"
 
-has "$CODEX_PLUGIN/internal/stages/project.md" 'Record it in `profile.json` and every'
-check $? "codex-only runtime is recorded in profiles and Runs"
+has "$CODEX_PLUGIN/internal/stages/project.md" 'runtime: "codex-hosted"'
+check $? "codex-hosted runtime is recorded in profiles and Runs"
 
 has "$CODEX_PLUGIN/internal/stages/project.md" '~/.codex/plugins/data/my-plan-my-plan/'
 check $? "Codex state uses its own POSIX root"
@@ -716,11 +718,43 @@ else
   pass "Codex plugin has no inherited terminology"
 fi
 
-if grep -rilqE 'claude|sonnet|opus|hybrid' "$CODEX_PLUGIN" 2>/dev/null; then
-  fail "Codex plugin contains another host, model family, or mixed-runtime term"
+if grep -rilq 'hybrid' "$CODEX_PLUGIN" 2>/dev/null; then
+  fail "Codex plugin contains 'hybrid', a plugin/-only term"
 else
-  pass "Codex plugin is Codex-only"
+  pass "Codex plugin never claims the plugin/ hybrid backend"
 fi
+
+# Claude and OpenCode are scoped to exactly two roles each is now legitimate,
+# by design, so the old blanket ban is gone. What survives it is a scoped
+# check: these terms are legal only in the two transport docs that dispatch
+# them and in the roles' own rows, never in a stage a chain-scope leak would
+# reach silently.
+for f in \
+  skills/start/SKILL.md \
+  skills/audit/SKILL.md \
+  internal/stages/discovery-spec.md \
+  internal/stages/planning.md; do
+  if grep -qiE 'claude|opus|sonnet|opencode' "$CODEX_PLUGIN/$f" 2>/dev/null; then
+    fail "$f mentions Claude or opencode — those roles never route outside project.md/claude-cli.md/opencode.md"
+  else
+    pass "$f stays untouched by the mixed-transport change"
+  fi
+done
+
+has "$CODEX_PLUGIN/internal/stages/project.md" 'Claude never appears outside Technical code review'"'"'s and Product review'"'"'s'
+check $? "Claude's chain scope is stated explicitly"
+
+has "$CODEX_PLUGIN/internal/stages/project.md" 'OpenCode never appears outside Implementation'"'"'s chain'
+check $? "OpenCode's chain scope is stated explicitly"
+
+has "$CODEX_PLUGIN/internal/stages/project.md" '| Implementation | `opencode:pro@high` | `terra@high` | `luna@high` | `sol@high` |'
+check $? "Implementation's chain leads with OpenCode, falls back to the Codex-only ladder"
+
+has "$CODEX_PLUGIN/internal/stages/project.md" '| Technical code review | `claude:opus@high` | `sol@high` | `luna@high` | `terra@high` |'
+check $? "Technical code review's chain leads with Claude, falls back to the Codex-only ladder"
+
+has "$CODEX_PLUGIN/internal/codex.md" 'runtime: "codex-hosted"'
+check $? "codex.md records the codex-hosted runtime, not codex-only"
 
 echo "== shared assets stay in parity"
 

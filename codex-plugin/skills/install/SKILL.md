@@ -32,10 +32,14 @@ upgrades; it never restarts and never discards answers.
 - Every required capability verified: Codex CLI with the required `exec`
   features, and Git 2.28 or later.
 - Every optional capability probed and reported: Context7, GitHub CLI,
-  Playwright, and any documentation, indexing, or LSP tooling the session
-  exposes. Optional tools speed the work up and are never depended on.
-- Runtime fixed to `codex-only` and the effective Sol, Terra, and Luna model
-  mapping shown.
+  Playwright, Claude Code CLI, opencode, and any documentation, indexing, or
+  LSP tooling the session exposes. Optional tools speed the work up and are
+  never depended on.
+- Runtime `codex-hosted` and the effective Sol, Terra, and Luna model mapping
+  shown, alongside which of Claude CLI and opencode passed their probes and
+  therefore became first candidates for Technical/Product review and
+  Implementation respectively — Codex is the host either way; these two
+  reports are independent.
 - Sol and Terra resolve to different model IDs. A single ID cannot write and
   review the same subject.
 - A Working Profile persisted at `<stateRoot>/profile.json`. Its presence is what
@@ -79,5 +83,6 @@ repository configuration.
 
 ## Reporting
 
-End with a short status: what was verified, the `codex-only` runtime, the
-effective model mapping, the state root, and the single next command to run.
+End with a short status: what was verified, the `codex-hosted` runtime, the
+effective model mapping including which of Claude CLI/opencode passed their
+probes, the state root, and the single next command to run.

@@ -13,9 +13,14 @@ commands: `start` plans (docs-only, ends at a reviewed task board in
 - `plugin/` is the Claude Code distribution. `CLAUDE.md` is its authoritative
   guidance — it exists locally but is gitignored, so it is not on GitHub;
   read it directly from disk before touching anything under `plugin/`.
-- `codex-plugin/` is the Codex-only distribution: no Claude Code dependency,
-  runtime fixed to `codex-only`, model roles named `Sol`/`Terra`/`Luna`
-  instead of Claude model families. This file is its authoritative guidance.
+- `codex-plugin/` is the Codex-hosted distribution: Codex CLI always runs
+  setup and dispatches every Worker, `runtime` is `codex-hosted`, and its
+  model roles are named `Sol`/`Terra`/`Luna`. Two roles may additionally
+  resolve to a headless Claude Code CLI or opencode call when that CLI is
+  installed and authenticated — Technical/Product review to Claude, and
+  Implementation to opencode — with the pure-Codex chain as the automatic
+  fallback; see `internal/claude-cli.md` and `internal/opencode.md`. This
+  file is its authoritative guidance.
 
 Neither distribution depends on the other, and neither can resume a Run the
 other started. They do share a body of host-neutral assets byte-for-byte —
@@ -98,23 +103,28 @@ prose edit could silently undo it.
   must resolve to different model IDs — setup blocks when a user's Codex
   configuration collapses them into one.
 - **A fallback chain never wraps into reusing the writer.** Every role has an
-  ordered list of candidate tiers for when one is offline or over quota; the
-  chain compares a candidate against whatever tier is already bound to the
+  ordered list of candidates for when one is offline or over quota; the chain
+  compares a candidate against whatever identity is already bound to the
   *opposing* role for this Run (`run.json`'s `roleBindings`) and skips it on a
   match. When candidates run out, the Run blocks — it never silently lets one
-  tier review its own work.
+  identity review its own work. Claude and OpenCode candidates can never
+  collide with a Codex tier or with each other, so this rule only ever bites
+  within Sol/Terra/Luna.
 - **The three dispatched gates verify, they do not trust.** The commit
   Worker's claim of touching no remote ref is checked with
   `git for-each-ref refs/remotes`, not believed from its result; the secret
   scan stays the Coordinator's own, never delegated to the committer; QA runs
-  in a session that did not write the code.
+  in a session that did not write the code, stays pure Codex, and never
+  resolves to `claude:` or `opencode:`.
 - **The public skills are manual-only with minimal frontmatter.** `SKILL.md`
   frontmatter is exactly `name` and `description`; the invocation policy
   lives in the sibling `agents/openai.yaml`, not in `SKILL.md`.
-- **The Codex plugin stays host-neutral.** No mention of Claude, Sonnet,
-  Opus, or `hybrid` anywhere under `codex-plugin/` — those are `plugin/`
-  concepts, and their presence here means a Claude-side sentence leaked
-  across during an edit meant to land in both.
+- **Claude and OpenCode are scoped to exactly one role each.** `claude:`
+  resolves only for Technical code review and Product review; `opencode:`
+  resolves only for Implementation. Neither ever appears on discovery,
+  planning, plan review, the QA gate, or the commit — a mention of either
+  outside `internal/claude-cli.md`, `internal/opencode.md`, or those three
+  roles' rows in `project.md` means a change leaked scope.
 - **The installed plugin stays static.** No `package.json`, `*.js`, `*.ts`,
   `*.py`, `*.sh`, `hooks.json`, `.mcp.json`, or `node_modules` anywhere under
   `codex-plugin/`.
