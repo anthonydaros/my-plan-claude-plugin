@@ -34,9 +34,18 @@ confirmation question with it before relying on it for anything binding. Do not
 conclude it is missing by reasoning about the session in the abstract, and do
 not match on a specific tool name remembered from training — Codex CLI has
 renamed this tool before and will again. `codex exec` (headless) never exposes
-one; an interactive session normally does. If the probe genuinely fails in an
-interactive session, block and report the exact tool list you saw, so the
-report is falsifiable rather than a guess.
+one; an interactive session normally does, but the tool can still be absent
+there — this CLI has shipped it disabled behind a feature flag before, and an
+interactive session proves nothing about it once that is true. Before
+concluding the probe failed, run `codex features list` and check for a
+disabled feature (`... false`) whose name suggests it gates a structured
+question or user-input tool. If one matches, give its exact
+`codex features enable <name>` as the remediation instead of a generic "use an
+interactive session" — the install skill's own rule ("give exact remediation,
+not 'install Git'") applies here too, and the exact flag name drifts release
+to release, so read it from `codex features list` rather than repeating a name
+from these instructions. Only report the tool list without a remediation
+command if no feature name in the list plausibly matches.
 
 **Optional. Report and continue.**
 
