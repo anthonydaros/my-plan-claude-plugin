@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Map"
+  short_description: "Write or refresh the repository navigator"
+  default_prompt: "Use $my-plan:map to write or refresh docs/map.md for this repository."
+policy:
+  allow_implicit_invocation: false

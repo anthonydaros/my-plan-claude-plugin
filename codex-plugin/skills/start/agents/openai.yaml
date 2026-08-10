@@ -1,6 +1,0 @@
-interface:
-  display_name: "My Plan: Start"
-  short_description: "Plan one approved goal into tasks"
-  default_prompt: "Use $my-plan:start to carry this goal through discovery, specification, approval, and a reviewed task board."
-policy:
-  allow_implicit_invocation: false

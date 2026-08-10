@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Validate"
+  short_description: "Independently run validation and report the truth"
+  default_prompt: "Use $my-plan:validate to independently run this repository's validation commands and check acceptance criteria."
+policy:
+  allow_implicit_invocation: false

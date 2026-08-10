@@ -1,18 +1,21 @@
 {
   "name": "my-plan",
-  "description": "Carry one approved specification through discovery, planning, isolated implementation, validation, independent review, and delivery.",
+  "version": "1.0.0",
+  "description": "Eight independent skills — map, spec, plan, review-plan, implement, review, validate, commit — that take a goal to reviewed, committed code one manual step at a time. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
   "author": {
-    "name": "anthonydaros",
+    "name": "Anthony Max",
     "url": "https://github.com/anthonydaros"
   },
   "license": "MIT",
   "keywords": [
     "specification",
     "planning",
-    "review",
-    "delivery",
-    "worktree",
-    "orchestration"
+    "tasks",
+    "code-review",
+    "implementation",
+    "validation",
+    "git",
+    "commit"
   ],
   "repository": "https://github.com/anthonydaros/my-plan-claude-plugin",
   "homepage": "https://github.com/anthonydaros/my-plan-claude-plugin"

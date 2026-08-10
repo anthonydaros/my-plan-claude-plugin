@@ -76,8 +76,8 @@ jobs:
           result=$(codex plugin add my-plan@my-plan-codex --json)
           installed=$(printf '%s\n' "$result" | jq -r '.installedPath')
           test -f "$installed/.codex-plugin/plugin.json"
-          test -f "$installed/skills/start/SKILL.md"
-          test -f "$installed/skills/start/agents/openai.yaml"
-          test -f "$installed/skills/exec/SKILL.md"
-          test -f "$installed/skills/exec/agents/openai.yaml"
-          test -f "$installed/internal/contracts/plan-result.schema.json"
+          test -f "$installed/skills/map/SKILL.md"
+          test -f "$installed/skills/map/agents/openai.yaml"
+          test -f "$installed/skills/commit/SKILL.md"
+          test -f "$installed/skills/commit/agents/openai.yaml"
+          test -f "$installed/knowledge/checklists/review.md"

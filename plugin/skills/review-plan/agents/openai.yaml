@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Review Plan"
+  short_description: "Adversarially review a plan before any code exists"
+  default_prompt: "Use $my-plan:review-plan to check docs/plan.md for missing coverage, unsafe scope, and overengineering."
+policy:
+  allow_implicit_invocation: false

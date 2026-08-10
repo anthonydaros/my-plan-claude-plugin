@@ -4,3 +4,6 @@
 /docs/
 /CONTEXT.md
 CLAUDE.md
+
+# Local Serena MCP project state, not part of the repository
+.serena/

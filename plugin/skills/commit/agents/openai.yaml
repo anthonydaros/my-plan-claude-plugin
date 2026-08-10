@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Commit"
+  short_description: "Commit the intended changes, never push"
+  default_prompt: "Use $my-plan:commit to stage exactly these paths and commit them without pushing."
+policy:
+  allow_implicit_invocation: false

@@ -4,195 +4,147 @@ Guidance for Codex when working in this repository.
 
 ## What this repository is
 
-The source of **My Plan**, shipped as two independent, installable plugins
-that carry one approved specification through discovery, planning, isolated
-implementation, validation, independent review, and delivery — split into two
-commands: `start` plans (docs-only, ends at a reviewed task board in
-`docs/tasks/`) and `exec` executes it.
+The source of **My Plan**, eight independent Claude Code / Codex CLI skills —
+`map`, `spec`, `plan`, `review-plan`, `implement`, `review`, `validate`,
+`commit` — each invoked manually, one at a time, whenever the user wants.
+There is no orchestration between them: no Coordinator, no Worker dispatch
+protocol, no persistent Run state machine. Running `spec` and then `plan`
+is a user decision, not a phase transition the plugin enforces. The
+filesystem is the only state that survives between invocations: `docs/map.md`,
+`docs/brief.md`, `docs/plan.md`, and `docs/tasks/*.md` are ordinary,
+user-editable files, not a generated dossier owned by the plugin.
 
-- `plugin/` is the Claude Code distribution. `CLAUDE.md` is its authoritative
-  guidance — it exists locally but is gitignored, so it is not on GitHub;
-  read it directly from disk before touching anything under `plugin/`.
-- `codex-plugin/` is the Codex-hosted distribution: Codex CLI always runs
-  setup and dispatches every Worker, `runtime` is `codex-hosted`, and its
-  model roles are named `Sol`/`Terra`/`Luna`. Two roles may additionally
-  resolve to a headless Claude Code CLI or opencode call when that CLI is
-  installed and authenticated — Technical/Product review to Claude, and
-  Implementation to opencode — with the pure-Codex chain as the automatic
-  fallback; see `internal/claude-cli.md` and `internal/opencode.md`. This
-  file is its authoritative guidance.
+`CLAUDE.md` covers the same ground for Claude Code — it exists locally but
+is gitignored, so it is not on GitHub; read it directly from disk before
+touching anything under `plugin/`. This file is this repository's
+authoritative guidance on GitHub.
 
-Neither distribution depends on the other, and neither can resume a Run the
-other started. They do share a body of host-neutral assets byte-for-byte —
-smoke-checked, not just conventionally kept in sync:
-`internal/checklists/`, `internal/contracts/*.schema.json`,
-`internal/prompts/*.tpl`, `internal/templates/documents/*.tpl`, and
-`internal/references/`. Edit one of these under either distribution and mirror
-the edit into the other in the same change, or the parity check in
-`tests/smoke-posix.sh` fails the build.
+There is no code. The plugin is **static by contract**: prose instructions,
+frontmatter, and templates. Nothing is compiled, bundled, or installed.
+Changing behavior means editing instructions, and the only way to verify a
+change is to read it and run the smoke checks.
 
-There is no code. Both plugins are **static by contract**: prose instructions,
-frontmatter, JSON schemas, and templates. Nothing is compiled, bundled, or
-installed. Changing behavior means editing instructions, and the only way to
-verify a change is to read it and run the smoke checks.
+`plugin/` is what users install; everything else is development scaffolding.
+It carries both host manifests over one shared body of skills — there used
+to be a second, mirrored `codex-plugin/` tree; it's gone, folded into
+`plugin/.codex-plugin/` alongside Claude's `plugin/.claude-plugin/`, because
+maintaining two 90%-identical trees cost more than the one real difference
+between the hosts was worth.
 
 ## Commands
 
 ```sh
-sh tests/smoke-posix.sh          # all static checks, both distributions, one pass
+sh tests/smoke-posix.sh          # all static checks, one pass
 pwsh ./tests/smoke-windows.ps1   # Windows-only: paths and manifests under PowerShell
-claude plugin validate ./plugin  # Claude Code manifest shape; no Codex equivalent
+claude plugin validate ./plugin  # Claude Code manifest shape
+claude plugin validate .         # marketplace manifest
 ```
 
-`codex plugin --help` only exposes `add`/`list`/`marketplace`/`remove` — there
-is no `codex plugin validate`. `smoke-posix.sh` is what checks
-`codex-plugin/.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`
-for the Codex side; the host itself is only ever exercised by actually
-installing the plugin.
+`codex plugin --help` only exposes `add`/`list`/`marketplace`/`remove` —
+there's no `codex plugin validate`. `smoke-posix.sh` is what checks
+`plugin/.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`
+statically; CI additionally exercises a real Codex CLI marketplace install
+against this repository.
 
-`smoke-posix.sh` runs every check in one pass and prints `ok`/`FAIL` per line.
-There is no way to select one check; to isolate a failure, run the script and
-read the labelled line. It needs `python3` (or `node`) for JSON parsing and
-`python3` for the contract strict-mode check, and skips those checks silently
-when neither is present.
+`smoke-posix.sh` runs every check in one pass and prints `ok`/`FAIL` per
+line. There's no way to select one check; to isolate a failure, run the
+script and read the labelled line.
 
-CI runs `smoke-posix.sh` on Linux and macOS, `smoke-windows.ps1` on Windows,
-and `claude plugin validate` on Linux.
-
-## Layout: `codex-plugin/`
+## Layout
 
 | Path | Role |
 |------|------|
-| `skills/*/SKILL.md` + `skills/*/agents/openai.yaml` | The four public commands (`install`, `start`, `audit`, `exec`). `SKILL.md` frontmatter carries only `name` and `description`; `openai.yaml` carries `allow_implicit_invocation: false` and the invocation string |
-| `internal/stages/*.md` | Coordinator instructions, one per phase, loaded lazily via `<pluginRoot>` |
-| `internal/prompts/*.tpl` | Worker instructions, shared with `plugin/` |
-| `internal/contracts/*.schema.json` | Result schemas every Worker output must match, shared with `plugin/` |
-| `internal/templates/documents/*.tpl` | Run Dossier documents, shared with `plugin/` |
-| `internal/templates/project-skill-openai.yaml.tpl` | Renders the per-repository Project Skill's `agents/openai.yaml` — Codex-only, `plugin/` has no equivalent |
-| `internal/codex.md` | How the Coordinator, itself a Codex session, dispatches bounded child Codex sessions as Workers |
-| `internal/checklists/review.md` | The eleven review lenses, shared with `plugin/` |
-| `.codex-plugin/plugin.json` | The manifest: `"skills": "./skills/"`, no `mcpServers`, no `hooks` |
+| `plugin/skills/*/SKILL.md` | The eight public skills. Manual-only, one body read by both hosts |
+| `plugin/skills/*/agents/openai.yaml` | Codex-only sidecar: `allow_implicit_invocation: false`, the skill's `$my-plan:<name>` invocation string, display metadata. No `model`/`tools` field — Codex has no subagent-with-model primitive |
+| `plugin/agents/my-plan-reviewer.md`, `my-plan-committer.md` | Claude-only native subagents. Codex CLI has no equivalent dispatch mechanism — see "Independence" below |
+| `plugin/knowledge/checklists/*.md` | The eleven-lens review checklist, the architecture/overengineering checklist, the implementation defect catalogue |
+| `plugin/knowledge/references/**` | 34 vendored, MIT-licensed language and cross-cutting review guides, attributed in `NOTICE.md` |
+| `plugin/knowledge/templates/*.md` | Lean document shapes: `brief.md`, `plan.md`, `task.md`, `report.md` |
+| `plugin/.codex-plugin/plugin.json` | The Codex manifest: `"skills": "./skills/"`, no `mcpServers`, no `hooks`. Claude Code's manifest sits beside it at `plugin/.claude-plugin/plugin.json` |
 
-`codex-plugin` installs no `agents/` directory at its root. Unlike `plugin/`,
-which dispatches named Claude subagents from files, every Codex Worker is a
-child Codex session the Coordinator starts and resumes itself with
-`codex exec`, per `internal/codex.md`.
+## The shared skill body
 
-`skills/start/SKILL.md` and `skills/exec/SKILL.md` are the two Coordinator
-entry points, on the same split as `plugin/`: `start` plans and `exec`
-executes, and neither may load the other's stages.
+Every `SKILL.md` is read as-is by both hosts — no build step, no per-host
+copy. Codex CLI's own SKILL.md convention only documents `name` and
+`description` in frontmatter; the shared body also carries `argument-hint`
+and `disable-model-invocation: true` for Claude Code's benefit, and Codex
+tolerates the extra keys silently (verified empirically with a real
+`codex exec` run, not assumed). Codex's own manual-only enforcement lives
+in the sidecar `agents/openai.yaml`, not in the shared frontmatter.
 
-## How the pieces connect
+Claude Code substitutes `$ARGUMENTS` natively; Codex CLI does not, so every
+skill body says explicitly to take the text after `$my-plan:<name>` in the
+user's message instead — both sentences are in every skill on purpose,
+since the file doesn't know which host loaded it.
 
-The Coordinator — the interactive Codex session the user is talking to —
-never writes code and never gives a review verdict. It dispatches Workers as
-**child Codex sessions** via `codex exec`, each given a **handoff JSON**
-(`contracts/handoff.schema.json`) naming the worktree, task IDs, write set,
-artifact paths, and hashes, and each returning a contract-shaped result
-through `--output-schema` that the Coordinator validates before trusting it.
+No `${CLAUDE_PLUGIN_ROOT}` and no `<pluginRoot>` anywhere. Every reference
+to `knowledge/` or `agents/` inside a `SKILL.md` is a path relative to that
+file's own location, which resolves identically under either host.
 
-Never concatenate a document into a prompt. Pass the handoff path.
+## Independence, and where it's real
 
-## Invariants the smoke tests enforce for `codex-plugin/`
+`review`, `review-plan`, and `commit` each state two independence
+mechanisms. In Claude Code, dispatching to `agents/my-plan-reviewer.md` or
+`agents/my-plan-committer.md` is a real tool boundary: neither subagent
+holds `Write`, `Edit`, or `NotebookEdit`. In Codex CLI there is no
+subagent-dispatch primitive to hang that on, so the guarantee degrades to a
+self-declaration: if the session's own context shows it authored what it's
+about to judge, it says so instead of claiming independence it doesn't
+have. This is a real, stated asymmetry between the two hosts, not an
+oversight — don't try to paper over it by inventing a fake Codex dispatch
+mechanism.
 
-Each of these is a failure the product exists to prevent, checked because a
-prose edit could silently undo it.
+## Guarantees worth keeping without a state machine
 
-- **The writer is never the reviewer.** Planning uses Sol and its review uses
-  Terra; implementation uses Terra and its review uses Sol. `Sol` and `Terra`
-  must resolve to different model IDs — setup blocks when a user's Codex
-  configuration collapses them into one.
-- **A fallback chain never wraps into reusing the writer.** Every role has an
-  ordered list of candidates for when one is offline or over quota; the chain
-  compares a candidate against whatever identity is already bound to the
-  *opposing* role for this Run (`run.json`'s `roleBindings`) and skips it on a
-  match. When candidates run out, the Run blocks — it never silently lets one
-  identity review its own work. Claude and OpenCode candidates can never
-  collide with a Codex tier or with each other, so this rule only ever bites
-  within Sol/Terra/Luna.
-- **The three dispatched gates verify, they do not trust.** The commit
-  Worker's claim of touching no remote ref is checked with
-  `git for-each-ref refs/remotes`, not believed from its result; the secret
-  scan stays the Coordinator's own, never delegated to the committer; QA runs
-  in a session that did not write the code, stays pure Codex, and never
-  resolves to `claude:` or `opencode:`.
-- **The public skills are manual-only with minimal frontmatter.** `SKILL.md`
-  frontmatter is exactly `name` and `description`; the invocation policy
-  lives in the sibling `agents/openai.yaml`, not in `SKILL.md`.
-- **Claude and OpenCode are scoped to exactly one role each.** `claude:`
-  resolves only for Technical code review and Product review; `opencode:`
-  resolves only for Implementation. Neither ever appears on discovery,
-  planning, plan review, the QA gate, or the commit — a mention of either
-  outside `internal/claude-cli.md`, `internal/opencode.md`, or those three
-  roles' rows in `project.md` means a change leaked scope.
-- **The installed plugin stays static.** No `package.json`, `*.js`, `*.ts`,
-  `*.py`, `*.sh`, `hooks.json`, `.mcp.json`, or `node_modules` anywhere under
-  `codex-plugin/`.
-- **Every `<pluginRoot>/...` reference resolves**, the same rule as
-  `${CLAUDE_PLUGIN_ROOT}/...` on the Claude side. Adding a reference means
-  adding the file.
-- **`start` never loads `stages/implementation.md`**; `exec` must. A `start`
-  that references it has silently regained the whole pipeline.
-- **The push gate and the secret scan survive edits**, mirrored
-  sentence-for-sentence against the Claude side, in `skills/exec/SKILL.md`,
-  `skills/start/SKILL.md`, and `stages/implementation.md`.
-- **Task files are never staged and never committed.** They live in
-  `docs/tasks/` in the primary checkout between planning and execution, and
-  execution deletes each one as its task completes.
-- **`exec` never re-asks for approval.** The authority is `approvedSpecHash`;
-  the `start`/`exec` boundary is a control point, not a third gate.
-- **The migration path survives** for repositories initialized by the earlier
-  dossier-format versions (`docs/my-plan/`, `run.json` at `schemaVersion` 1).
-- **No literal `Co-Authored-By:` trailer anywhere in `codex-plugin/`.**
-  Commits this plugin writes belong to the user.
+An earlier version of this plugin enforced these through a Run manifest, a
+handoff contract, and a Coordinator that verified every Worker's claim.
+None of that exists anymore. What survives, checked by `tests/smoke-posix.sh`
+where it can be:
 
-Run `sh tests/smoke-posix.sh` after touching anything in `codex-plugin/` — it
-checks both distributions in one pass and names the exact failing line.
+- Reviewers and the committer hold no file-editing tool.
+- The secret scan in `skills/commit/SKILL.md` — `.env`/`*.pem`/`AKIA`/
+  `ghp_`/`sk-` patterns, plus reading staged *prose*, not only code.
+- No push skill exists. `commit` never pushes and prints the exact
+  `git push` command instead — dropping automation here made the guarantee
+  stronger, not weaker, since a skill that doesn't exist can't drift into
+  pushing.
+- Declared blindness: `review`, `validate`, and `commit` say plainly when
+  no brief or task file was supplied or found, instead of silently
+  skipping conformance and scope-drift checking.
+- A closing note — `Changed / Validated / Open risks / Suggested next
+  skill` — on every mutating or evaluative skill, printed, never
+  persisted.
+- Public skills are manual-only in both manifests.
+- The installed plugin stays static: no `package.json`, `*.js`, `*.ts`,
+  `*.py`, `*.sh`, `hooks.json`, `.mcp.json`, or `node_modules` anywhere
+  under `plugin/`.
+- No literal `Co-Authored-By:` trailer anywhere in `plugin/`, and no
+  `specseam`.
 
-## Contract schemas: strict mode
-
-Shared with `plugin/`, so a violation here breaks `--output-schema` for both
-distributions identically. It is enforced by the provider before the model
-runs, and it rejects the whole request with HTTP 400. Two rules:
-
-1. Every property needs an explicit `"type"`. `{"const": 1}` fails; write
-   `{"type": "integer", "const": 1}`.
-2. `"required"` must list **every** key in `"properties"`, at every nesting
-   level. A field that may be absent is nullable —
-   `{"type": ["string", "null"]}` — and still appears in `required`.
-
-Run the smoke tests after touching anything in `internal/contracts/`.
+What's genuinely weaker than the orchestrated version: there's no
+mechanical cross-file check that whatever wrote a change is a different
+model from whatever reviews it — that now depends on the user actually
+running `review` in a fresh session, or on Codex's honest self-declaration.
+There's also no tracked ownership of task files: nothing prevents an
+abandoned plan from leaving orphaned files under `docs/tasks/` if the user
+walks away mid-plan.
 
 ## Terminology: the repository renamed itself
 
 `docs/` and `CONTEXT.md` are gitignored local design context and still use
-the project's original name — **SpecSeam**, `specseam`. The shipped plugins
-are **My Plan**. `docs/specs/specseam-v1.md` remains authoritative on
-*behavior* and stale on *naming*; translate the names when porting anything
-from it, into either distribution. A smoke check fails the build if the
-string `specseam` appears anywhere under `codex-plugin/` (and separately,
-under `plugin/`).
-
-## The two user gates
-
-Identical across both distributions, so an edit that blurs either one is a
-defect regardless of which plugin it lands in:
-
-1. **Spec approval.** Authorizes everything up to and including *local*
-   commits, across both commands: `start` spends it on the task files, `exec`
-   on everything else. The approval lives in `approvedSpecHash`, not in the
-   conversation — never re-ask inside that authority.
-2. **The push gate.** Nothing leaves the machine without a second explicit
-   approval. Not a branch, not a tag, not "just the docs". A Run that ends
-   unpushed is complete, not failed.
+the project's original name — **SpecSeam**, `specseam`. The shipped plugin
+is **My Plan**. `docs/specs/specseam-v1.md` and
+`docs/tasks/specseam-v1-implementation.md` describe the earlier,
+orchestrated version of this product and are historical, not authoritative,
+for anything past the skill inventory above. A smoke check fails the build
+if the string `specseam` appears anywhere under `plugin/`.
 
 ## Writing style
 
-The same rule the plugin instructions themselves prescribe: one authoritative
-statement per fact, current state rather than history, reference by path
-instead of copying. A shared asset copied instead of referenced is exactly
-the kind of duplication `tests/smoke-posix.sh`'s parity check exists to catch.
+The same rule the plugin instructions themselves prescribe: one
+authoritative statement per fact, current state rather than history,
+reference by path instead of copying.
 
-Commit subjects state the point of the change in a sentence. Bodies explain in
-prose what was wrong and why the fix has the shape it does. This repository's
-commits carry no trailers.
+Commit subjects state the point of the change in a sentence. Bodies explain
+in prose what was wrong and why the fix has the shape it does. This
+repository's commits carry no trailers.

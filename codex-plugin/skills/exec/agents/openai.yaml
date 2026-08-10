@@ -1,6 +1,0 @@
-interface:
-  display_name: "My Plan: Exec"
-  short_description: "Execute a planned run to delivery"
-  default_prompt: "Use $my-plan:exec to implement, review, and validate the planned tasks, then stop at the push gate."
-policy:
-  allow_implicit_invocation: false

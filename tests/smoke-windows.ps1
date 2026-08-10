@@ -7,7 +7,6 @@ $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
 $plugin = Join-Path $root 'plugin'
-$codexPlugin = Join-Path $root 'codex-plugin'
 $fails = 0
 
 function Check([bool]$ok, [string]$label) {
@@ -23,13 +22,15 @@ function Frontmatter([string]$path) {
     return $lines[1..($end - 1)]
 }
 
+$skills = @('map', 'spec', 'plan', 'review-plan', 'implement', 'review', 'validate', 'commit')
+
 Write-Host '== manifests'
 
 foreach ($m in @(
         (Join-Path $root '.claude-plugin\marketplace.json'),
         (Join-Path $plugin '.claude-plugin\plugin.json'),
         (Join-Path $root '.agents\plugins\marketplace.json'),
-        (Join-Path $codexPlugin '.codex-plugin\plugin.json'))) {
+        (Join-Path $plugin '.codex-plugin\plugin.json'))) {
     $name = $m.Substring($root.Length + 1)
     if (-not (Test-Path -LiteralPath $m)) { Check $false "missing $name"; continue }
     try {
@@ -41,12 +42,12 @@ foreach ($m in @(
 }
 
 $manifest = Get-Content -LiteralPath (Join-Path $plugin '.claude-plugin\plugin.json') -Raw | ConvertFrom-Json
-Check ($manifest.name -eq 'my-plan') 'plugin name is my-plan'
+Check ($manifest.name -eq 'my-plan') 'Claude plugin name is my-plan'
 
 $market = Get-Content -LiteralPath (Join-Path $root '.claude-plugin\marketplace.json') -Raw | ConvertFrom-Json
-Check ($market.plugins[0].source -eq './plugin') 'marketplace publishes ./plugin'
+Check ($market.plugins[0].source -eq './plugin') 'Claude marketplace publishes ./plugin'
 
-$codexManifest = Get-Content -LiteralPath (Join-Path $codexPlugin '.codex-plugin\plugin.json') -Raw | ConvertFrom-Json
+$codexManifest = Get-Content -LiteralPath (Join-Path $plugin '.codex-plugin\plugin.json') -Raw | ConvertFrom-Json
 Check ($codexManifest.name -eq 'my-plan') 'Codex plugin name is my-plan'
 # Pin the shape, not the number: a release must be able to bump this.
 Check ($codexManifest.version -match '^\d+\.\d+\.\d+(\+[0-9A-Za-z.-]+)?$') 'Codex plugin declares a semantic version'
@@ -56,204 +57,160 @@ Check (-not ($codexManifest.PSObject.Properties.Name -contains 'hooks')) 'Codex 
 
 $codexMarket = Get-Content -LiteralPath (Join-Path $root '.agents\plugins\marketplace.json') -Raw | ConvertFrom-Json
 Check ($codexMarket.name -eq 'my-plan-codex') 'Codex marketplace name is my-plan-codex'
-Check ($codexMarket.plugins[0].source.path -eq './codex-plugin') 'Codex marketplace publishes ./codex-plugin'
+Check ($codexMarket.plugins[0].source.path -eq './plugin') 'Codex marketplace publishes ./plugin'
 Check ($codexMarket.plugins[0].policy.installation -eq 'AVAILABLE') 'Codex marketplace installation policy is AVAILABLE'
 Check ($codexMarket.plugins[0].policy.authentication -eq 'ON_INSTALL') 'Codex marketplace authentication policy is ON_INSTALL'
 Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace category is Development'
 
-Write-Host '== public skills'
+# Two manifests describing one artifact must agree, or one of them is stale
+# the moment a release bumps only the other.
+Check ($manifest.version -eq $codexManifest.version) "both manifests declare the same version (claude:$($manifest.version) codex:$($codexManifest.version))"
 
-foreach ($s in @('install', 'start', 'audit', 'exec')) {
+Write-Host '== the 8 skills are independent and manual-only'
+
+foreach ($s in $skills) {
     $f = Join-Path $plugin "skills\$s\SKILL.md"
+    $meta = Join-Path $plugin "skills\$s\agents\openai.yaml"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing $s"; continue }
+    if (-not (Test-Path -LiteralPath $meta)) { Check $false "missing $s metadata"; continue }
     $fm = Frontmatter $f
     Check ([bool]($fm -contains "name: $s")) "$s declares name: $s"
-    Check ([bool]($fm -contains 'disable-model-invocation: true')) "$s is manual only"
+    Check ([bool]($fm -match '^description: .')) "$s has a description"
+    Check ([bool]($fm -match '^argument-hint: .')) "$s declares an argument-hint"
+    Check ([bool]($fm -contains 'disable-model-invocation: true')) "$s is manual only in Claude Code"
     Check ((Get-Content -LiteralPath $f -Raw) -like '*$ARGUMENTS*') "$s consumes `$ARGUMENTS"
-}
-
-Write-Host '== Codex public skills'
-
-foreach ($s in @('install', 'start', 'audit', 'exec')) {
-    $f = Join-Path $codexPlugin "skills\$s\SKILL.md"
-    $meta = Join-Path $codexPlugin "skills\$s\agents\openai.yaml"
-    if (-not (Test-Path -LiteralPath $f)) { Check $false "missing Codex skill $s"; continue }
-    if (-not (Test-Path -LiteralPath $meta)) { Check $false "missing Codex metadata $s"; continue }
-    $fm = @(Frontmatter $f | Where-Object { $_.Trim() -ne '' })
-    Check ([bool]($fm -contains "name: $s")) "Codex $s declares name: $s"
-    Check ([bool]($fm -match '^description: .')) "Codex $s has a description"
-    Check ($fm.Count -eq 2) "Codex $s frontmatter contains only name and description"
     $metaText = Get-Content -LiteralPath $meta -Raw
-    Check ($metaText.Contains('allow_implicit_invocation: false')) "Codex $s is manual only"
-    Check ($metaText.Contains("`$my-plan:$s")) "Codex $s metadata names its invocation"
+    Check ($metaText.Contains('allow_implicit_invocation: false')) "$s is manual only in Codex CLI"
+    Check ($metaText.Contains("`$my-plan:$s")) "$s metadata names its invocation"
 }
+
+Check (-not (Test-Path -LiteralPath (Join-Path $plugin 'skills\push'))) 'no push skill exists'
+
+$foundSkills = @(Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Directory | ForEach-Object { $_.Name } | Sort-Object)
+$expectedSkills = @($skills | Sort-Object)
+Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 8 skills (found: $($foundSkills -join ', '))"
+
+Write-Host '== the shared SKILL.md body has no per-host path variable'
+
+$leaked = Get-ChildItem -LiteralPath $plugin -Recurse -File |
+    Select-String -Pattern '\$\{CLAUDE_PLUGIN_ROOT\}|<pluginRoot>' -List
+Check (-not $leaked) 'no ${CLAUDE_PLUGIN_ROOT} or <pluginRoot> anywhere in plugin\'
+
+Write-Host '== relative knowledge/agent references resolve'
+
+$missing = @()
+foreach ($s in $skills) {
+    $f = Join-Path $plugin "skills\$s\SKILL.md"
+    if (-not (Test-Path -LiteralPath $f)) { continue }
+    $dir = Split-Path -Parent $f
+    [regex]::Matches((Get-Content -LiteralPath $f -Raw),
+        '\.\./\.\./(knowledge|agents)/([A-Za-z0-9._/-]+)') | ForEach-Object {
+        $rel = ($_.Groups[1].Value + '/' + $_.Groups[2].Value) -replace '/', '\'
+        if (-not (Test-Path -LiteralPath (Join-Path $dir $rel))) { $missing += "$s -> $rel" }
+    }
+}
+foreach ($m in ($missing | Sort-Object -Unique)) { Check $false "broken reference: $m" }
+if ($missing.Count -eq 0) { Check $true 'every relative knowledge/agent reference resolves' }
+
+# Agents sit one level shallower than skills (plugin\agents\, not
+# plugin\skills\<name>\), so the same reference from an agent file must use
+# ..\knowledge\ or ..\agents\, never ..\..\. Check the wrong-depth form
+# first: without it, the substring ..\knowledge\... inside a broken
+# ..\..\knowledge\... would still match and resolve, masking the bug.
+$missing = @()
+Get-ChildItem -LiteralPath (Join-Path $plugin 'agents') -Filter *.md | ForEach-Object {
+    $text = Get-Content -LiteralPath $_.FullName -Raw
+    $dir = $_.DirectoryName
+    if ($text -match '\.\./\.\./(knowledge|agents)/') {
+        $missing += "$($_.Name) uses ../../ (agents sit one level shallower than skills)"
+    }
+    [regex]::Matches($text, '\.\./(knowledge|agents)/([A-Za-z0-9._/-]+)') | ForEach-Object {
+        $rel = ($_.Groups[1].Value + '/' + $_.Groups[2].Value) -replace '/', '\'
+        if (-not (Test-Path -LiteralPath (Join-Path $dir $rel))) { $missing += "$($_.Name): $rel" }
+    }
+}
+foreach ($m in ($missing | Sort-Object -Unique)) { Check $false "broken reference: $m" }
+if ($missing.Count -eq 0) { Check $true 'every relative knowledge/agent reference in agents\ resolves at the right depth' }
 
 Write-Host '== agents'
 
-foreach ($a in @('discovery', 'planner', 'implementer', 'reviewer', 'reviewer-deep', 'committer')) {
+foreach ($a in @('reviewer', 'committer')) {
     $f = Join-Path $plugin "agents\my-plan-$a.md"
     if (-not (Test-Path -LiteralPath $f)) { Check $false "missing agent $a"; continue }
     $fm = Frontmatter $f
     Check ([bool]($fm -contains "name: my-plan-$a")) "agent $a name matches its filename"
+    Check ([bool]($fm -match '^tools: \[')) "agent $a declares a bounded tool list"
     Check ([bool]($fm -match '^effort: (low|medium|high|xhigh|max)$')) "agent $a declares a valid effort"
+    $tools = $fm -match '^tools:'
+    Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) "agent $a holds no file-editing tool"
 }
 
-# The reviewer reviews both plans and code, so it is the one that must never gain
-# a write tool. The planner writes the plan; the implementer writes the code.
-foreach ($a in @('discovery', 'reviewer', 'reviewer-deep')) {
-    $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
-    Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) "agent $a is read-only"
+$foundAgents = @(Get-ChildItem -LiteralPath (Join-Path $plugin 'agents') -File | ForEach-Object { $_.Name } | Sort-Object)
+Check (($foundAgents -join ',') -eq 'my-plan-committer.md,my-plan-reviewer.md') "agents\ contains exactly the 2 native agents (found: $($foundAgents -join ', '))"
+
+Check (Test-Path -LiteralPath (Join-Path $plugin 'LICENSE')) 'exists: LICENSE (NOTICE.md points installs at this file)'
+
+Write-Host '== knowledge assets exist'
+
+foreach ($f in @(
+        'knowledge\checklists\review.md',
+        'knowledge\checklists\architecture.md',
+        'knowledge\checklists\implementation.md',
+        'knowledge\references\README.md',
+        'knowledge\references\NOTICE.md',
+        'knowledge\templates\brief.md',
+        'knowledge\templates\plan.md',
+        'knowledge\templates\task.md',
+        'knowledge\templates\report.md')) {
+    Check (Test-Path -LiteralPath (Join-Path $plugin $f)) "exists: $f"
 }
 
-foreach ($a in @('implementer', 'planner')) {
-    $tools = (Frontmatter (Join-Path $plugin "agents\my-plan-$a.md")) -match '^tools:'
-    Check ([bool]($tools -match 'Write')) "$a can write"
+Write-Host '== push is gated, commits are scanned'
+
+$offenders = Get-ChildItem -LiteralPath (Join-Path $plugin 'skills'), (Join-Path $plugin 'agents') -Recurse -File |
+    Where-Object { (Select-String -LiteralPath $_.FullName -Pattern 'git push' -SimpleMatch -List) -and
+                   ($_.FullName -ne (Join-Path $plugin 'skills\commit\SKILL.md')) -and
+                   ($_.FullName -ne (Join-Path $plugin 'agents\my-plan-committer.md')) }
+Check ($offenders.Count -eq 0) 'git push is mentioned only in commit''s skill and agent'
+
+$commitSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\commit\SKILL.md') -Raw
+Check ($commitSkill.Contains('Never `git push`')) 'commit states it never pushes'
+Check ($commitSkill.Contains('git push <remote> <branch>')) 'commit prints the push command for the user to run'
+foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
+    Check ($commitSkill.Contains($pattern)) "secret scan names $pattern"
+}
+Check ($commitSkill.Contains("Never override the repository's configured")) 'commit authorship rule is stated'
+
+Write-Host '== the closing-note convention holds'
+
+foreach ($s in $skills) {
+    $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
+    foreach ($label in @('Changed:', 'Validated:', 'Open risks:', 'Suggested next skill:')) {
+        Check ($text.Contains($label)) "$s closing note has '$label'"
+    }
 }
 
-# The committer writes history, not files. One that can edit could repair what the
-# secret scan just refused, which is the one refusal that must not be negotiable.
-$tools = (Frontmatter (Join-Path $plugin 'agents\my-plan-committer.md')) -match '^tools:'
-Check (-not ($tools -match '(Write|Edit|NotebookEdit)')) 'committer edits no files'
+Write-Host '== the declared-blindness convention holds'
 
-# Same-model review is the failure this product exists to prevent.
-function ModelOf([string]$agent) {
-    $line = (Frontmatter (Join-Path $plugin "agents\my-plan-$agent.md")) -match '^model:'
-    return ($line -replace '^model:\s*', '').Trim()
+foreach ($s in @('review', 'validate', 'commit')) {
+    $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
+    Check ($text.Contains('--spec')) "$s accepts --spec"
+    Check ($text.Contains('not evaluated')) "$s declares blindness plainly when nothing was supplied"
 }
-$author = ModelOf 'planner'
-$critic = ModelOf 'reviewer'
-$coder = ModelOf 'implementer'
-$deep = ModelOf 'reviewer-deep'
-Check ($author -ne $critic) "plan author ($author) differs from its reviewer ($critic)"
-Check ($coder -ne $deep) "code author ($coder) differs from its reviewer ($deep)"
-Check ($critic -ne $deep) "the two reviewers are different models ($critic, $deep)"
+
+Write-Host '== independence is stated for both hosts'
+
+foreach ($s in @('review-plan', 'review', 'validate', 'commit')) {
+    $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
+    Check ($text.Contains('**Claude Code.**')) "$s states its Claude Code independence mechanism"
+    Check ($text.Contains('**Codex CLI.**')) "$s states its Codex CLI independence mechanism"
+}
 
 Write-Host '== commits stay the user''s'
 
 $trailer = Get-ChildItem -LiteralPath $plugin -Recurse -File |
     Select-String -Pattern 'Co-Authored-By:' -SimpleMatch -List
 Check (-not $trailer) 'no Co-Authored-By trailer anywhere'
-
-$rule = Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Recurse -File |
-    Select-String -Pattern "Never override the repository's Git identity" -SimpleMatch -List
-Check ([bool]$rule) 'commit authorship rule is stated to the Coordinator'
-
-Write-Host '== push is gated, commits are scanned'
-
-$startSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\start\SKILL.md') -Raw
-$execSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\exec\SKILL.md') -Raw
-$implStage = Get-Content -LiteralPath (Join-Path $plugin 'internal\stages\implementation.md') -Raw
-
-Check ($execSkill -like '*push gate*') 'the push gate is stated to the executing Coordinator'
-Check ($startSkill -like '*push gate*') 'planning names the push gate it never reaches'
-Check ($implStage -like '*## The push gate*') 'delivery stops at the push gate'
-Check (-not ($startSkill -like '*remediation, commit, fast-forward integration, and push*')) 'spec approval stops at local commits'
-Check (-not ($execSkill -like '*remediation, commit, fast-forward integration, and push*')) 'exec never claims approval covers the push'
-Check ($implStage -like '*Before every commit: check what you are about to publish*') 'staged sets are scanned before commit'
-
-foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
-    Check ($implStage.Contains($pattern)) "secret scan names $pattern"
-}
-
-$codexStart = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\start\SKILL.md') -Raw
-$codexExec = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\exec\SKILL.md') -Raw
-$codexImpl = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\implementation.md') -Raw
-$codexDiscovery = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\discovery-spec.md') -Raw
-$codexTransport = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\codex.md') -Raw
-
-Check ($codexExec.Contains('push gate')) 'Codex push gate is stated to the executing Coordinator'
-Check ($codexImpl.Contains('## The push gate')) 'Codex delivery stops at the push gate'
-Check ($codexDiscovery.Contains('It never authorizes the push')) 'Codex spec approval stops at local commits'
-Check ($codexImpl.Contains('Before every commit: check what you are about to publish')) 'Codex staged sets are scanned before commit'
-foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
-    Check ($codexImpl.Contains($pattern)) "Codex secret scan names $pattern"
-}
-Check ($codexTransport.Contains('--sandbox read-only')) 'Codex reviewers use a read-only sandbox'
-Check ($codexTransport.Contains('--sandbox workspace-write')) 'Codex writers use a workspace-write sandbox'
-Check ($codexTransport.Contains('--output-schema')) 'Codex Worker results use provider-enforced schemas'
-Check ($codexTransport.Contains('Sol and Terra must resolve to different IDs')) 'Codex writer and reviewer models must differ'
-
-Write-Host '== Codex lifecycle contract'
-
-$codexProject = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\project.md') -Raw
-$codexAudit = Get-Content -LiteralPath (Join-Path $codexPlugin 'skills\audit\SKILL.md') -Raw
-Check ($codexProject.Contains('runtime: "codex-hosted"')) 'codex-hosted runtime is recorded in profiles and Runs'
-Check ($codexProject.Contains('~/.codex/plugins/data/my-plan-my-plan/')) 'Codex state uses its own POSIX root'
-Check ($codexProject.Contains('%USERPROFILE%\.codex\plugins\data\my-plan-my-plan\')) 'Codex state uses its own Windows root'
-Check ($codexProject.Contains('.agents/skills/my-plan-project/')) 'Codex setup owns only the .agents Project Skill'
-Check (-not (Test-Path -LiteralPath (Join-Path $codexPlugin 'agents'))) 'Codex plugin installs no global agents'
-Check ($codexStart.Contains('Everything before approval is read-only against the user')) 'pre-approval repository state is read-only'
-Check ($codexExec.Contains("All mutation happens in the Run's isolated")) 'approved mutation stays in the isolated worktree'
-Check ($codexTransport.Contains('One bounded retry, then mark the Run blocked')) 'transient Worker failure gets one retry'
-Check ($codexTransport.Contains('quota, usage cap, credits, unavailable model')) 'quota and model failures block without fallback'
-Check ($codexTransport.Contains('Never resume a last or most')) 'Worker continuation requires an exact thread'
-Check ($codexAudit.Contains('Read-only until findings are accepted')) 'audit remains read-only until accepted findings become a spec'
-Check ($codexProject.Contains('artifacts/architecture.md')) 'both distributions share the volatile Architecture Memory path'
-
-Write-Host '== contracts are strict-mode clean'
-
-# Provider-enforced structured output rejects a schema where any property lacks a
-# type, or where required omits any key in properties, at any depth.
-$violations = @()
-function Test-Strict($node, [string]$where) {
-    if ($node -is [System.Management.Automation.PSCustomObject]) {
-        $keys = $node.PSObject.Properties.Name
-        if ($keys -contains 'properties') {
-            $props = $node.properties.PSObject.Properties.Name
-            $req = @()
-            if ($keys -contains 'required') { $req = @($node.required) }
-            foreach ($p in $props) {
-                if ($req -notcontains $p) { $script:violations += "$where`: '$p' in properties but not in required" }
-                $sub = $node.properties.$p
-                $subKeys = $sub.PSObject.Properties.Name
-                if ($subKeys -notcontains 'type' -and $subKeys -notcontains '$ref' -and
-                    $subKeys -notcontains 'anyOf' -and $subKeys -notcontains 'oneOf' -and $subKeys -notcontains 'allOf') {
-                    $script:violations += "$where.$p`: no 'type' key"
-                }
-            }
-        }
-        foreach ($k in $keys) { Test-Strict $node.$k "$where.$k" }
-    } elseif ($node -is [System.Object[]]) {
-        for ($i = 0; $i -lt $node.Count; $i++) { Test-Strict $node[$i] "$where[$i]" }
-    }
-}
-foreach ($contractsRoot in @(
-        (Join-Path $plugin 'internal\contracts'),
-        (Join-Path $codexPlugin 'internal\contracts'))) {
-    Get-ChildItem -LiteralPath $contractsRoot -Filter *.json | ForEach-Object {
-        Test-Strict (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json) $_.FullName
-    }
-}
-foreach ($v in $violations) { Check $false $v }
-if ($violations.Count -eq 0) { Check $true 'contract schemas accept --output-schema' }
-
-Write-Host '== references resolve'
-
-# A ${CLAUDE_PLUGIN_ROOT} path that resolves on POSIX but not here means a
-# separator or casing assumption leaked into the plugin.
-$missing = @()
-Get-ChildItem -LiteralPath $plugin -Recurse -File | ForEach-Object {
-    [regex]::Matches((Get-Content -LiteralPath $_.FullName -Raw),
-        '\$\{CLAUDE_PLUGIN_ROOT\}/([A-Za-z0-9._/-]+)') | ForEach-Object {
-        $rel = $_.Groups[1].Value -replace '/', '\'
-        if (-not (Test-Path -LiteralPath (Join-Path $plugin $rel))) { $missing += $rel }
-    }
-}
-$missing = $missing | Sort-Object -Unique
-foreach ($m in $missing) { Check $false "broken reference: $m" }
-if ($missing.Count -eq 0) { Check $true 'all plugin-root references resolve' }
-
-$missing = @()
-Get-ChildItem -LiteralPath $codexPlugin -Recurse -File | ForEach-Object {
-    [regex]::Matches((Get-Content -LiteralPath $_.FullName -Raw),
-        '<pluginRoot>/([A-Za-z0-9._/-]+)') | ForEach-Object {
-        $rel = $_.Groups[1].Value -replace '/', '\'
-        if (-not (Test-Path -LiteralPath (Join-Path $codexPlugin $rel))) { $missing += $rel }
-    }
-}
-$missing = $missing | Sort-Object -Unique
-foreach ($m in $missing) { Check $false "broken Codex reference: $m" }
-if ($missing.Count -eq 0) { Check $true 'all Codex plugin-root references resolve' }
 
 Write-Host '== static plugin'
 
@@ -268,98 +225,18 @@ if ($runtime) {
     Check $true 'installed plugin is static'
 }
 
-$runtime = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File -Include `
-    'package.json', '*.js', '*.mjs', '*.ts', '*.py', '*.sh', 'hooks.json', `
-    '.mcp.json', 'requirements.txt', 'pyproject.toml'
-if ($runtime) {
-    Write-Host "FAIL runtime artifact in Codex plugin:"
-    $runtime | ForEach-Object { Write-Host "  $($_.FullName)" }
-    $fails++
-} else {
-    Check $true 'Codex plugin is static'
-}
-
 $inherited = Get-ChildItem -LiteralPath $plugin -Recurse -File |
     Select-String -Pattern 'specseam' -SimpleMatch -List
 Check (-not $inherited) 'no inherited terminology'
 
-$inherited = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
-    Select-String -Pattern 'specseam' -SimpleMatch -List
-Check (-not $inherited) 'Codex plugin has no inherited terminology'
-
-$foreign = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
-    Select-String -Pattern 'hybrid' -SimpleMatch -List
-Check (-not $foreign) 'Codex plugin never claims the plugin/ hybrid backend'
-
-# Claude and OpenCode are now legitimate, scoped to exactly two roles each.
-# What survives the old blanket ban is a scoped check: these terms are legal
-# only in the two transport docs that dispatch them and in the roles' own
-# rows, never in a stage a chain-scope leak would reach silently.
-$codexPlanning = Get-Content -LiteralPath (Join-Path $codexPlugin 'internal\stages\planning.md') -Raw
-$scopedFiles = @{
-    'skills\start\SKILL.md'          = $codexStart
-    'skills\audit\SKILL.md'          = $codexAudit
-    'internal\stages\discovery-spec.md' = $codexDiscovery
-    'internal\stages\planning.md'    = $codexPlanning
-}
-foreach ($rel in $scopedFiles.Keys) {
-    $leaked = $scopedFiles[$rel] -match 'claude|opus|sonnet|opencode'
-    Check (-not $leaked) "$rel stays untouched by the mixed-transport change"
-}
-
-Check ($codexProject.Contains("Claude never appears outside Technical code review's and Product review's")) "Claude's chain scope is stated explicitly"
-Check ($codexProject.Contains("OpenCode never appears outside Implementation's chain")) "OpenCode's chain scope is stated explicitly"
-Check ($codexProject.Contains('| Implementation | `opencode:pro@high` | `terra@high` | `luna@high` | `sol@high` |')) "Implementation's chain leads with OpenCode, falls back to the Codex-only ladder"
-Check ($codexProject.Contains('| Technical code review | `claude:opus@high` | `sol@high` | `luna@high` | `terra@high` |')) "Technical code review's chain leads with Claude, falls back to the Codex-only ladder"
-Check ($codexTransport.Contains('runtime: "codex-hosted"')) 'codex.md records the codex-hosted runtime, not codex-only'
-
-$trailer = Get-ChildItem -LiteralPath $codexPlugin -Recurse -File |
-    Select-String -Pattern 'Co-Authored-By:' -SimpleMatch -List
-Check (-not $trailer) 'Codex plugin has no Co-Authored-By trailer'
-
-Write-Host '== shared assets stay in parity'
-
-foreach ($f in @(
-        'internal\checklists\review.md',
-        'internal\checklists\architecture.md',
-        'internal\checklists\implementation.md',
-        'internal\references\README.md',
-        'internal\references\NOTICE.md',
-        'internal\contracts\build-result.schema.json',
-        'internal\contracts\challenge-result.schema.json',
-        'internal\contracts\plan-result.schema.json',
-        'internal\contracts\review-result.schema.json',
-        'internal\contracts\commit-result.schema.json',
-        'internal\prompts\build.tpl',
-        'internal\prompts\challenge.tpl',
-        'internal\prompts\plan-check.tpl',
-        'internal\prompts\plan-write.tpl',
-        'internal\prompts\qa.tpl',
-        'internal\prompts\commit.tpl',
-        'internal\templates\documents\audit.md.tpl',
-        'internal\templates\documents\delivery.md.tpl',
-        'internal\templates\documents\discovery.md.tpl',
-        'internal\templates\documents\plan.md.tpl',
-        'internal\templates\documents\research.md.tpl',
-        'internal\templates\documents\spec.md.tpl',
-        'internal\templates\documents\task.md.tpl',
-        'internal\templates\documents\validation.md.tpl')) {
-    $left = (Get-FileHash -LiteralPath (Join-Path $plugin $f) -Algorithm SHA256).Hash
-    $right = (Get-FileHash -LiteralPath (Join-Path $codexPlugin $f) -Algorithm SHA256).Hash
-    Check ($left -eq $right) "shared asset matches: $f"
-}
-
 Write-Host '== reference guides are attributed and reachable'
 
-# The guides are third-party MIT text. Redistributing them without the upstream
-# copyright is the one defect here that is not a quality problem.
-$refDir = Join-Path $plugin 'internal\references'
+$refDir = Join-Path $plugin 'knowledge\references'
 $notice = Get-Content -LiteralPath (Join-Path $refDir 'NOTICE.md') -Raw
 Check ($notice.Contains('Copyright (c) 2025 awesome-skills')) 'upstream copyright is preserved'
 Check ($notice.Contains('Permission is hereby granted')) 'upstream license text is preserved'
 
-# README.md is the only map from a stack or a concern to a file. An entry
-# pointing at nothing fails invisibly, only once a Run reaches it. Windows also
+# README.md is the only map from a stack or a concern to a file. Windows also
 # proves the separator holds: the index writes '/', the filesystem takes '\'.
 $index = Get-Content -LiteralPath (Join-Path $refDir 'README.md') -Raw
 $named = [regex]::Matches($index, '`([a-z0-9./-]+\.md)`') |
@@ -376,32 +253,6 @@ $onDisk = @(Get-ChildItem -LiteralPath $refDir -Recurse -File -Filter *.md |
     ForEach-Object { $_.FullName.Substring($refDir.Length + 1) -replace '\\', '/' })
 $unindexed = @($onDisk | Where-Object { -not $index.Contains('`' + $_ + '`') })
 Check ($unindexed.Count -eq 0) "every guide is reachable from the index$(if ($unindexed) { ' (unindexed: ' + ($unindexed -join ', ') + ')' })"
-
-Write-Host '== the audit reaches the widest checklist surface'
-
-# An audit has no diff pointing it anywhere, so it is the mode that depends most
-# on the checklists and least on what the subject volunteers.
-foreach ($p in @($plugin, $codexPlugin)) {
-    $label = if ($p -eq $plugin) { 'plugin' } else { 'Codex' }
-    $auditSkill = Get-Content -LiteralPath (Join-Path $p 'skills\audit\SKILL.md') -Raw
-    $changeCheck = Get-Content -LiteralPath (Join-Path $p 'internal\prompts\change-check.tpl') -Raw
-    $reviewStage = Get-Content -LiteralPath (Join-Path $p 'internal\stages\review.md') -Raw
-
-    foreach ($c in @('architecture', 'implementation', 'review')) {
-        Check ($auditSkill.Contains("checklists/$c.md")) "$($label): the audit command dispatches against checklists/$c.md"
-    }
-    Check ($auditSkill.Contains('internal/references/')) "$($label): the audit command reaches the stack guides"
-    Check ($changeCheck.Contains('In `audit` mode two more checklists are yours')) "$($label): the audit Worker is told which checklists widen its scope"
-    Check ($changeCheck.Contains('In every other mode the diff is your scope')) "$($label): the extra checklists do not widen a diff review"
-    Check ($reviewStage.Contains('widest checklist surface of any mode')) "$($label): audit mode states why it carries more checklist than a diff"
-}
-
-# Both checklists are read by a writer and by an audit, and the two readings have
-# different burdens of proof.
-foreach ($c in @('architecture', 'implementation')) {
-    $doc = Get-Content -LiteralPath (Join-Path $plugin "internal\checklists\$c.md") -Raw
-    Check ($doc.Contains('audit')) "checklists/$c.md says how an audit reads it"
-}
 
 Write-Host ''
 if ($fails -gt 0) {
