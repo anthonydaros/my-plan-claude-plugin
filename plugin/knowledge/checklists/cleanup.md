@@ -15,7 +15,7 @@ as one diff.
 
 `git status` clean, or the dirty paths are explicitly outside what this
 pass will touch. The repository's real build/test command green *before*
-touching anything — discovered the same way `validate` discovers it:
+touching anything — discovered the same way `review` discovers it:
 `docs/map.md`'s Validation section, then CI config, then package scripts.
 No green baseline, no `--fix` — report-only until one exists. A
 repository that declares no build/test command anywhere is not vacuously

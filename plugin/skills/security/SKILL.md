@@ -133,7 +133,7 @@ Validated: not this skill's job
 Open risks: <count of blocker findings, or "none">
 Suggested next skill: plan, for a finding that needs a code or config
   change — or the package manager's own upgrade command, run yourself,
-  for a dependency finding — then review, validate, and commit as usual.
+  for a dependency finding — then review and commit as usual.
   For a leaked credential: rotate it at the provider first, regardless of
   what else this suggests.
 ```

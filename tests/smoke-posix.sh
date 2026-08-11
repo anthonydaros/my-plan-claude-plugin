@@ -31,7 +31,7 @@ frontmatter() {
   awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} NR>1' "$1"
 }
 
-SKILLS="map spec plan review-plan implement review validate commit cleanup security"
+SKILLS="map plan implement review commit cleanup security"
 
 echo "== manifests"
 
@@ -98,7 +98,7 @@ codex_version=$(sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' "$PLUGIN/.cod
 [ -n "$claude_version" ] && [ "$claude_version" = "$codex_version" ]
 check $? "both manifests declare the same version (claude:$claude_version codex:$codex_version)"
 
-echo "== the 10 skills are independent and manual-only"
+echo "== the 7 skills are independent and manual-only"
 
 for s in $SKILLS; do
   f="$PLUGIN/skills/$s/SKILL.md"
@@ -135,12 +135,12 @@ else
   pass "no push skill exists"
 fi
 
-# Exactly these 10 skills exist — no orchestration-era command left behind,
+# Exactly these 7 skills exist — no orchestration-era command left behind,
 # and nothing extra added without updating this list.
 found_skills=$(ls "$PLUGIN/skills" 2>/dev/null | sort | tr '\n' ' ')
 expected_skills=$(printf '%s\n' $SKILLS | sort | tr '\n' ' ')
 [ "$found_skills" = "$expected_skills" ]
-check $? "skills/ contains exactly the 10 skills (found:$found_skills)"
+check $? "skills/ contains exactly the 7 skills (found:$found_skills)"
 
 echo "== the shared SKILL.md body has no per-host path variable"
 
@@ -317,10 +317,10 @@ done
 
 echo "== the declared-blindness convention holds"
 
-# review, validate, and commit each take an optional pointer to a brief or
-# task file, and each says plainly when neither exists rather than silently
-# skipping conformance and scope-drift checking.
-for s in review validate commit; do
+# review and commit each take an optional pointer to a brief or task file,
+# and each says plainly when neither exists rather than silently skipping
+# conformance and scope-drift checking.
+for s in review commit; do
   f="$PLUGIN/skills/$s/SKILL.md"
   has "$f" '--spec'
   check $? "$s accepts --spec"
@@ -333,7 +333,7 @@ echo "== independence is stated for both hosts"
 # The reviewer/committer subagent boundary is real in Claude Code and only a
 # self-declaration in Codex CLI. Both must be stated, and the asymmetry must
 # not be papered over.
-for s in review-plan review validate commit cleanup security; do
+for s in plan review commit cleanup security; do
   f="$PLUGIN/skills/$s/SKILL.md"
   has "$f" '**Claude Code.**'
   check $? "$s states its Claude Code independence mechanism"

@@ -91,7 +91,7 @@ you're updating one part of a whole map, not writing a partial one.
 ## Declared blindness, from the other side
 
 The other skills check for `docs/map.md` before reasoning without it —
-`validate` runs this document's Validation commands first, before it even
+`review` runs this document's Validation commands first, before it even
 looks at CI config. That only works if this skill keeps the document
 honest: don't record a validation command you can't cite to the CI config
 or package script that defines it, a boundary you inferred rather than
@@ -107,5 +107,5 @@ End with, printed to the conversation, never elaborated beyond this:
 Changed: <sections of docs/map.md touched, or "none — already current">
 Validated: not this skill's job
 Open risks: <anything you couldn't verify and left out, or "none">
-Suggested next skill: spec, if there's a change to plan next
+Suggested next skill: plan, if there's a change to plan next
 ```

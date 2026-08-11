@@ -1,8 +1,9 @@
 # Brief: {{goal}}
 
-Written by `spec`. Treat it as decided once `plan` starts from it — revise it
-explicitly, with a note on what changed and why, rather than letting it drift
-silently while planning or implementation are already underway.
+Written by `plan`'s interview phase. Treat it as decided once planning
+starts from it — revise it explicitly, with a note on what changed and
+why, rather than letting it drift silently while planning or
+implementation are already underway.
 
 ## Goal
 
@@ -52,7 +53,7 @@ during implementation.
 
 Observable conditions that decide whether this is done, written
 Given/When/Then (or the repository's own test-description style), so each
-one is checkable by someone who did not write the code and `validate` can
+one is checkable by someone who did not write the code and `review` can
 find the command or test that would fail if it were violated.
 
 ## Expected tests

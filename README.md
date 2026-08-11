@@ -1,10 +1,10 @@
 # My Plan
 
-**Dez skills afiadas e independentes — oito para o arco de uma mudança,
+**Sete skills afiadas e independentes — cinco para o arco de uma mudança,
 duas para varreduras periódicas do repositório inteiro — sem orquestração,
 sem máquina de estados, sem runtime instalado no seu repositório.**
 
-`map` · `spec` · `plan` · `review-plan` · `implement` · `review` · `validate` · `commit` · `cleanup` · `security`
+`map` · `plan` · `implement` · `review` · `commit` · `cleanup` · `security`
 
 Cada skill é invocada manualmente, faz um único trabalho, imprime uma nota
 de encerramento e para. Nada encadeia automaticamente. O sistema de
@@ -37,23 +37,20 @@ cada skill é lido ao pé da letra por ambos; só os dois manifests mudam.
 
 ---
 
-## As dez skills
+## As sete skills
 
 | Skill | O que faz |
 |---|---|
-| `map` | Escreve `docs/map.md` — stack, comandos de validação exatos, limites de módulo, armadilhas comprovadas. As skills de planejamento, revisão e validação leem esse arquivo primeiro, quando ele existe. |
-| `spec` | Transforma um objetivo vago em `docs/brief.md`: decisão completa, critérios de aceite testáveis, uma rodada limitada de perguntas uma de cada vez. |
-| `plan` | Transforma o brief em `docs/plan.md` mais um arquivo por tarefa em `docs/tasks/` — cada um dimensionado para quem só vai ver aquele arquivo. |
-| `review-plan` | Ataca o plano antes de qualquer código existir: cobertura faltando, passos impossíveis, escopo inseguro, overengineering. Rode numa sessão nova. |
+| `map` | Escreve `docs/map.md` — stack, comandos de validação exatos, limites de módulo, armadilhas comprovadas. As skills de planejamento e revisão leem esse arquivo primeiro, quando ele existe. |
+| `plan` | Entrevista você até um `docs/brief.md` decisão-completa (rodadas em lote, orçamento de perguntas), transforma o brief em `docs/plan.md` mais um arquivo por tarefa em `docs/tasks/`, e despacha uma revisão independente do plano antes de tratá-lo como aprovado. Uma só invocação faz o que antes eram três skills. |
 | `implement` | Constrói exatamente uma tarefa. Deixa o arquivo da tarefa para o `commit` apagar quando o trabalho realmente entrar no histórico. |
-| `review` | Revisa um diff, uma branch, um caminho ou o repositório inteiro (`--repo`) contra um checklist de onze lentes. Só achados com evidência. |
-| `validate` | Roda de novo, ela mesma, os comandos reais de validação do repositório e reporta os códigos de saída reais — nunca confia num "passou" alegado. |
-| `commit` | Stage exatamente dos caminhos pretendidos, escaneia código *e prosa* atrás de segredos, commita no estilo do seu próprio repositório. Imprime o comando de push; nunca o executa. |
+| `review` | Revisa um diff, uma branch, um caminho ou o repositório inteiro (`--repo`) contra um checklist de onze lentes, e roda ela mesma, de forma independente, os comandos reais de validação do repositório — nunca confia num "passou" alegado. Cada achado diz se veio de execução real ou de leitura. |
+| `commit` | Stage exatamente dos caminhos pretendidos, escaneia código *e prosa* atrás de segredos, commita no estilo do seu próprio repositório, e rascunha uma entrada de changelog quando o repositório já mantém um. Imprime o comando de push; nunca o executa. |
 | `cleanup` | Varre o repositório inteiro (ou um caminho) atrás de código morto, dependências não usadas e deriva entre documentação/meta-config e a realidade do repositório, usando as ferramentas do próprio stack quando existem. Não é um passo do arco de uma mudança — é uma faxina periódica, independente. |
 | `security` | Audita o repositório atrás de segredos vazados (working tree *e* histórico do Git), dependências vulneráveis e risco de código/configuração categorizado por OWASP. Sempre só relatório — não existe `--fix` nesta skill, em nenhuma categoria. |
 
 Invoque com `/my-plan:<skill>` no Claude Code ou `$my-plan:<skill>` no
-Codex CLI — por exemplo `/my-plan:spec "adicionar modo escuro"` ou
+Codex CLI — por exemplo `/my-plan:plan "adicionar modo escuro"` ou
 `$my-plan:review --repo`.
 
 **[Guia completo das skills](plugin/README.md)** — o que cada skill lê e
@@ -65,7 +62,7 @@ commit publicado.
 A ordem natural é:
 
 ```
-map → spec → plan → review-plan → implement (por tarefa) → review → validate → commit
+map → plan → implement (por tarefa) → review → commit
 ```
 
 Toda nota de encerramento sugere o próximo passo, mas nada obriga a ordem —
@@ -110,12 +107,13 @@ decidisse.
   e prosa em markdown, não só diffs de arquivo rastreado.
 - Assinar seus commits. Nenhum `Co-Authored-By`, nenhum nome de modelo, em
   lugar nenhum. O histórico é seu.
-- Revisar o próprio trabalho silenciosamente. No Claude Code, `review`,
-  `review-plan`, `validate`, `commit`, `cleanup` e `security` despacham
-  subagents novos e somente-leitura. No Codex CLI, que não tem um
-  mecanismo de subagent, a skill diz claramente quando percebe que foi ela
-  mesma quem escreveu o que está julgando, em vez de fingir uma
-  independência que não tem.
+- Revisar o próprio trabalho silenciosamente. No Claude Code, `plan`,
+  `review`, `commit`, `cleanup` e `security` despacham subagents novos e
+  somente-leitura. No Codex CLI, que não tem um mecanismo de subagent, a
+  skill diz claramente quando percebe que foi ela mesma quem escreveu o
+  que está julgando, em vez de fingir uma independência que não tem —
+  esse é o caso padrão para `plan` agora, não uma exceção, já que
+  entrevista, planejamento e revisão rodam na mesma invocação.
 - Deletar algo que não reportou primeiro. `cleanup` só remove sob um
   `--fix` explícito — cada item confirmado por evidência, um de cada
   vez, revertendo numa validação quebrada (um arquivo não rastreado não
@@ -128,6 +126,15 @@ decidisse.
 - Mostrar o valor real de um segredo encontrado. Todo achado de credencial
   aparece mascarado — os 4 primeiros caracteres e reticências — no
   relatório do `commit` e do `security`.
+- Confiar numa impressão de leitura em vez de um resultado real. A
+  passada de execução do `review` sempre roda primeiro, isolada; um
+  achado de leitura que toca código com resultado real já disponível
+  cita esse resultado, nunca o rederiva. `--fix` pode tocar um achado de
+  execução, mas só reverificando com o mesmo comando rodado de novo.
+- Inventar um changelog. `commit` rascunha uma entrada só quando o
+  repositório já mantém um (`CHANGELOG.md`/`CHANGES.md`/`HISTORY.md`),
+  casando com o formato que o arquivo já usa — nunca cria o arquivo, nunca
+  inventa uma seção nova.
 
 ## Requisitos
 
@@ -138,6 +145,13 @@ decidisse.
 
 Nada além disso. Nenhum servidor MCP, nenhum LSP, nenhum hook, nenhuma
 outra CLI é dependência — só Git e o próprio host.
+
+**Não suporta OpenCode.** O frontmatter de skill do OpenCode não tem
+equivalente a `disable-model-invocation`/`allow_implicit_invocation:
+false` — o próprio modelo pode invocar uma skill sozinho, sem o usuário
+pedir. "Manual only" é a garantia mais repetida deste plugin, checada
+pelo smoke test em todas as sete skills; sem um jeito de impor isso,
+distribuir para esse host quebraria a própria premissa do projeto.
 
 ## Desinstalar
 

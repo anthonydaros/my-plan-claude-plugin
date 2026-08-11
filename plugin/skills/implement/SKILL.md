@@ -80,7 +80,7 @@ transaction story.
 6. Run whatever validation the task names (or the commands in
    `docs/map.md`) as a gate before you call this done. Leave the tree
    buildable. This is a sanity check, not the real validation — that's
-   `validate`'s job, run independently afterward.
+   `review`'s job, run independently afterward.
 
 ## Before you call it done
 
@@ -112,9 +112,9 @@ Changed: <paths actually touched, verified against git status --porcelain
   compared with the step-1 baseline — bare git diff misses new files you
   created>
 Validated: <commands run here as a sanity check, and their results — not
-  a substitute for /my-plan:validate>
+  a substitute for /my-plan:review>
 Open risks: <anything you couldn't validate, or "none">
-Suggested next skill: review, then validate, then
+Suggested next skill: review, then
   commit --tasks <this task file> — or the next task under docs/tasks/,
   if more remain
 ```

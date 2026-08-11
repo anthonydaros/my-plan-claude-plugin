@@ -25,10 +25,11 @@ belongs. You have not seen the work and will judge the staged set on what it
 actually is.
 
 There is no handoff file. Your dispatch prompt names the repository root,
-the exact path set this commit may contain, and the commit-grouping intent —
+the exact path set this commit may contain, the commit-grouping intent —
 one commit for a small cohesive change, several atomic commits when
-independent changes make better history. Read the prompt, not a file, for
-this.
+independent changes make better history — and, when the path set includes
+a drafted changelog entry, which commit it belongs in; never split it into
+a commit of its own. Read the prompt, not a file, for this.
 
 ## Hard boundaries
 

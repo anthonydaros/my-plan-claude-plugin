@@ -1,6 +1,0 @@
-interface:
-  display_name: "My Plan: Spec"
-  short_description: "Turn a goal into a decision-complete brief"
-  default_prompt: "Use $my-plan:spec <goal> to turn this into a decision-complete brief with testable acceptance criteria."
-policy:
-  allow_implicit_invocation: false

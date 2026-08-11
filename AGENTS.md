@@ -4,16 +4,20 @@ Guidance for Codex when working in this repository.
 
 ## What this repository is
 
-The source of **My Plan**, ten independent Claude Code / Codex CLI skills —
-`map`, `spec`, `plan`, `review-plan`, `implement`, `review`, `validate`,
-`commit`, `cleanup`, `security` — each invoked manually, one at a time,
-whenever the user wants.
+The source of **My Plan**, seven independent Claude Code / Codex CLI
+skills — `map`, `plan`, `implement`, `review`, `commit`, `cleanup`,
+`security` — each invoked manually, one at a time, whenever the user
+wants.
 There is no orchestration between them: no Coordinator, no Worker dispatch
-protocol, no persistent Run state machine. Running `spec` and then `plan`
-is a user decision, not a phase transition the plugin enforces. The
-filesystem is the only state that survives between invocations: `docs/map.md`,
-`docs/brief.md`, `docs/plan.md`, and `docs/tasks/*.md` are ordinary,
-user-editable files, not a generated dossier owned by the plugin.
+protocol, no persistent Run state machine. Running `plan` and then
+`implement` is a user decision, not a phase transition the plugin
+enforces. The filesystem is the only state that survives between
+invocations: `docs/map.md`, `docs/brief.md`, `docs/plan.md`, and
+`docs/tasks/*.md` are ordinary, user-editable files, not a generated
+dossier owned by the plugin. `plan` used to be three skills — `spec`,
+`plan`, `review-plan` — merged into one interview-to-reviewed-plan
+invocation; `review` used to be two — `review` and `validate` — merged so
+every review carries a real execution pass, not only a reading one.
 
 `CLAUDE.md` covers the same ground for Claude Code — it exists locally but
 is gitignored, so it is not on GitHub; read it directly from disk before
@@ -55,7 +59,7 @@ script and read the labelled line.
 
 | Path | Role |
 |------|------|
-| `plugin/skills/*/SKILL.md` | The ten public skills. Manual-only, one body read by both hosts |
+| `plugin/skills/*/SKILL.md` | The seven public skills. Manual-only, one body read by both hosts |
 | `plugin/skills/*/agents/openai.yaml` | Codex-only sidecar: `allow_implicit_invocation: false`, the skill's `$my-plan:<name>` invocation string, display metadata. No `model`/`tools` field — Codex has no subagent-with-model primitive |
 | `plugin/agents/my-plan-reviewer.md`, `my-plan-committer.md` | Claude-only native subagents. Codex CLI has no equivalent dispatch mechanism — see "Independence" below |
 | `plugin/knowledge/checklists/*.md` | The eleven-lens review checklist, the architecture/overengineering checklist, the implementation defect catalogue, cleanup's dead-code/residue/doc-drift/opt-in-refactor checklists, the shared secret-pattern list, and security's secrets/deps/code/config checklists |
@@ -82,10 +86,15 @@ No `${CLAUDE_PLUGIN_ROOT}` and no `<pluginRoot>` anywhere. Every reference
 to `knowledge/` or `agents/` inside a `SKILL.md` is a path relative to that
 file's own location, which resolves identically under either host.
 
+Only these two hosts. OpenCode was evaluated and rejected: its skill
+frontmatter has no field equivalent to `disable-model-invocation` — the
+model itself can invoke a skill with no user request behind it, and
+"manual only" is the guarantee this plugin repeats and checks most.
+
 ## Independence, and where it's real
 
-`review`, `review-plan`, `validate`, `commit`, `cleanup`, and `security`
-each state two independence mechanisms. In Claude Code, dispatching to
+`plan`, `review`, `commit`, `cleanup`, and `security` each state two
+independence mechanisms. In Claude Code, dispatching to
 `agents/my-plan-reviewer.md` or
 `agents/my-plan-committer.md` is a real tool boundary: neither subagent
 holds `Write`, `Edit`, or `NotebookEdit`. In Codex CLI there is no
@@ -94,7 +103,9 @@ self-declaration: if the session's own context shows it authored what it's
 about to judge, it says so instead of claiming independence it doesn't
 have. This is a real, stated asymmetry between the two hosts, not an
 oversight — don't try to paper over it by inventing a fake Codex dispatch
-mechanism.
+mechanism. It's the default outcome for `plan` now, not an edge case,
+since its interview, planning, and review phases all run in one
+invocation.
 
 ## Guarantees worth keeping without a state machine
 
@@ -112,9 +123,9 @@ where it can be:
   `git push` command instead — dropping automation here made the guarantee
   stronger, not weaker, since a skill that doesn't exist can't drift into
   pushing.
-- Declared blindness: `review`, `validate`, and `commit` say plainly when
-  no brief or task file was supplied or found, instead of silently
-  skipping conformance and scope-drift checking.
+- Declared blindness: `review` and `commit` say plainly when no brief or
+  task file was supplied or found, instead of silently skipping
+  conformance and scope-drift checking.
 - A closing note — `Changed / Validated / Open risks / Suggested next
   skill` — on every mutating or evaluative skill, printed, never
   persisted.
@@ -131,6 +142,13 @@ where it can be:
 - Security never remediates: no `--fix` exists for it at all, in any
   category — every finding is evidence handed to a human, to `plan`, or
   to a package manager's own upgrade command, run by the user.
+- `review` never trusts a reading impression over a real result: its
+  execution pass always runs first, in isolation, and `--fix` may only
+  re-verify an execution-backed finding by re-running the same command,
+  never by re-reading the change.
+- `commit` never invents a changelog: it drafts an entry only when the
+  repository already keeps one, matching that file's own format, never
+  creating the file or a new section shape.
 
 What's genuinely weaker than the orchestrated version: there's no
 mechanical cross-file check that whatever wrote a change is a different

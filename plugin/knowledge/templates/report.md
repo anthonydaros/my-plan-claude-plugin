@@ -1,7 +1,7 @@
 # Report: {{scope}}
 
-Evidence record for a `review`, `review-plan`, `validate`, `cleanup`, or
-`security` run. Markdown
+Evidence record for a `review`, `plan`, `cleanup`, or `security` run.
+Markdown
 evidence only — never product code, configuration, or executable content —
 and conclusions, not model conversation.
 

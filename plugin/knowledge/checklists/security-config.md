@@ -48,6 +48,22 @@ requests, but a permissive reflected-origin implementation (echoing
 whatever `Origin` header the request sent, without checking it against an
 allowlist) achieves the same effect and passes the browser's check.
 
+## Database-level authorization (Supabase, Firebase, and similar)
+
+When the frontend talks to the database directly — no backend API in
+between — the database's own row-level policy is the authorization
+boundary, not a defense-in-depth extra. Check for Row Level Security on
+every Supabase/Postgres table (`select relrowsecurity from pg_class`, or
+the project's own migration files for `enable row level security`) and
+for Firestore/Realtime Database security rules that default-deny rather
+than default-allow. A table or collection with no policy at all is not
+neutral: depending on the platform, it can mean every authenticated, or
+even anonymous, client can read and write every row directly from the
+browser. Treat this as `blocker` whenever real user data sits behind it —
+the platform's own out-of-the-box default is frequently permissive, and
+"the framework probably handles this" is exactly the assumption that
+doesn't hold here.
+
 ## Cookies
 
 Session cookies specifically: `Secure`, `HttpOnly`, and `SameSite` (`Lax`

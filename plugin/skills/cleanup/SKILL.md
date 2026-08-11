@@ -98,7 +98,7 @@ a map lowers the confidence ceiling, it doesn't cancel the pass.
    rules, the safety net, confidence/severity, and the never-without-
    approval list apply to everything below.
 2. Confirm the safety net: a clean-enough working tree and a green
-   build/test baseline (discovered the way `validate` discovers it —
+   build/test baseline (discovered the way `review` discovers it —
    `docs/map.md`, then CI config, then package scripts) before anything
    that could remove or change a file. No green baseline means
    report-only, whatever else was asked.
@@ -157,5 +157,5 @@ Changed: <files fixed, if --fix, else "none — read-only">
 Validated: <build/test command re-run per fix, if --fix, else "not this skill's job">
 Open risks: <count of unfixed high-confidence findings, or "none">
 Suggested next skill: plan, for any structural finding — or review, then
-  validate, then commit, for anything --fix touched
+  commit, for anything --fix touched
 ```

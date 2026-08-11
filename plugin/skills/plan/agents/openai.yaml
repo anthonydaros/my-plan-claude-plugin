@@ -1,6 +1,6 @@
 interface:
   display_name: "My Plan: Plan"
-  short_description: "Turn a brief into a review-ready task board"
-  default_prompt: "Use $my-plan:plan to turn docs/brief.md into a plan and one task file per step."
+  short_description: "Interview, plan, and independently review, in one go"
+  default_prompt: "Use $my-plan:plan \"<goal>\" to interview you, write docs/brief.md, turn it into a task board, and dispatch an independent review before treating it as approved."
 policy:
   allow_implicit_invocation: false

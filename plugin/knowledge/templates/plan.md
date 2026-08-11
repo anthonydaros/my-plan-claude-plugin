@@ -18,9 +18,9 @@ The base this was planned from — a commit, a branch state, or `none` for a
 new repository — and anything already dirty in the working tree that
 intersects the write set below, because whoever planned this read the live
 checkout, not a frozen snapshot. Also names the brief this plan delivers,
-by path, or `none`. `implement` and `review-plan` resolve against these;
-`implement` should re-check the base before trusting it, since time passes
-between planning and building.
+by path, or `none`. `implement` and `plan`'s own review phase resolve
+against these; `implement` should re-check the base before trusting it,
+since time passes between planning and building.
 
 ## Tasks
 
@@ -29,9 +29,9 @@ between planning and building.
 
 One row per task file. `Depends on` lists only real ordering constraints;
 tasks with no dependency and disjoint paths run in parallel. This table is
-the roster, not the tracker: `implement` deletes a task's file when its
-work is committed, so a row whose file is gone from `docs/tasks/` is done,
-and an empty directory means the plan completed.
+the roster, not the tracker: `commit` deletes a task's file once its work
+is actually committed, so a row whose file is gone from `docs/tasks/` is
+done, and an empty directory means the plan completed.
 
 Tasks are sized for the model that will build them: a handful of files, one
 idea, verifiable alone, buildable, and complete without knowledge the task

@@ -19,7 +19,7 @@ Cite the category that fits, alongside the ordinary severity:
 
 | Code | Category | Maps to (examples) |
 |------|----------|---------------------|
-| A01 | Broken Access Control | Missing per-resource authorization, IDOR, path traversal |
+| A01 | Broken Access Control | Missing per-resource authorization, IDOR, path traversal, a role/permission check read from `localStorage`/`sessionStorage`/a client-writable cookie instead of verified server-side |
 | A02 | Cryptographic Failures | Weak hashing, hardcoded keys, cleartext transmission of sensitive data |
 | A03 | Injection | SQL/shell/path/template injection, XSS |
 | A04 | Insecure Design | Missing rate limiting on an abuse-prone flow, trust boundary drawn in the wrong place |

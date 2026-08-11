@@ -1,6 +1,6 @@
 interface:
   display_name: "My Plan: Review"
-  short_description: "Review a diff, path, or the whole repository"
-  default_prompt: "Use $my-plan:review to check this diff against the eleven-lens checklist. Add --repo to review the whole repository."
+  short_description: "Review a diff and independently run its validation"
+  default_prompt: "Use $my-plan:review to check this diff against the eleven-lens checklist and independently run this repository's validation commands. Add --repo to review the whole repository."
 policy:
   allow_implicit_invocation: false

@@ -22,7 +22,7 @@ function Frontmatter([string]$path) {
     return $lines[1..($end - 1)]
 }
 
-$skills = @('map', 'spec', 'plan', 'review-plan', 'implement', 'review', 'validate', 'commit', 'cleanup', 'security')
+$skills = @('map', 'plan', 'implement', 'review', 'commit', 'cleanup', 'security')
 
 Write-Host '== manifests'
 
@@ -66,7 +66,7 @@ Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace ca
 # the moment a release bumps only the other.
 Check ($manifest.version -eq $codexManifest.version) "both manifests declare the same version (claude:$($manifest.version) codex:$($codexManifest.version))"
 
-Write-Host '== the 10 skills are independent and manual-only'
+Write-Host '== the 7 skills are independent and manual-only'
 
 foreach ($s in $skills) {
     $f = Join-Path $plugin "skills\$s\SKILL.md"
@@ -88,7 +88,7 @@ Check (-not (Test-Path -LiteralPath (Join-Path $plugin 'skills\push'))) 'no push
 
 $foundSkills = @(Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Directory | ForEach-Object { $_.Name } | Sort-Object)
 $expectedSkills = @($skills | Sort-Object)
-Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 10 skills (found: $($foundSkills -join ', '))"
+Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 7 skills (found: $($foundSkills -join ', '))"
 
 Write-Host '== the shared SKILL.md body has no per-host path variable'
 
@@ -214,7 +214,7 @@ foreach ($s in $skills) {
 
 Write-Host '== the declared-blindness convention holds'
 
-foreach ($s in @('review', 'validate', 'commit')) {
+foreach ($s in @('review', 'commit')) {
     $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
     Check ($text.Contains('--spec')) "$s accepts --spec"
     Check ($text.Contains('not evaluated')) "$s declares blindness plainly when nothing was supplied"
@@ -222,7 +222,7 @@ foreach ($s in @('review', 'validate', 'commit')) {
 
 Write-Host '== independence is stated for both hosts'
 
-foreach ($s in @('review-plan', 'review', 'validate', 'commit', 'cleanup', 'security')) {
+foreach ($s in @('plan', 'review', 'commit', 'cleanup', 'security')) {
     $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
     Check ($text.Contains('**Claude Code.**')) "$s states its Claude Code independence mechanism"
     Check ($text.Contains('**Codex CLI.**')) "$s states its Codex CLI independence mechanism"
