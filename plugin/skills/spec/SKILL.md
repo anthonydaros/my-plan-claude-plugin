@@ -20,6 +20,10 @@ Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
 session, take the text after `$my-plan:spec` in the user's message as the
 goal instead.
 
+Every `../../` path below resolves against the directory containing this
+SKILL.md, not your working directory — Codex told you that file's
+absolute path when it loaded this skill; use it.
+
 ## Before asking anything
 
 Read `docs/map.md` if it exists — stack, boundaries, conventions, pitfalls,

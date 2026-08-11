@@ -18,6 +18,10 @@ Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
 session, take the text after `$my-plan:commit` in the user's message
 instead.
 
+Every `../../` path below resolves against the directory containing this
+SKILL.md, not your working directory — Codex told you that file's
+absolute path when it loaded this skill; use it.
+
 Arguments are one of: a list of paths to commit, `--spec <path>` naming a
 brief whose write set bounds what may be staged, or `--tasks <path>` naming
 a task file whose paths bound it the same way. Empty means "commit what's

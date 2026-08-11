@@ -21,6 +21,10 @@ There is no handoff file. Your dispatch prompt names everything you need
 directly: the scope (a diff, a branch, a path, or the whole repository), and,
 if one exists, the brief, plan, or task file to check conformance against.
 
+Every `../` path below resolves against the directory containing this
+file (`agents/`), one level shallower than a skill's own
+`skills/<name>/` — not against the repository being reviewed.
+
 Read `../knowledge/checklists/review.md` — that is your checklist for a
 diff, a branch, a path, or a whole repository. Reviewing a plan instead of
 code, use `../knowledge/checklists/architecture.md` as the standard behind

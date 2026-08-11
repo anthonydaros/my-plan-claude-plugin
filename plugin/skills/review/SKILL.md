@@ -18,6 +18,10 @@ Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
 session, take the text after `$my-plan:review` in the user's message
 instead.
 
+Every `../../` path below resolves against the directory containing this
+SKILL.md, not your working directory — Codex told you that file's
+absolute path when it loaded this skill; use it.
+
 No argument means the working diff: `git diff HEAD` — not bare `git diff`,
 which silently omits anything already staged — plus untracked files meant
 for this change (`git status --porcelain` lists them; no diff shows a new
