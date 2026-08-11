@@ -32,6 +32,18 @@ A stack not in this table is not a gap to work around silently — say so
 in the report and treat every finding there as manual-reasoning only,
 capped at medium confidence.
 
+## Never resolve dependencies inside the repository being audited
+
+Some of these tools need a resolved lockfile to run at all and error
+without one — `npm audit` fails with `ENOLOCK` against a manifest that has
+no `package-lock.json`. That error is never license to run the installer
+in place: doing so writes a lockfile into a repository this skill must
+leave untouched, the same violation a fix-mode audit command would cause.
+Copy the manifest (and lockfile, if one exists) to a scratch directory
+outside the repository, resolve and audit there, and discard the copy
+afterward — never resolve, install, or lock anything inside the
+repository itself.
+
 ## Direct vs. transitive
 
 Report which a vulnerable package is. A direct dependency's fix is

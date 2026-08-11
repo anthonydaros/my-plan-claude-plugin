@@ -64,4 +64,7 @@ in a comment describing the pattern rather than containing an instance of
 it, or in this plugin's own `secrets-patterns.md`, `security.md`, or this
 file (which must legitimately contain these strings to check for them) is
 not a finding — read the surrounding context before reporting, the same
-grep-then-verify discipline `cleanup` applies to a tool's raw output.
+grep-then-verify discipline `cleanup` applies to a tool's raw output. Mask
+it in the report the same way a real finding would be, even while
+explaining why it's excluded — the exclusion changes whether it's a
+finding, not whether its value gets printed.

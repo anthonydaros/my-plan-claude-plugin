@@ -18,7 +18,9 @@ exist for exactly that judgment; `security` stops at the finding.
 Every finding that touches a credential — found in a tracked file, a log
 line, an error message, git history, anywhere — reports its location, its
 kind, and a masked form only, per `secrets-patterns.md`. The report
-itself must never become a second leak of what it found.
+itself must never become a second leak of what it found. This applies
+equally to a match excluded as a false positive: explaining why a match
+doesn't count is never a reason to print what it actually was.
 
 ## Confidence and severity are two different axes
 
