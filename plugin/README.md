@@ -1,6 +1,6 @@
 # My Plan — guia das skills
 
-Oito skills independentes. Cada uma faz um único trabalho, lê e escreve
+Nove skills independentes. Cada uma faz um único trabalho, lê e escreve
 arquivos comuns dentro de `docs/`, e para. Nada encadeia automaticamente —
 você decide o que rodar e quando. Este guia cobre cada skill em detalhe: o
 que ela faz, como invocar, o que lê e escreve, e um exemplo trabalhado.
@@ -21,7 +21,7 @@ muda.
 
 ## Convenções que toda skill segue
 
-Três coisas se repetem nas oito skills, explicadas aqui uma única vez em
+Três coisas se repetem nas nove skills, explicadas aqui uma única vez em
 vez de em cada seção abaixo:
 
 - **Cegueira declarada.** `review`, `validate` e `commit` aceitam um
@@ -29,9 +29,13 @@ vez de em cada seção abaixo:
   limitar contra o que verificam. Quando nenhum é dado ou encontrado, a
   skill não pula essa verificação silenciosamente — ela imprime uma linha
   dizendo isso, tipo `Conformance: not evaluated — no brief or plan
-  supplied or found.`
-- **Independência.** `review-plan`, `review`, `validate` e `commit` fazem
-  cada uma algo que um revisor novo e não envolvido faria melhor do que a
+  supplied or found.` `cleanup` tem sua própria variante: imprime `Tool
+  coverage: not evaluated` quando o stack não tem ferramenta de código
+  morto disponível, e `Entry-point context: not evaluated` quando
+  `docs/map.md` não existe.
+- **Independência.** `review-plan`, `review`, `validate`, `commit` e
+  `cleanup` fazem cada uma algo que um revisor novo e não envolvido faria
+  melhor do que a
   sessão que acabou de escrever a coisa. No Claude Code, elas despacham um
   subagent de verdade (`agents/my-plan-reviewer.md` ou
   `agents/my-plan-committer.md`) que não tem nenhuma ferramenta de edição
@@ -61,6 +65,12 @@ Nada disso é obrigatório. Rode uma skill isolada para um fix pequeno
 (`implement` e depois `commit`), ou percorra a cadeia inteira para uma
 feature de verdade. Toda nota de encerramento sugere o próximo passo nessa
 ordem, mas nada te impede de pular etapas.
+
+`cleanup` fica fora dessa cadeia de propósito: não é um passo do arco de
+uma mudança, é uma varredura do repositório inteiro, sem brief e sem
+tarefa associada. Rode `/my-plan:cleanup` periodicamente, antes de um
+release, ou logo depois de um refactor/deleção grande — quando a chance
+de sobra ter ficado para trás é maior.
 
 ---
 
@@ -494,6 +504,72 @@ Se o escaneamento de segredos ou a verificação pós-commit acharem algo
 errado, o `commit` para e reporta — ele nunca descarta um caminho
 silenciosamente e commita o resto, e nunca conserta um commit ruim
 sozinho. Ele te diz o comando exato para desfazer você mesmo.
+
+---
+
+## `cleanup`
+
+**Varre o repositório inteiro (ou um caminho) atrás de código morto,
+dependências não usadas, resíduos de build e deriva entre documentação/
+config e a realidade do repositório** — usando as ferramentas do próprio
+stack quando existem (Knip, Vulture, staticcheck, cargo-machete...).
+Diferente das outras oito, não é um passo do arco de uma mudança: é uma
+faxina periódica, independente. Report-only por padrão; `--fix` remove
+achados de alta confiança um de cada vez e nunca reorganiza estrutura
+sozinha.
+
+**Uso:**
+
+```
+/my-plan:cleanup                              # varredura completa, só relatório
+/my-plan:cleanup reports/                     # restringe a um caminho
+/my-plan:cleanup --fix                        # remove achados confirmados, um por vez
+/my-plan:cleanup --rename OldName NewName     # renomeação segura (opt-in)
+/my-plan:cleanup --simplify reports/          # simplificação comportamento-preservando (opt-in)
+/my-plan:cleanup --extract reports/views.py:120-180   # extração de função comportamento-preservando (opt-in)
+```
+
+**Lê:** `knowledge/checklists/cleanup.md` sempre; `cleanup-code.md`,
+`cleanup-residue.md` e `cleanup-docs.md` numa varredura padrão;
+`knowledge/checklists/architecture.md` também para achados estruturais;
+`cleanup-refactor.md` só quando `--simplify`/`--rename`/`--extract` for
+dado; `docs/map.md` se existir.
+
+**Escreve:** nada, a não ser que `--fix` (ou uma flag de refatoração)
+tenha sido dado — aí exatamente os itens confirmados, um de cada vez,
+revalidando a suíte de testes depois de cada um.
+
+**Exemplo:**
+
+```
+> /my-plan:cleanup
+
+Report: repositório inteiro
+
+Findings:
+reports/exporters/legacy_csv.py:—  minor  high  dead-code  Nenhuma
+  referência em código, CI, scripts ou docs — substituído por
+  reports/exporters/csv.py em a1b2c3d. Remover o arquivo inteiro.
+package.json:—  minor  high  unused-deps  `moment` ainda listado; nenhum
+  import restante depois da migração para date-fns. Remover a dependência.
+CLAUDE.md:12  major  high  doc-drift  Cita `npm run legacy-export`, um
+  script que não existe mais em package.json. Corrigir ou remover a linha.
+
+Category coverage: dead-code found 1, unused-deps found 1, residue
+passed, doc-drift found 1, structure passed.
+
+3 findings: 0 blocker, 1 major, 2 minor. Todos de alta confiança.
+
+Changed: none — read-only
+Validated: not this skill's job
+Open risks: 3 (nenhum removido ainda — rode com --fix para aplicar)
+Suggested next skill: plan, for any structural finding — or review, then
+  validate, then commit, for anything --fix touched
+```
+
+Rodar `/my-plan:cleanup --fix` em seguida remove os itens de alta
+confiança um de cada vez, revalidando depois de cada remoção, e reverte
+só aquele item se algo quebrar — nunca em lote.
 
 ---
 

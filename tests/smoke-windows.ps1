@@ -22,7 +22,7 @@ function Frontmatter([string]$path) {
     return $lines[1..($end - 1)]
 }
 
-$skills = @('map', 'spec', 'plan', 'review-plan', 'implement', 'review', 'validate', 'commit')
+$skills = @('map', 'spec', 'plan', 'review-plan', 'implement', 'review', 'validate', 'commit', 'cleanup')
 
 Write-Host '== manifests'
 
@@ -66,7 +66,7 @@ Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace ca
 # the moment a release bumps only the other.
 Check ($manifest.version -eq $codexManifest.version) "both manifests declare the same version (claude:$($manifest.version) codex:$($codexManifest.version))"
 
-Write-Host '== the 8 skills are independent and manual-only'
+Write-Host '== the 9 skills are independent and manual-only'
 
 foreach ($s in $skills) {
     $f = Join-Path $plugin "skills\$s\SKILL.md"
@@ -88,7 +88,7 @@ Check (-not (Test-Path -LiteralPath (Join-Path $plugin 'skills\push'))) 'no push
 
 $foundSkills = @(Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Directory | ForEach-Object { $_.Name } | Sort-Object)
 $expectedSkills = @($skills | Sort-Object)
-Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 8 skills (found: $($foundSkills -join ', '))"
+Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 9 skills (found: $($foundSkills -join ', '))"
 
 Write-Host '== the shared SKILL.md body has no per-host path variable'
 
@@ -156,6 +156,11 @@ foreach ($f in @(
         'knowledge\checklists\review.md',
         'knowledge\checklists\architecture.md',
         'knowledge\checklists\implementation.md',
+        'knowledge\checklists\cleanup.md',
+        'knowledge\checklists\cleanup-code.md',
+        'knowledge\checklists\cleanup-residue.md',
+        'knowledge\checklists\cleanup-docs.md',
+        'knowledge\checklists\cleanup-refactor.md',
         'knowledge\references\README.md',
         'knowledge\references\NOTICE.md',
         'knowledge\templates\brief.md',
@@ -200,7 +205,7 @@ foreach ($s in @('review', 'validate', 'commit')) {
 
 Write-Host '== independence is stated for both hosts'
 
-foreach ($s in @('review-plan', 'review', 'validate', 'commit')) {
+foreach ($s in @('review-plan', 'review', 'validate', 'commit', 'cleanup')) {
     $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
     Check ($text.Contains('**Claude Code.**')) "$s states its Claude Code independence mechanism"
     Check ($text.Contains('**Codex CLI.**')) "$s states its Codex CLI independence mechanism"

@@ -1,10 +1,10 @@
 # My Plan
 
-**Oito skills afiadas e independentes para todo o arco de uma mudança —
-sem orquestração, sem máquina de estados, sem runtime instalado no seu
-repositório.**
+**Nove skills afiadas e independentes — oito para o arco de uma mudança,
+uma para faxina periódica do repositório inteiro — sem orquestração, sem
+máquina de estados, sem runtime instalado no seu repositório.**
 
-`map` · `spec` · `plan` · `review-plan` · `implement` · `review` · `validate` · `commit`
+`map` · `spec` · `plan` · `review-plan` · `implement` · `review` · `validate` · `commit` · `cleanup`
 
 Cada skill é invocada manualmente, faz um único trabalho, imprime uma nota
 de encerramento e para. Nada encadeia automaticamente. O sistema de
@@ -37,7 +37,7 @@ cada skill é lido ao pé da letra por ambos; só os dois manifests mudam.
 
 ---
 
-## As oito skills
+## As nove skills
 
 | Skill | O que faz |
 |---|---|
@@ -49,6 +49,7 @@ cada skill é lido ao pé da letra por ambos; só os dois manifests mudam.
 | `review` | Revisa um diff, uma branch, um caminho ou o repositório inteiro (`--repo`) contra um checklist de onze lentes. Só achados com evidência. |
 | `validate` | Roda de novo, ela mesma, os comandos reais de validação do repositório e reporta os códigos de saída reais — nunca confia num "passou" alegado. |
 | `commit` | Stage exatamente dos caminhos pretendidos, escaneia código *e prosa* atrás de segredos, commita no estilo do seu próprio repositório. Imprime o comando de push; nunca o executa. |
+| `cleanup` | Varre o repositório inteiro (ou um caminho) atrás de código morto, dependências não usadas e deriva entre documentação/meta-config e a realidade do repositório, usando as ferramentas do próprio stack quando existem. Não é um passo do arco de uma mudança — é uma faxina periódica, independente. |
 
 Invoque com `/my-plan:<skill>` no Claude Code ou `$my-plan:<skill>` no
 Codex CLI — por exemplo `/my-plan:spec "adicionar modo escuro"` ou
@@ -70,6 +71,12 @@ Toda nota de encerramento sugere o próximo passo, mas nada obriga a ordem —
 você decide quando rodar cada uma, e pode rodar qualquer uma isoladamente.
 Um fix de uma linha pode ser só `implement` seguido de `commit`; uma
 feature de verdade pode percorrer a cadeia inteira.
+
+`cleanup` fica fora dessa cadeia de propósito — não é um passo do arco de
+uma mudança, é uma varredura do repositório inteiro. Rode
+`/my-plan:cleanup` periodicamente (a cada poucas semanas, ou antes de um
+release), ou logo depois de um refactor ou deleção grande — exatamente
+quando a chance de sobra ficar para trás é maior.
 
 ---
 
@@ -100,10 +107,16 @@ decidisse.
 - Assinar seus commits. Nenhum `Co-Authored-By`, nenhum nome de modelo, em
   lugar nenhum. O histórico é seu.
 - Revisar o próprio trabalho silenciosamente. No Claude Code, `review`,
-  `review-plan`, `validate` e `commit` despacham subagents novos e
-  somente-leitura. No Codex CLI, que não tem um mecanismo de subagent, a
-  skill diz claramente quando percebe que foi ela mesma quem escreveu o
-  que está julgando, em vez de fingir uma independência que não tem.
+  `review-plan`, `validate`, `commit` e `cleanup` despacham subagents
+  novos e somente-leitura. No Codex CLI, que não tem um mecanismo de
+  subagent, a skill diz claramente quando percebe que foi ela mesma quem
+  escreveu o que está julgando, em vez de fingir uma independência que
+  não tem.
+- Deletar algo que não reportou primeiro. `cleanup` só remove sob um
+  `--fix` explícito — cada item confirmado por evidência, um de cada
+  vez, revertendo numa validação quebrada (um arquivo não rastreado não
+  tem volta e é sinalizado à parte). Reorganização estrutural é sempre
+  só relatório — nunca aplicada sozinha.
 
 ## Requisitos
 

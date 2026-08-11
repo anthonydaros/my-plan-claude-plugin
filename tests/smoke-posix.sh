@@ -31,7 +31,7 @@ frontmatter() {
   awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} NR>1' "$1"
 }
 
-SKILLS="map spec plan review-plan implement review validate commit"
+SKILLS="map spec plan review-plan implement review validate commit cleanup"
 
 echo "== manifests"
 
@@ -98,7 +98,7 @@ codex_version=$(sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' "$PLUGIN/.cod
 [ -n "$claude_version" ] && [ "$claude_version" = "$codex_version" ]
 check $? "both manifests declare the same version (claude:$claude_version codex:$codex_version)"
 
-echo "== the 8 skills are independent and manual-only"
+echo "== the 9 skills are independent and manual-only"
 
 for s in $SKILLS; do
   f="$PLUGIN/skills/$s/SKILL.md"
@@ -135,12 +135,12 @@ else
   pass "no push skill exists"
 fi
 
-# Exactly these 8 skills exist — no orchestration-era command left behind,
+# Exactly these 9 skills exist — no orchestration-era command left behind,
 # and nothing extra added without updating this list.
 found_skills=$(ls "$PLUGIN/skills" 2>/dev/null | sort | tr '\n' ' ')
 expected_skills=$(printf '%s\n' $SKILLS | sort | tr '\n' ' ')
 [ "$found_skills" = "$expected_skills" ]
-check $? "skills/ contains exactly the 8 skills (found:$found_skills)"
+check $? "skills/ contains exactly the 9 skills (found:$found_skills)"
 
 echo "== the shared SKILL.md body has no per-host path variable"
 
@@ -234,6 +234,11 @@ for f in \
   knowledge/checklists/review.md \
   knowledge/checklists/architecture.md \
   knowledge/checklists/implementation.md \
+  knowledge/checklists/cleanup.md \
+  knowledge/checklists/cleanup-code.md \
+  knowledge/checklists/cleanup-residue.md \
+  knowledge/checklists/cleanup-docs.md \
+  knowledge/checklists/cleanup-refactor.md \
   knowledge/references/README.md \
   knowledge/references/NOTICE.md \
   knowledge/templates/brief.md \
@@ -278,7 +283,7 @@ echo "== the closing-note convention holds"
 # Every mutating or evaluative skill ends with the same four labels, printed
 # to the conversation, so a user driving these one at a time always sees
 # what changed, what was checked, and what's open.
-for s in map spec plan review-plan implement review validate commit; do
+for s in $SKILLS; do
   f="$PLUGIN/skills/$s/SKILL.md"
   for label in 'Changed:' 'Validated:' 'Open risks:' 'Suggested next skill:'; do
     has "$f" "$label"
@@ -304,7 +309,7 @@ echo "== independence is stated for both hosts"
 # The reviewer/committer subagent boundary is real in Claude Code and only a
 # self-declaration in Codex CLI. Both must be stated, and the asymmetry must
 # not be papered over.
-for s in review-plan review validate commit; do
+for s in review-plan review validate commit cleanup; do
   f="$PLUGIN/skills/$s/SKILL.md"
   has "$f" '**Claude Code.**'
   check $? "$s states its Claude Code independence mechanism"

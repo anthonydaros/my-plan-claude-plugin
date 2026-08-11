@@ -4,9 +4,10 @@ Guidance for Codex when working in this repository.
 
 ## What this repository is
 
-The source of **My Plan**, eight independent Claude Code / Codex CLI skills —
+The source of **My Plan**, nine independent Claude Code / Codex CLI skills —
 `map`, `spec`, `plan`, `review-plan`, `implement`, `review`, `validate`,
-`commit` — each invoked manually, one at a time, whenever the user wants.
+`commit`, `cleanup` — each invoked manually, one at a time, whenever the
+user wants.
 There is no orchestration between them: no Coordinator, no Worker dispatch
 protocol, no persistent Run state machine. Running `spec` and then `plan`
 is a user decision, not a phase transition the plugin enforces. The
@@ -54,10 +55,10 @@ script and read the labelled line.
 
 | Path | Role |
 |------|------|
-| `plugin/skills/*/SKILL.md` | The eight public skills. Manual-only, one body read by both hosts |
+| `plugin/skills/*/SKILL.md` | The nine public skills. Manual-only, one body read by both hosts |
 | `plugin/skills/*/agents/openai.yaml` | Codex-only sidecar: `allow_implicit_invocation: false`, the skill's `$my-plan:<name>` invocation string, display metadata. No `model`/`tools` field — Codex has no subagent-with-model primitive |
 | `plugin/agents/my-plan-reviewer.md`, `my-plan-committer.md` | Claude-only native subagents. Codex CLI has no equivalent dispatch mechanism — see "Independence" below |
-| `plugin/knowledge/checklists/*.md` | The eleven-lens review checklist, the architecture/overengineering checklist, the implementation defect catalogue |
+| `plugin/knowledge/checklists/*.md` | The eleven-lens review checklist, the architecture/overengineering checklist, the implementation defect catalogue, and cleanup's dead-code/residue/doc-drift/opt-in-refactor checklists |
 | `plugin/knowledge/references/**` | 34 vendored, MIT-licensed language and cross-cutting review guides, attributed in `NOTICE.md` |
 | `plugin/knowledge/templates/*.md` | Lean document shapes: `brief.md`, `plan.md`, `task.md`, `report.md` |
 | `plugin/.codex-plugin/plugin.json` | The Codex manifest: `"skills": "./skills/"`, no `mcpServers`, no `hooks`. Claude Code's manifest sits beside it at `plugin/.claude-plugin/plugin.json` |
@@ -83,8 +84,9 @@ file's own location, which resolves identically under either host.
 
 ## Independence, and where it's real
 
-`review`, `review-plan`, and `commit` each state two independence
-mechanisms. In Claude Code, dispatching to `agents/my-plan-reviewer.md` or
+`review`, `review-plan`, `validate`, `commit`, and `cleanup` each state two
+independence mechanisms. In Claude Code, dispatching to
+`agents/my-plan-reviewer.md` or
 `agents/my-plan-committer.md` is a real tool boundary: neither subagent
 holds `Write`, `Edit`, or `NotebookEdit`. In Codex CLI there is no
 subagent-dispatch primitive to hang that on, so the guarantee degrades to a
@@ -120,6 +122,10 @@ where it can be:
   under `plugin/`.
 - No literal `Co-Authored-By:` trailer anywhere in `plugin/`, and no
   `specseam`.
+- Cleanup deletes nothing it hasn't first reported: removal happens only
+  under an explicit `--fix`, one evidence-confirmed item at a time with
+  revert on a broken validation, and structural reorganization is
+  report-only in every mode.
 
 What's genuinely weaker than the orchestrated version: there's no
 mechanical cross-file check that whatever wrote a change is a different
