@@ -19,12 +19,27 @@ mudança merecer.
 
 ### Claude Code
 
-```bash
+São dois comandos separados, digitados um de cada vez **na conversa do
+Claude Code** (não numa caixa de diálogo, e não colados juntos) — mande o
+primeiro, espere confirmar que a marketplace foi adicionada, e só depois
+mande o segundo:
+
+```
 /plugin marketplace add anthonydaros/my-plan-claude-plugin
+```
+
+```
 /plugin install my-plan@my-plan
 ```
 
+Se o Claude Code abrir uma caixa "Add Marketplace" pedindo só a fonte,
+cole apenas `anthonydaros/my-plan-claude-plugin` nela — sem o
+`/plugin marketplace add` na frente e sem o segundo comando junto.
+
 ### Codex CLI
+
+Estes dois já são comandos de terminal de verdade — pode rodar um de cada
+vez ou colar o bloco inteiro:
 
 ```bash
 codex plugin marketplace add anthonydaros/my-plan-claude-plugin
