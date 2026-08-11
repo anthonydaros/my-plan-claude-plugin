@@ -1,0 +1,6 @@
+interface:
+  display_name: "My Plan: Security"
+  short_description: "Audit for leaked secrets, vulnerable dependencies, and OWASP risk"
+  default_prompt: "Use $my-plan:security to audit this repository for leaked secrets (working tree and git history), dependency vulnerabilities, and OWASP-categorized code and configuration risk. Report-only — it never fixes what it finds."
+policy:
+  allow_implicit_invocation: false

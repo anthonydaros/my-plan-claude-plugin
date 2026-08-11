@@ -82,5 +82,8 @@ jobs:
           test -f "$installed/skills/commit/agents/openai.yaml"
           test -f "$installed/skills/cleanup/SKILL.md"
           test -f "$installed/skills/cleanup/agents/openai.yaml"
+          test -f "$installed/skills/security/SKILL.md"
+          test -f "$installed/skills/security/agents/openai.yaml"
           test -f "$installed/knowledge/checklists/review.md"
           test -f "$installed/knowledge/checklists/cleanup.md"
+          test -f "$installed/knowledge/checklists/security.md"

@@ -27,7 +27,10 @@ lens has no room for. It also owns two categories `review.md` doesn't
 check at all — meta-doc drift and structural mismatches at whole-repository
 scope, independent of any diff. The two are complementary: `cleanup` finds
 what nobody was looking at; `review --repo` judges what's already in front
-of someone.
+of someone. A third skill, `security`, asks a related but different
+question about the same dependency list — not whether it's still used,
+but whether it's vulnerable; a dependency that's both unused and
+vulnerable is this skill's removal, not `security`'s upgrade.
 
 Arguments: $ARGUMENTS
 

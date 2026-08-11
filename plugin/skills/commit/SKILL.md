@@ -58,24 +58,12 @@ named on the command line` — and proceed on the explicit path list alone.
    actual current content of every candidate path — not "the diff": a
    brand-new untracked file has no diff to read (`git diff` alone will
    miss it entirely), so read the file's real content directly, the same
-   way for a new file as for a modified one:
-   - Refuse these paths outright, whatever their content: `.env` and
-     `.env.*` other than `.env.example`, `*.pem`, `*.key`, `*.p12`,
-     `*.pfx`, `id_rsa` and other private keys, `*.keystore`, `.npmrc` and
-     `.pypirc` with credentials, `credentials.json`,
-     `service-account*.json`, `*.tfstate`, `.aws/`, `.ssh/`,
-     `.kube/config`, any local database dump.
-   - Grep the content for assigned secrets: `password`, `passwd`,
-     `secret`, `token`, `api[_-]?key`, `private[_-]?key`, `authorization`,
-     `bearer `, `BEGIN .* PRIVATE KEY`, plus provider prefixes `sk-`,
-     `sk_live_`, `sk_test_` (the `-` in `sk-` never matches the Stripe
-     underscore form), `ghp_`, `gho_`, `github_pat_`, `ghs_`, `ghu_`,
-     `glpat-`, `npm_`, `AKIA`, `AIza`, `xox[baprs]-`, and `eyJ` opening a
-     long dotted token (a JWT). A hit that's a real value, not a variable
-     name or placeholder, stops that path. If `gitleaks` or `trufflehog`
-     is installed, run it over the candidate paths too and treat its
-     findings as findings — a maintained scanner outranks this list; the
-     list is the floor, not the ceiling.
+   way for a new file as for a modified one. Read
+   `../../knowledge/checklists/secrets-patterns.md` for the exact filenames
+   to refuse outright and the exact content patterns to grep for — the
+   same list `security`'s secrets category uses, so the two never drift
+   apart. A hit that's a real value, not a variable name or placeholder,
+   stops that path.
    - Read prose you're about to stage, not only code — a credential quoted
      into a markdown doc while investigating something is a leak the code
      scan above won't catch.

@@ -70,24 +70,14 @@ this.
    commit — not just `git diff --cached`.** That shows modifications to
    tracked files, but a brand-new untracked file has no diff against
    nothing, so it can pass a diff-only scan with content nobody looked at.
-   Read the real content of every candidate path, tracked or not. You are
-   looking for what nobody meant to include, in code or in prose: `.env`
-   and `.env.*` other than `.env.example`, `*.pem`, `*.key`, `*.p12`,
-   `*.pfx`, `id_rsa` and other private keys, `*.keystore`, credentials in
-   `.npmrc`/`.pypirc`, `credentials.json`, `service-account*.json`,
-   `*.tfstate`, `.aws/`, `.ssh/`, `.kube/config`, a local database dump;
-   assigned secrets — `password`, `passwd`, `secret`, `token`,
-   `api[_-]?key`, `private[_-]?key`, `authorization`, `bearer `,
-   `BEGIN .* PRIVATE KEY`, provider prefixes `sk-`, `sk_live_`, `sk_test_`
-   (the `-` in `sk-` never matches the Stripe underscore form), `ghp_`,
-   `gho_`, `github_pat_`, `ghs_`, `ghu_`, `glpat-`, `npm_`, `AKIA`, `AIza`,
-   `xox[baprs]-`, and `eyJ` opening a long dotted token (a JWT), where the
-   match is a real value, not a variable name or placeholder; and personal
-   paths, internal hostnames, and customer identifiers, which aren't
-   credentials but aren't yours to publish either. If `gitleaks` or
-   `trufflehog` is installed, run it over the candidate paths too and
-   treat its findings as findings — a maintained scanner outranks this
-   list; the list is the floor, not the ceiling. A hit stops the commit.
+   Read the real content of every candidate path, tracked or not. Read
+   `../knowledge/checklists/secrets-patterns.md` for the exact filenames
+   and content patterns you're looking for — the same list `security`'s
+   secrets category uses, so the two never drift apart — where a match is
+   a real value, not a variable name or placeholder; also watch for
+   personal paths, internal hostnames, and customer identifiers in code or
+   prose, which aren't credentials but aren't yours to publish either. A
+   hit stops the commit.
 
 3. **Do not quietly drop the offending path and commit the rest.** A
    partial commit hides the finding from whoever needs to see it, and the

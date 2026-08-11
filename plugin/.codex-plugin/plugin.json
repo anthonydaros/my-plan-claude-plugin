@@ -1,7 +1,7 @@
 {
   "name": "my-plan",
-  "version": "1.1.0",
-  "description": "Nine independent skills — map, spec, plan, review-plan, implement, review, validate, commit, cleanup — that take a goal to reviewed, committed code one manual step at a time, plus a periodic repository-wide cleanup pass. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
+  "version": "1.2.0",
+  "description": "Ten independent skills — map, spec, plan, review-plan, implement, review, validate, commit, cleanup, security — that take a goal to reviewed, committed code one manual step at a time, plus periodic repository-wide cleanup and security passes. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
   "author": {
     "name": "Anthony Max",
     "url": "https://github.com/anthonydaros"
@@ -16,13 +16,14 @@
     "validation",
     "git",
     "commit",
-    "cleanup"
+    "cleanup",
+    "security"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "My Plan",
-    "shortDescription": "Nine sharp skills: goal to committed code, plus cleanup",
-    "longDescription": "Nine independent skills covering the whole arc of a change, plus a periodic repository-wide pass: map writes a repository navigator, spec turns a goal into a decision-complete brief, plan turns the brief into a task board, review-plan attacks the plan before code exists, implement builds one task at a time, review checks the diff against eleven lenses, validate re-runs the real commands and reports real exit codes, and commit stages exactly what was intended — scanned for secrets, never pushed. cleanup finds dead code, unused dependencies, and structural cruft anywhere in the repository, reporting before removing and never restructuring on its own. Each is usable alone; ordinary files under docs/ are the only state between them.",
+    "shortDescription": "Ten sharp skills: goal to committed code, plus cleanup and security",
+    "longDescription": "Nine independent skills covering the whole arc of a change: map writes a repository navigator, spec turns a goal into a decision-complete brief, plan turns the brief into a task board, review-plan attacks the plan before code exists, implement builds one task at a time, review checks the diff against eleven lenses, validate re-runs the real commands and reports real exit codes, and commit stages exactly what was intended — scanned for secrets, never pushed. cleanup finds dead code, unused dependencies, and structural cruft anywhere in the repository, reporting before removing and never restructuring on its own. security audits for leaked secrets in the working tree and git history, dependency vulnerabilities, and OWASP-categorized code and configuration risk, always report-only. Each is usable alone; ordinary files under docs/ are the only state between them.",
     "developerName": "Anthony Max",
     "category": "Development",
     "capabilities": [
@@ -34,7 +35,8 @@
       "Use My Plan to turn a goal into a decision-complete brief with $my-plan:spec.",
       "Use My Plan to turn a brief into a task board with $my-plan:plan.",
       "Use My Plan to review this diff against the eleven-lens checklist with $my-plan:review.",
-      "Use My Plan to find dead code and unused dependencies in this repository with $my-plan:cleanup."
+      "Use My Plan to find dead code and unused dependencies in this repository with $my-plan:cleanup.",
+      "Use My Plan to audit this repository for leaked secrets and dependency vulnerabilities with $my-plan:security."
     ]
   }
 }

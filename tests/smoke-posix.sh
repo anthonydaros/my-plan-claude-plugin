@@ -31,7 +31,7 @@ frontmatter() {
   awk 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} NR>1' "$1"
 }
 
-SKILLS="map spec plan review-plan implement review validate commit cleanup"
+SKILLS="map spec plan review-plan implement review validate commit cleanup security"
 
 echo "== manifests"
 
@@ -98,7 +98,7 @@ codex_version=$(sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' "$PLUGIN/.cod
 [ -n "$claude_version" ] && [ "$claude_version" = "$codex_version" ]
 check $? "both manifests declare the same version (claude:$claude_version codex:$codex_version)"
 
-echo "== the 9 skills are independent and manual-only"
+echo "== the 10 skills are independent and manual-only"
 
 for s in $SKILLS; do
   f="$PLUGIN/skills/$s/SKILL.md"
@@ -135,12 +135,12 @@ else
   pass "no push skill exists"
 fi
 
-# Exactly these 9 skills exist — no orchestration-era command left behind,
+# Exactly these 10 skills exist — no orchestration-era command left behind,
 # and nothing extra added without updating this list.
 found_skills=$(ls "$PLUGIN/skills" 2>/dev/null | sort | tr '\n' ' ')
 expected_skills=$(printf '%s\n' $SKILLS | sort | tr '\n' ' ')
 [ "$found_skills" = "$expected_skills" ]
-check $? "skills/ contains exactly the 9 skills (found:$found_skills)"
+check $? "skills/ contains exactly the 10 skills (found:$found_skills)"
 
 echo "== the shared SKILL.md body has no per-host path variable"
 
@@ -239,6 +239,12 @@ for f in \
   knowledge/checklists/cleanup-residue.md \
   knowledge/checklists/cleanup-docs.md \
   knowledge/checklists/cleanup-refactor.md \
+  knowledge/checklists/secrets-patterns.md \
+  knowledge/checklists/security.md \
+  knowledge/checklists/security-secrets.md \
+  knowledge/checklists/security-deps.md \
+  knowledge/checklists/security-code.md \
+  knowledge/checklists/security-config.md \
   knowledge/references/README.md \
   knowledge/references/NOTICE.md \
   knowledge/templates/brief.md \
@@ -269,14 +275,32 @@ has "$PLUGIN/skills/commit/SKILL.md" 'git push <remote> <branch>'
 check $? "commit prints the push command for the user to run"
 
 # Fixed-string search: these are literal patterns in the doc, not regexes to
-# run.
+# run. The list itself lives in secrets-patterns.md, shared with `security`;
+# commit/SKILL.md must point there rather than carry a second copy.
 for pattern in 'PRIVATE KEY' 'AKIA' 'api[_-]?key' '.env' 'bearer '; do
-  grep -qF -- "$pattern" "$PLUGIN/skills/commit/SKILL.md"
+  grep -qF -- "$pattern" "$PLUGIN/knowledge/checklists/secrets-patterns.md"
   check $? "secret scan names $pattern"
 done
 
+has "$PLUGIN/skills/commit/SKILL.md" 'secrets-patterns.md'
+check $? "commit points at the shared secret-pattern list, not a second copy"
+
 has "$PLUGIN/skills/commit/SKILL.md" "Never override the repository's configured"
 check $? "commit authorship rule is stated"
+
+echo "== security never remediates"
+
+has "$PLUGIN/skills/security/SKILL.md" 'no `--fix`'
+check $? "security states it has no --fix"
+
+frontmatter "$PLUGIN/skills/security/SKILL.md" | grep -q '^argument-hint: "\[path\]"$'
+check $? "security's argument-hint carries no --fix"
+
+if grep -qE -- '--fix' "$PLUGIN/skills/security/agents/openai.yaml" 2>/dev/null; then
+  fail "security's Codex sidecar mentions --fix"
+else
+  pass "security's Codex sidecar mentions no --fix"
+fi
 
 echo "== the closing-note convention holds"
 
@@ -309,7 +333,7 @@ echo "== independence is stated for both hosts"
 # The reviewer/committer subagent boundary is real in Claude Code and only a
 # self-declaration in Codex CLI. Both must be stated, and the asymmetry must
 # not be papered over.
-for s in review-plan review validate commit cleanup; do
+for s in review-plan review validate commit cleanup security; do
   f="$PLUGIN/skills/$s/SKILL.md"
   has "$f" '**Claude Code.**'
   check $? "$s states its Claude Code independence mechanism"

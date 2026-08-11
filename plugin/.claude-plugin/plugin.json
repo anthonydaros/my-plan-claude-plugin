@@ -1,7 +1,7 @@
 {
   "name": "my-plan",
-  "version": "1.1.0",
-  "description": "Nine independent skills — map, spec, plan, review-plan, implement, review, validate, commit, cleanup — that take a goal to reviewed, committed code one manual step at a time, plus a periodic repository-wide cleanup pass. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
+  "version": "1.2.0",
+  "description": "Ten independent skills — map, spec, plan, review-plan, implement, review, validate, commit, cleanup, security — that take a goal to reviewed, committed code one manual step at a time, plus periodic repository-wide cleanup and security passes. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
   "author": {
     "name": "Anthony Max",
     "url": "https://github.com/anthonydaros"
@@ -16,7 +16,8 @@
     "validation",
     "git",
     "commit",
-    "cleanup"
+    "cleanup",
+    "security"
   ],
   "repository": "https://github.com/anthonydaros/my-plan-claude-plugin",
   "homepage": "https://github.com/anthonydaros/my-plan-claude-plugin"

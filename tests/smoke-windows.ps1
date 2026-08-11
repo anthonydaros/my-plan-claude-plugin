@@ -22,7 +22,7 @@ function Frontmatter([string]$path) {
     return $lines[1..($end - 1)]
 }
 
-$skills = @('map', 'spec', 'plan', 'review-plan', 'implement', 'review', 'validate', 'commit', 'cleanup')
+$skills = @('map', 'spec', 'plan', 'review-plan', 'implement', 'review', 'validate', 'commit', 'cleanup', 'security')
 
 Write-Host '== manifests'
 
@@ -66,7 +66,7 @@ Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace ca
 # the moment a release bumps only the other.
 Check ($manifest.version -eq $codexManifest.version) "both manifests declare the same version (claude:$($manifest.version) codex:$($codexManifest.version))"
 
-Write-Host '== the 9 skills are independent and manual-only'
+Write-Host '== the 10 skills are independent and manual-only'
 
 foreach ($s in $skills) {
     $f = Join-Path $plugin "skills\$s\SKILL.md"
@@ -88,7 +88,7 @@ Check (-not (Test-Path -LiteralPath (Join-Path $plugin 'skills\push'))) 'no push
 
 $foundSkills = @(Get-ChildItem -LiteralPath (Join-Path $plugin 'skills') -Directory | ForEach-Object { $_.Name } | Sort-Object)
 $expectedSkills = @($skills | Sort-Object)
-Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 9 skills (found: $($foundSkills -join ', '))"
+Check (($foundSkills -join ',') -eq ($expectedSkills -join ',')) "skills\ contains exactly the 10 skills (found: $($foundSkills -join ', '))"
 
 Write-Host '== the shared SKILL.md body has no per-host path variable'
 
@@ -161,6 +161,12 @@ foreach ($f in @(
         'knowledge\checklists\cleanup-residue.md',
         'knowledge\checklists\cleanup-docs.md',
         'knowledge\checklists\cleanup-refactor.md',
+        'knowledge\checklists\secrets-patterns.md',
+        'knowledge\checklists\security.md',
+        'knowledge\checklists\security-secrets.md',
+        'knowledge\checklists\security-deps.md',
+        'knowledge\checklists\security-code.md',
+        'knowledge\checklists\security-config.md',
         'knowledge\references\README.md',
         'knowledge\references\NOTICE.md',
         'knowledge\templates\brief.md',
@@ -181,10 +187,21 @@ Check ($offenders.Count -eq 0) 'git push is mentioned only in commit''s skill an
 $commitSkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\commit\SKILL.md') -Raw
 Check ($commitSkill.Contains('Never `git push`')) 'commit states it never pushes'
 Check ($commitSkill.Contains('git push <remote> <branch>')) 'commit prints the push command for the user to run'
+$secretsPatterns = Get-Content -LiteralPath (Join-Path $plugin 'knowledge\checklists\secrets-patterns.md') -Raw
 foreach ($pattern in @('PRIVATE KEY', 'AKIA', 'api[_-]?key', '.env', 'bearer ')) {
-    Check ($commitSkill.Contains($pattern)) "secret scan names $pattern"
+    Check ($secretsPatterns.Contains($pattern)) "secret scan names $pattern"
 }
+Check ($commitSkill.Contains('secrets-patterns.md')) 'commit points at the shared secret-pattern list, not a second copy'
 Check ($commitSkill.Contains("Never override the repository's configured")) 'commit authorship rule is stated'
+
+Write-Host '== security never remediates'
+
+$securitySkill = Get-Content -LiteralPath (Join-Path $plugin 'skills\security\SKILL.md') -Raw
+Check ($securitySkill.Contains('no `--fix`')) 'security states it has no --fix'
+$securityFm = Frontmatter (Join-Path $plugin 'skills\security\SKILL.md')
+Check ([bool]($securityFm -contains 'argument-hint: "[path]"')) 'security''s argument-hint carries no --fix'
+$securitySidecar = Get-Content -LiteralPath (Join-Path $plugin 'skills\security\agents\openai.yaml') -Raw
+Check (-not ($securitySidecar -match '--fix')) 'security''s Codex sidecar mentions no --fix'
 
 Write-Host '== the closing-note convention holds'
 
@@ -205,7 +222,7 @@ foreach ($s in @('review', 'validate', 'commit')) {
 
 Write-Host '== independence is stated for both hosts'
 
-foreach ($s in @('review-plan', 'review', 'validate', 'commit', 'cleanup')) {
+foreach ($s in @('review-plan', 'review', 'validate', 'commit', 'cleanup', 'security')) {
     $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
     Check ($text.Contains('**Claude Code.**')) "$s states its Claude Code independence mechanism"
     Check ($text.Contains('**Codex CLI.**')) "$s states its Codex CLI independence mechanism"

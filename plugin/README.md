@@ -1,6 +1,6 @@
 # My Plan — guia das skills
 
-Nove skills independentes. Cada uma faz um único trabalho, lê e escreve
+Dez skills independentes. Cada uma faz um único trabalho, lê e escreve
 arquivos comuns dentro de `docs/`, e para. Nada encadeia automaticamente —
 você decide o que rodar e quando. Este guia cobre cada skill em detalhe: o
 que ela faz, como invocar, o que lê e escreve, e um exemplo trabalhado.
@@ -21,7 +21,7 @@ muda.
 
 ## Convenções que toda skill segue
 
-Três coisas se repetem nas nove skills, explicadas aqui uma única vez em
+Três coisas se repetem nas dez skills, explicadas aqui uma única vez em
 vez de em cada seção abaixo:
 
 - **Cegueira declarada.** `review`, `validate` e `commit` aceitam um
@@ -32,10 +32,13 @@ vez de em cada seção abaixo:
   supplied or found.` `cleanup` tem sua própria variante: imprime `Tool
   coverage: not evaluated` quando o stack não tem ferramenta de código
   morto disponível, e `Entry-point context: not evaluated` quando
-  `docs/map.md` não existe.
-- **Independência.** `review-plan`, `review`, `validate`, `commit` e
-  `cleanup` fazem cada uma algo que um revisor novo e não envolvido faria
-  melhor do que a
+  `docs/map.md` não existe. `security` usa a mesma forma para sua própria
+  lacuna: `Tool coverage: not evaluated` quando falta `gitleaks` ou a
+  ferramenta de auditoria de vulnerabilidade de um stack, e `Entry-point
+  context: not evaluated` quando `docs/map.md` não existe.
+- **Independência.** `review-plan`, `review`, `validate`, `commit`,
+  `cleanup` e `security` fazem cada uma algo que um revisor novo e não
+  envolvido faria melhor do que a
   sessão que acabou de escrever a coisa. No Claude Code, elas despacham um
   subagent de verdade (`agents/my-plan-reviewer.md` ou
   `agents/my-plan-committer.md`) que não tem nenhuma ferramenta de edição
@@ -66,11 +69,14 @@ Nada disso é obrigatório. Rode uma skill isolada para um fix pequeno
 feature de verdade. Toda nota de encerramento sugere o próximo passo nessa
 ordem, mas nada te impede de pular etapas.
 
-`cleanup` fica fora dessa cadeia de propósito: não é um passo do arco de
-uma mudança, é uma varredura do repositório inteiro, sem brief e sem
-tarefa associada. Rode `/my-plan:cleanup` periodicamente, antes de um
-release, ou logo depois de um refactor/deleção grande — quando a chance
-de sobra ter ficado para trás é maior.
+`cleanup` e `security` ficam fora dessa cadeia de propósito: não são um
+passo do arco de uma mudança, são varreduras do repositório inteiro, sem
+brief e sem tarefa associada. Rode `/my-plan:cleanup` periodicamente,
+antes de um release, ou logo depois de um refactor/deleção grande —
+quando a chance de sobra ter ficado para trás é maior. Rode
+`/my-plan:security` na mesma cadência, ou sempre que uma dependência nova
+entrar — diferente do `review`, cujo `security` lens só dispara quando
+alguém já está olhando um diff.
 
 ---
 
@@ -570,6 +576,76 @@ Suggested next skill: plan, for any structural finding — or review, then
 Rodar `/my-plan:cleanup --fix` em seguida remove os itens de alta
 confiança um de cada vez, revalidando depois de cada remoção, e reverte
 só aquele item se algo quebrar — nunca em lote.
+
+---
+
+## `security`
+
+**Audita o repositório inteiro (ou um caminho) atrás de segredos vazados
+— working tree *e* histórico do Git —, dependências vulneráveis e risco
+de código/configuração categorizado por OWASP/CWE.** Diferente de
+`review`, cuja lente `security` só dispara sobre um diff que alguém já
+está olhando, esta skill roda sem esperar por nenhuma mudança em
+andamento. Sempre report-only: não existe `--fix` para `security`, em
+nenhuma categoria — rotacionar uma credencial, atualizar uma dependência
+vulnerável ou escrever um header de segurança fica para você, para o
+`plan`, ou para o comando do próprio gerenciador de pacotes.
+
+**Uso:**
+
+```
+/my-plan:security                # varredura completa do repositório
+/my-plan:security reports/       # restringe a um caminho
+```
+
+**Lê:** `knowledge/checklists/security.md` sempre;
+`secrets-patterns.md`, `security-secrets.md`, `security-deps.md`,
+`security-code.md` e `security-config.md` — as mesmas quatro categorias em
+toda invocação, já que segredo, dependência e configuração não são
+conceitos com forma de diff; `knowledge/checklists/review.md` (lente
+`security`) e `knowledge/references/security-review-guide.md` como
+profundidade da categoria de código; `docs/map.md` se existir.
+
+**Escreve:** nada. Nunca — esta é a segunda skill totalmente
+somente-leitura do plugin, ao lado de `review-plan`.
+
+**Exemplo:**
+
+```
+> /my-plan:security
+
+Report: repositório inteiro
+
+Findings:
+config/settings.py:34  blocker  high  secrets  Chave AWS real
+  (AKIA...9F2X) commitada em texto puro. Rotacionar a credencial na AWS
+  primeiro; depois remover a linha.
+package.json:—  major  high  deps  `axios@0.21.1` — CVE-2021-3749 (ReDoS),
+  patch disponível em 0.21.4, dependência direta. Bump direto no
+  manifesto. [OWASP-A06]
+reports/views.py:88  major  medium  code  Endpoint retorna o relatório de
+  qualquer `report_id` sem checar `request.user` contra o dono —
+  filtrar a query por `owner=request.user`. [OWASP-A01, CWE-862]
+—  minor  high  config  Nenhum `Content-Security-Policy` configurado; a
+  aplicação renderiza HTML gerado a partir de campos de texto do usuário.
+  Adicionar uma CSP restritiva no middleware de segurança já usado para
+  os outros headers.
+
+Category coverage: secrets found 1, deps found 1, code found 1, config
+found 1.
+
+4 findings: 1 blocker, 3 major, 0 minor, 0 note.
+
+Changed: none — read-only, always
+Validated: not this skill's job
+Open risks: 1 blocker
+Suggested next skill: plan, for the access-control and CSP findings — the
+  dependency bump, run yourself — then review, validate, and commit. For
+  a credencial vazada: rotacione primeiro, antes de qualquer outra coisa.
+```
+
+Nenhum valor real de segredo aparece no relatório — só os 4 primeiros
+caracteres seguidos de reticências, por `secrets-patterns.md`.
 
 ---
 
