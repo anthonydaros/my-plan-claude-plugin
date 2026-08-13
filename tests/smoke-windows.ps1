@@ -112,6 +112,27 @@ foreach ($s in $skills) {
 foreach ($m in ($missing | Sort-Object -Unique)) { Check $false "broken reference: $m" }
 if ($missing.Count -eq 0) { Check $true 'every relative knowledge/agent reference resolves' }
 
+# A skill referencing a sibling skill's body (implement chains review and
+# commit by reference) uses ../<skill>/SKILL.md — one level up, not two.
+# Check the wrong-depth form first: the substring ../<skill>/SKILL.md inside
+# a broken ../../<skill>/SKILL.md would still match and resolve, masking it.
+$missing = @()
+foreach ($s in $skills) {
+    $f = Join-Path $plugin "skills\$s\SKILL.md"
+    if (-not (Test-Path -LiteralPath $f)) { continue }
+    $dir = Split-Path -Parent $f
+    $text = Get-Content -LiteralPath $f -Raw
+    if ($text -match '\.\./\.\./[a-z-]+/SKILL\.md') {
+        $missing += "$s references a sibling skill with ../../ (siblings sit one level up)"
+    }
+    [regex]::Matches($text, '\.\./([a-z-]+)/SKILL\.md') | ForEach-Object {
+        $rel = '..\' + $_.Groups[1].Value + '\SKILL.md'
+        if (-not (Test-Path -LiteralPath (Join-Path $dir $rel))) { $missing += "$s -> $rel" }
+    }
+}
+foreach ($m in ($missing | Sort-Object -Unique)) { Check $false "broken sibling-skill reference: $m" }
+if ($missing.Count -eq 0) { Check $true 'every sibling-skill reference resolves at the right depth' }
+
 # Agents sit one level shallower than skills (plugin\agents\, not
 # plugin\skills\<name>\), so the same reference from an agent file must use
 # ..\knowledge\ or ..\agents\, never ..\..\. Check the wrong-depth form
@@ -222,7 +243,7 @@ foreach ($s in @('review', 'commit')) {
 
 Write-Host '== independence is stated for both hosts'
 
-foreach ($s in @('plan', 'review', 'commit', 'cleanup', 'security')) {
+foreach ($s in @('plan', 'implement', 'review', 'commit', 'cleanup', 'security')) {
     $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
     Check ($text.Contains('**Claude Code.**')) "$s states its Claude Code independence mechanism"
     Check ($text.Contains('**Codex CLI.**')) "$s states its Codex CLI independence mechanism"

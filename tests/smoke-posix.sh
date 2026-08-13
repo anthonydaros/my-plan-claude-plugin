@@ -170,6 +170,27 @@ for f in "$PLUGIN"/skills/*/SKILL.md; do
 done
 [ "$missing" = "0" ] && pass "every relative knowledge/agent reference resolves"
 
+# A skill referencing a sibling skill's body (implement chains review and
+# commit by reference) uses ../<skill>/SKILL.md — one level up, not two.
+# Check the wrong-depth form first: the substring ../<skill>/SKILL.md
+# inside a broken ../../<skill>/SKILL.md would still match and resolve,
+# masking the bug.
+missing=0
+for f in "$PLUGIN"/skills/*/SKILL.md; do
+  dir=$(dirname "$f")
+  if grep -qE '\.\./\.\./[a-z-]+/SKILL\.md' "$f"; then
+    fail "skill ${f#"$ROOT"/} references a sibling skill with ../../ — siblings sit one level up"
+    missing=$((missing + 1))
+  fi
+  for rel in $(grep -oE '\.\./[a-z-]+/SKILL\.md' "$f" | sort -u); do
+    if [ ! -e "$dir/$rel" ]; then
+      fail "broken sibling-skill reference in ${f#"$ROOT"/}: $rel"
+      missing=$((missing + 1))
+    fi
+  done
+done
+[ "$missing" = "0" ] && pass "every sibling-skill reference resolves at the right depth"
+
 # Agents sit one level shallower than skills (plugin/agents/, not
 # plugin/skills/<name>/), so the same reference from an agent file must use
 # ../knowledge/ or ../agents/, never ../../. Check the wrong-depth form
@@ -302,6 +323,35 @@ else
   pass "security's Codex sidecar mentions no --fix"
 fi
 
+echo "== the implement chain stays bounded and gated"
+
+# implement chains review and commit inside one invocation. The chain must
+# gate the commit on a green review, bound its own loop, stop at the task
+# it was invoked on, and defer to the sibling skills' own bodies rather
+# than carrying a second copy of either.
+f="$PLUGIN/skills/implement/SKILL.md"
+
+has "$f" 'no `blocker` findings'
+check $? "implement gates the chained commit on a blocker-free review round"
+
+has "$f" 'Three review rounds is the bound'
+check $? "implement bounds its fix loop"
+
+has "$f" 'never starts the next task'
+check $? "implement stops at the task it was invoked on"
+
+has "$f" '--solo'
+check $? "implement offers --solo to stop after the build"
+
+has "$f" '../review/SKILL.md'
+check $? "implement chains review by reference, not by copy"
+
+has "$f" '../commit/SKILL.md'
+check $? "implement chains commit by reference, not by copy"
+
+has "$PLUGIN/skills/commit/SKILL.md" '--changelog'
+check $? "commit accepts --changelog so the chain never stalls on the ask"
+
 echo "== the closing-note convention holds"
 
 # Every mutating or evaluative skill ends with the same four labels, printed
@@ -332,8 +382,9 @@ echo "== independence is stated for both hosts"
 
 # The reviewer/committer subagent boundary is real in Claude Code and only a
 # self-declaration in Codex CLI. Both must be stated, and the asymmetry must
-# not be papered over.
-for s in plan review commit cleanup security; do
+# not be papered over. implement is in this list because its chain dispatches
+# the same reviewer and committer.
+for s in plan implement review commit cleanup security; do
   f="$PLUGIN/skills/$s/SKILL.md"
   has "$f" '**Claude Code.**'
   check $? "$s states its Claude Code independence mechanism"

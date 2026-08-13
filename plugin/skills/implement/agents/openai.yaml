@@ -1,6 +1,6 @@
 interface:
   display_name: "My Plan: Implement"
-  short_description: "Build one task with the defect catalogue loaded"
-  default_prompt: "Use $my-plan:implement <task> to build one task from docs/tasks/, or a plain request."
+  short_description: "Build one task, review it in a loop, and commit it"
+  default_prompt: "Use $my-plan:implement <task> to build one task from docs/tasks/ (or a plain request), have it independently reviewed, fix until green, and commit — one invocation from task to history. --solo stops after the build."
 policy:
   allow_implicit_invocation: false

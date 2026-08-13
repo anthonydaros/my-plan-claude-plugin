@@ -1,7 +1,7 @@
 {
   "name": "my-plan",
-  "version": "1.3.0",
-  "description": "Seven independent skills — map, plan, implement, review, commit, cleanup, security — that take a goal to reviewed, committed code one manual step at a time, plus periodic repository-wide cleanup and security passes. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
+  "version": "1.4.0",
+  "description": "Seven independent skills — map, plan, implement, review, commit, cleanup, security — that take a goal to reviewed, committed code, plus periodic repository-wide cleanup and security passes. implement chains build, independent review, a bounded fix loop, and a secret-scanned commit in one invocation; everything else is one manual step at a time. No cross-invocation orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, and never a push.",
   "author": {
     "name": "Anthony Max",
     "url": "https://github.com/anthonydaros"
@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "My Plan",
     "shortDescription": "Seven sharp skills: goal to committed code, plus cleanup and security",
-    "longDescription": "Seven independent skills covering the whole arc of a change: map writes a repository navigator, plan interviews you to a decision-complete brief, turns it into a task board, and dispatches an independent review of that plan before treating it as approved, implement builds one task at a time, review checks the diff against eleven lenses and independently runs the repository's real validation commands, and commit stages exactly what was intended — scanned for secrets, drafts a changelog entry when the repository already keeps one, never pushed. cleanup finds dead code, unused dependencies, and structural cruft anywhere in the repository, reporting before removing and never restructuring on its own. security audits for leaked secrets in the working tree and git history, dependency vulnerabilities, and OWASP-categorized code and configuration risk, always report-only. Each is usable alone; ordinary files under docs/ are the only state between them.",
+    "longDescription": "Seven independent skills covering the whole arc of a change: map writes a repository navigator, plan interviews you to a decision-complete brief, turns it into a task board, and dispatches an independent review of that plan before treating it as approved, implement builds one task and carries it through an independent review, a fix loop bounded at three rounds, and a secret-scanned commit in one invocation (--solo stops after the build), review checks the diff against eleven lenses and independently runs the repository's real validation commands, and commit stages exactly what was intended — scanned for secrets, drafts a changelog entry when the repository already keeps one, never pushed. cleanup finds dead code, unused dependencies, and structural cruft anywhere in the repository, reporting before removing and never restructuring on its own. security audits for leaked secrets in the working tree and git history, dependency vulnerabilities, and OWASP-categorized code and configuration risk, always report-only. Each is usable alone; ordinary files under docs/ are the only state between them.",
     "developerName": "Anthony Max",
     "category": "Development",
     "capabilities": [
@@ -33,6 +33,7 @@
     "defaultPrompt": [
       "Use My Plan to write docs/map.md — the navigator every other My Plan skill reads first — with $my-plan:map.",
       "Use My Plan to interview you to a decision-complete brief, plan it into tasks, and independently review the plan with $my-plan:plan.",
+      "Use My Plan to build one task and carry it through independent review to a verified commit with $my-plan:implement <task>.",
       "Use My Plan to review this diff against the eleven-lens checklist and independently run its validation with $my-plan:review.",
       "Use My Plan to find dead code and unused dependencies in this repository with $my-plan:cleanup.",
       "Use My Plan to audit this repository for leaked secrets and dependency vulnerabilities with $my-plan:security."

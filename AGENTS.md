@@ -8,10 +8,15 @@ The source of **My Plan**, seven independent Claude Code / Codex CLI
 skills — `map`, `plan`, `implement`, `review`, `commit`, `cleanup`,
 `security` — each invoked manually, one at a time, whenever the user
 wants.
-There is no orchestration between them: no Coordinator, no Worker dispatch
-protocol, no persistent Run state machine. Running `plan` and then
-`implement` is a user decision, not a phase transition the plugin
-enforces. The filesystem is the only state that survives between
+There is no orchestration between invocations: no Coordinator, no Worker
+dispatch protocol, no persistent Run state machine. Running `plan` and
+then `implement` is a user decision, not a phase transition the plugin
+enforces. The one sanctioned chain lives *inside* a single invocation:
+`implement` builds its task and then, without further prompting, follows
+`review`'s and `commit`'s own bodies by reference — an independent
+review, a fix loop bounded at three rounds, a commit gated on a
+blocker-free round — closing the task out in one invocation (`--solo`
+stops after the build). The filesystem is the only state that survives between
 invocations: `docs/map.md`, `docs/brief.md`, `docs/plan.md`, and
 `docs/tasks/*.md` are ordinary, user-editable files, not a generated
 dossier owned by the plugin. `plan` used to be three skills — `spec`,
@@ -93,19 +98,21 @@ model itself can invoke a skill with no user request behind it, and
 
 ## Independence, and where it's real
 
-`plan`, `review`, `commit`, `cleanup`, and `security` each state two
-independence mechanisms. In Claude Code, dispatching to
+`plan`, `implement`, `review`, `commit`, `cleanup`, and `security` each
+state two independence mechanisms. In Claude Code, dispatching to
 `agents/my-plan-reviewer.md` or
 `agents/my-plan-committer.md` is a real tool boundary: neither subagent
-holds `Write`, `Edit`, or `NotebookEdit`. In Codex CLI there is no
+holds `Write`, `Edit`, or `NotebookEdit` — and `implement`'s chained
+review and commit phases dispatch those same subagents, so the boundary
+holds inside the chain too. In Codex CLI there is no
 subagent-dispatch primitive to hang that on, so the guarantee degrades to a
 self-declaration: if the session's own context shows it authored what it's
 about to judge, it says so instead of claiming independence it doesn't
 have. This is a real, stated asymmetry between the two hosts, not an
 oversight — don't try to paper over it by inventing a fake Codex dispatch
-mechanism. It's the default outcome for `plan` now, not an edge case,
-since its interview, planning, and review phases all run in one
-invocation.
+mechanism. It's the default outcome for `plan` and for `implement`'s
+chain now, not an edge case, since each runs authoring and judging phases
+in one invocation.
 
 ## Guarantees worth keeping without a state machine
 
@@ -148,12 +155,27 @@ where it can be:
   never by re-reading the change.
 - `commit` never invents a changelog: it drafts an entry only when the
   repository already keeps one, matching that file's own format, never
-  creating the file or a new section shape.
+  creating the file or a new section shape. `--changelog` authorizes
+  drafting without the confirm ask — `implement`'s chain passes it — and
+  changes nothing else about when an entry exists.
+- `implement`'s chain is bounded, gated, and single-task: the chained
+  commit happens only on a review round with no `blocker` findings and
+  commits that round's tree exactly as it was reviewed (a green round's
+  majors and minors become open risks, never quiet post-review fixes —
+  fixes happen only while a round is red, so every fix precedes a fresh
+  full round), the loop stops after three review rounds and hands a
+  still-red result to the user instead of committing, a blocker whose
+  correction lies outside the task's write set stops the chain red
+  immediately, and the chain never starts the next task. Each chained
+  phase follows the sibling skill's own body by reference, so neither
+  procedure exists twice to drift.
 
 What's genuinely weaker than the orchestrated version: there's no
 mechanical cross-file check that whatever wrote a change is a different
-model from whatever reviews it — that now depends on the user actually
-running `review` in a fresh session, or on Codex's honest self-declaration.
+model from whatever reviews it — in Claude Code that rides on the
+subagent dispatch boundary (including inside `implement`'s chain), and in
+Codex it rests entirely on the honest self-declaration, which the chain
+makes `implement`'s default outcome, same as `plan`.
 There's also no tracked ownership of task files: nothing prevents an
 abandoned plan from leaving orphaned files under `docs/tasks/` if the user
 walks away mid-plan.

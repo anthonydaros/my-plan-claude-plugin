@@ -1,13 +1,17 @@
 # My Plan
 
 **Sete skills afiadas e independentes — cinco para o arco de uma mudança,
-duas para varreduras periódicas do repositório inteiro — sem orquestração,
-sem máquina de estados, sem runtime instalado no seu repositório.**
+duas para varreduras periódicas do repositório inteiro — sem orquestração
+entre invocações, sem máquina de estados, sem runtime instalado no seu
+repositório.**
 
 `map` · `plan` · `implement` · `review` · `commit` · `cleanup` · `security`
 
 Cada skill é invocada manualmente, faz um único trabalho, imprime uma nota
-de encerramento e para. Nada encadeia automaticamente. O sistema de
+de encerramento e para. Nenhuma invocação puxa a próxima — a única cadeia
+sancionada vive dentro do `implement`, que constrói uma tarefa e, na mesma
+invocação, a leva por revisão independente e loop de correção até um
+commit com baixa no quadro (`--solo` desliga a cadeia). O sistema de
 arquivos é o único estado entre elas — `docs/map.md`, `docs/brief.md`,
 `docs/plan.md` e `docs/tasks/*.md` são arquivos comuns: dá pra commitar,
 editar, apagar. Rode uma skill isolada, ou percorra o arco inteiro quando a
@@ -58,7 +62,7 @@ cada skill é lido ao pé da letra por ambos; só os dois manifests mudam.
 |---|---|
 | `map` | Escreve `docs/map.md` — stack, comandos de validação exatos, limites de módulo, armadilhas comprovadas. As skills de planejamento e revisão leem esse arquivo primeiro, quando ele existe. |
 | `plan` | Entrevista você até um `docs/brief.md` decisão-completa (rodadas em lote, orçamento de perguntas), transforma o brief em `docs/plan.md` mais um arquivo por tarefa em `docs/tasks/`, e despacha uma revisão independente do plano antes de tratá-lo como aprovado. Uma só invocação faz o que antes eram três skills. |
-| `implement` | Constrói exatamente uma tarefa. Deixa o arquivo da tarefa para o `commit` apagar quando o trabalho realmente entrar no histórico. |
+| `implement` | Constrói exatamente uma tarefa e a leva até o histórico na mesma invocação: revisão independente, loop de correção até ficar verde (três rodadas no máximo), commit com baixa da tarefa e changelog sem perguntar — e termina apontando a próxima tarefa, sem nunca começá-la. `--solo` para depois do build. |
 | `review` | Revisa um diff, uma branch, um caminho ou o repositório inteiro (`--repo`) contra um checklist de onze lentes, e roda ela mesma, de forma independente, os comandos reais de validação do repositório — nunca confia num "passou" alegado. Cada achado diz se veio de execução real ou de leitura. |
 | `commit` | Stage exatamente dos caminhos pretendidos, escaneia código *e prosa* atrás de segredos, commita no estilo do seu próprio repositório, e rascunha uma entrada de changelog quando o repositório já mantém um. Imprime o comando de push; nunca o executa. |
 | `cleanup` | Varre o repositório inteiro (ou um caminho) atrás de código morto, dependências não usadas e deriva entre documentação/meta-config e a realidade do repositório, usando as ferramentas do próprio stack quando existem. Não é um passo do arco de uma mudança — é uma faxina periódica, independente. |
@@ -77,13 +81,16 @@ commit publicado.
 A ordem natural é:
 
 ```
-map → plan → implement (por tarefa) → review → commit
+map → plan → implement (por tarefa: build → review em loop → commit)
 ```
 
-Toda nota de encerramento sugere o próximo passo, mas nada obriga a ordem —
-você decide quando rodar cada uma, e pode rodar qualquer uma isoladamente.
-Um fix de uma linha pode ser só `implement` seguido de `commit`; uma
-feature de verdade pode percorrer a cadeia inteira.
+Cada `/my-plan:implement` fecha a própria tarefa e termina apontando a
+próxima — invocá-la é sempre decisão sua; a cadeia nunca começa a tarefa
+seguinte sozinha. Toda nota de encerramento sugere o próximo passo, mas
+nada obriga a ordem — `review` e `commit` continuam skills avulsas para
+rodar isoladas quando quiser, e `implement --solo` restaura o fluxo em
+etapas. Um fix de uma linha é uma invocação só de `implement`; uma
+feature de verdade percorre o arco inteiro.
 
 `cleanup` e `security` ficam fora dessa cadeia de propósito — não são um
 passo do arco de uma mudança, são varreduras do repositório inteiro. Rode
@@ -112,6 +119,13 @@ validação — e descarta tudo que só existia para carregar estado entre
 fases que dava para simplesmente... rodar você mesmo, em ordem, quando
 decidisse.
 
+A única automação que voltou, de propósito e num único lugar, é a cadeia
+dentro do `implement`: revisão, loop de correção e commit da tarefa que
+você acabou de mandar construir — sem estado persistente, sem máquina de
+fases, limitada a três rodadas de revisão e travada num resultado sem
+blocker. Ela não decide nada entre invocações: a próxima tarefa continua
+sendo um comando que só você digita.
+
 ## O que ela nunca vai fazer
 
 - **Push.** Não existe skill de push. O `commit` imprime
@@ -123,12 +137,20 @@ decidisse.
 - Assinar seus commits. Nenhum `Co-Authored-By`, nenhum nome de modelo, em
   lugar nenhum. O histórico é seu.
 - Revisar o próprio trabalho silenciosamente. No Claude Code, `plan`,
-  `review`, `commit`, `cleanup` e `security` despacham subagents novos e
-  somente-leitura. No Codex CLI, que não tem um mecanismo de subagent, a
+  `implement`, `review`, `commit`, `cleanup` e `security` despacham
+  subagents novos e somente-leitura — a cadeia do `implement` despacha
+  esses mesmos subagents, então a fronteira vale dentro dela também. No
+  Codex CLI, que não tem um mecanismo de subagent, a
   skill diz claramente quando percebe que foi ela mesma quem escreveu o
   que está julgando, em vez de fingir uma independência que não tem —
-  esse é o caso padrão para `plan` agora, não uma exceção, já que
-  entrevista, planejamento e revisão rodam na mesma invocação.
+  esse é o caso padrão para `plan` e para a cadeia do `implement` agora,
+  não uma exceção, já que cada uma roda autoria e julgamento na mesma
+  invocação.
+- Emendar na tarefa seguinte sozinho. A cadeia do `implement` cobre
+  exatamente a tarefa invocada: commit só numa rodada de revisão sem
+  blocker, no máximo três rodadas antes de parar e devolver para você, e
+  a próxima tarefa é apenas nomeada na nota de encerramento — nunca
+  iniciada.
 - Deletar algo que não reportou primeiro. `cleanup` só remove sob um
   `--fix` explícito — cada item confirmado por evidência, um de cada
   vez, revertendo numa validação quebrada (um arquivo não rastreado não
@@ -149,7 +171,9 @@ decidisse.
 - Inventar um changelog. `commit` rascunha uma entrada só quando o
   repositório já mantém um (`CHANGELOG.md`/`CHANGES.md`/`HISTORY.md`),
   casando com o formato que o arquivo já usa — nunca cria o arquivo, nunca
-  inventa uma seção nova.
+  inventa uma seção nova. `--changelog` (a flag que a cadeia do
+  `implement` passa) só dispensa a pergunta de confirmação; não muda nada
+  disso.
 
 ## Requisitos
 

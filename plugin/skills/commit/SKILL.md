@@ -1,7 +1,7 @@
 ---
 name: commit
-description: Stage exactly the intended paths, scan for leaked secrets in code and prose, commit in the repository's own style, and draft a changelog entry when the repository already keeps one and the change is user-visible. Never pushes, never forces, never --no-verify, never touches history. Prints the push command for you to run yourself. Manual only.
-argument-hint: "[path ... | --spec docs/brief.md | --tasks docs/tasks/<file>]"
+description: Stage exactly the intended paths, scan for leaked secrets in code and prose, commit in the repository's own style, and draft a changelog entry when the repository already keeps one and the change is user-visible (--changelog authorizes the draft without the confirm ask). Never pushes, never forces, never --no-verify, never touches history. Prints the push command for you to run yourself. Manual only.
+argument-hint: "[path ... | --spec docs/brief.md | --tasks docs/tasks/<file>] [--changelog]"
 disable-model-invocation: true
 ---
 
@@ -28,6 +28,14 @@ a task file whose paths bound it the same way. Empty means "commit what's
 dirty," and that requires confirming the staged set explicitly with the
 user before dispatching — never infer intent from an empty argument
 silently.
+
+`--changelog` may accompany any of those forms: it authorizes step 2 to
+draft the changelog entry without the ask — the deliberate decision that
+ask exists to obtain, given on the command line up front instead.
+`implement`'s chain passes it so a chained commit never stalls on a
+prompt. It changes nothing else about step 2: the file must already
+exist, its own shape decides the entry's format, and a change with
+nothing user-visible still gets no entry.
 
 ## Declared blindness
 
@@ -80,6 +88,12 @@ path; one that isn't is where step 2 below asks before adding it.
    Draft the entry, show it, and ask once instead — whether the write set
    came implicitly or names no changelog path at all. A "no" commits the
    code exactly as already planned, unchanged.
+
+   An explicit `--changelog` on the command line stands in for that ask
+   entirely: draft and include the entry without asking, even when the
+   write set names no changelog path. It authorizes only skipping the
+   ask — an absent changelog file is still skipped, not created, and a
+   change with nothing user-visible still gets no entry.
 
    **Source and filter.** With an explicit `--spec`: draft from its
    Requirements and Acceptance criteria — what a user of the software

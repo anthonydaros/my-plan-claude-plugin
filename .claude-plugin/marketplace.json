@@ -4,13 +4,13 @@
     "name": "Anthony Max"
   },
   "metadata": {
-    "description": "Seven independent skills — map, plan, implement, review, commit, cleanup, security — from goal to committed code, plus periodic repository-wide cleanup and security passes, with no orchestration between them."
+    "description": "Seven independent skills — map, plan, implement, review, commit, cleanup, security — from goal to committed code, plus periodic repository-wide cleanup and security passes. implement alone chains review and commit for its one task; nothing chains between invocations."
   },
   "plugins": [
     {
       "name": "my-plan",
       "source": "./plugin",
-      "description": "Seven independent skills — map, plan, implement, review, commit, cleanup, security — that take a goal to reviewed, committed code one manual step at a time, plus periodic repository-wide cleanup and security passes. No orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, a secret-scanned commit, and never a push.",
+      "description": "Seven independent skills — map, plan, implement, review, commit, cleanup, security — that take a goal to reviewed, committed code, plus periodic repository-wide cleanup and security passes. implement chains build, independent review, a bounded fix loop, and a secret-scanned commit in one invocation; everything else is one manual step at a time. No cross-invocation orchestration, no run state, no runtime in your repo: plain files under docs/, an independent reviewer, and never a push.",
       "category": "development",
       "license": "MIT"
     }

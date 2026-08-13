@@ -1,9 +1,14 @@
 # My Plan — guia das skills
 
 Sete skills independentes. Cada uma faz um único trabalho, lê e escreve
-arquivos comuns dentro de `docs/`, e para. Nada encadeia automaticamente —
-você decide o que rodar e quando. Este guia cobre cada skill em detalhe: o
-que ela faz, como invocar, o que lê e escreve, e um exemplo trabalhado.
+arquivos comuns dentro de `docs/`, e para. Nenhuma invocação puxa a
+próxima — você decide o que rodar e quando. A única cadeia sancionada vive
+*dentro* de uma invocação: `implement` constrói a tarefa e, sem perguntar
+nada, segue os corpos de `review` e `commit` — revisão independente, loop
+de correção até ficar verde, commit — fechando a tarefa de ponta a ponta
+(`--solo` para depois da construção). Este guia cobre cada skill em
+detalhe: o que ela faz, como invocar, o que lê e escreve, e um exemplo
+trabalhado.
 
 Para instruções de instalação, veja o [README do repositório](../README.md).
 
@@ -14,10 +19,13 @@ Para instruções de instalação, veja o [README do repositório](../README.md)
 | Claude Code | `/my-plan:<skill> <args>` | `/my-plan:plan "adicionar exportação CSV na página de relatórios"` |
 | Codex CLI | `$my-plan:<skill> <args>` | `$my-plan:plan "adicionar exportação CSV na página de relatórios"` |
 
-Toda skill é manual — digitar o comando é a única forma de iniciar uma;
-nenhuma skill invoca outra nem invoca a si mesma automaticamente. Os dois
-hosts leem exatamente o mesmo corpo de skill; só o prefixo de invocação
-muda.
+Toda skill é manual — digitar o comando é a única forma de iniciar uma; o
+modelo nunca invoca uma skill sozinho. A exceção deliberada é a cadeia do
+`implement`: depois de construir a tarefa, o próprio corpo da skill manda
+seguir os procedimentos de `review` e `commit` na mesma invocação — isso
+não é o modelo decidindo invocar algo; é o que a sua invocação manual de
+`implement` já pediu. Os dois hosts leem exatamente o mesmo corpo de
+skill; só o prefixo de invocação muda.
 
 Não existe um terceiro host suportado. O OpenCode foi avaliado e
 descartado: seu frontmatter de skill não tem equivalente a
@@ -42,17 +50,19 @@ vez de em cada seção abaixo:
   lacuna: `Tool coverage: not evaluated` quando falta `gitleaks` ou a
   ferramenta de auditoria de vulnerabilidade de um stack, e `Entry-point
   context: not evaluated` quando `docs/map.md` não existe.
-- **Independência.** `plan`, `review`, `commit`, `cleanup` e `security`
-  fazem cada uma algo que um revisor novo e não envolvido faria melhor do
-  que a sessão que acabou de escrever a coisa. No Claude Code, elas
-  despacham um subagent de verdade (`agents/my-plan-reviewer.md` ou
+- **Independência.** `plan`, `implement`, `review`, `commit`, `cleanup` e
+  `security` fazem cada uma algo que um revisor novo e não envolvido faria
+  melhor do que a sessão que acabou de escrever a coisa. No Claude Code,
+  elas despacham um subagent de verdade (`agents/my-plan-reviewer.md` ou
   `agents/my-plan-committer.md`) que não tem nenhuma ferramenta de edição
-  de arquivo e não viu o trabalho acontecer. O Codex CLI não tem mecanismo
+  de arquivo e não viu o trabalho acontecer — a cadeia do `implement`
+  despacha esses mesmos subagents, então a fronteira vale dentro dela
+  também. O Codex CLI não tem mecanismo
   de subagent, então a skill diz claramente quando o próprio contexto dela
   mostra que foi ela quem escreveu o que está julgando, em vez de alegar
-  uma independência que não tem — esse é o caso padrão para `plan` agora,
-  não uma exceção, já que entrevista, planejamento e revisão rodam na
-  mesma invocação.
+  uma independência que não tem — esse é o caso padrão para `plan` e para
+  a cadeia do `implement` agora, não uma exceção, já que cada uma roda
+  autoria e julgamento na mesma invocação.
 - **Nota de encerramento.** Toda skill que muda ou avalia algo termina com
   as mesmas quatro linhas, impressas na conversa e nunca salvas num
   arquivo:
@@ -68,13 +78,17 @@ vez de em cada seção abaixo:
 ## Ordem recomendada
 
 ```
-map → plan → implement (por tarefa) → review → commit
+map → plan → implement (por tarefa: build → review em loop → commit)
 ```
 
-Nada disso é obrigatório. Rode uma skill isolada para um fix pequeno
-(`implement` e depois `commit`), ou percorra a cadeia inteira para uma
-feature de verdade. Toda nota de encerramento sugere o próximo passo nessa
-ordem, mas nada te impede de pular etapas.
+Nada disso é obrigatório. Cada `/my-plan:implement` fecha a própria
+tarefa — construída, revisada até ficar verde, commitada, com baixa no
+quadro — e termina apontando a próxima tarefa para você decidir; ele
+nunca começa a próxima sozinho. `review` e `commit` continuam existindo
+como skills avulsas para quando você quiser rodar qualquer uma isolada —
+um `review --repo` periódico, um commit de algo que você editou à mão, ou
+o fluxo antigo por inteiro via `implement --solo`. Toda nota de
+encerramento sugere o próximo passo, mas nada te impede de pular etapas.
 
 `cleanup` e `security` ficam fora dessa cadeia de propósito: não são um
 passo do arco de uma mudança, são varreduras do repositório inteiro, sem
@@ -255,25 +269,52 @@ ficar limpo.
 
 ## `implement`
 
-**Constrói exatamente uma tarefa**, por completo, e para. Não revisa o
-próprio trabalho — isso é trabalho do `review` — e não toca em nada fora
-dos caminhos declarados da tarefa.
+**Constrói exatamente uma tarefa e a leva até o histórico na mesma
+invocação**: build, revisão independente, loop de correção até a revisão
+voltar verde, e o commit — com baixa no quadro de tarefas e entrada de
+changelog rascunhada sem perguntar, quando o repositório já mantém um. A
+fase de build continua não julgando o próprio trabalho: a revisão
+encadeada é um despacho novo no Claude Code (e uma autodeclaração honesta
+no Codex CLI), exatamente como o `review` define. Cada fase da cadeia
+segue o corpo da skill irmã ao pé da letra — não existe uma segunda cópia
+do procedimento de revisão ou de commit para divergir.
 
 **Uso:**
 
 ```
 /my-plan:implement docs/tasks/01-csv-serializer.md
 /my-plan:implement "corrigir o erro de digitação no rótulo do botão de exportar"   # sem precisar de quadro de tarefas
+/my-plan:implement docs/tasks/01-csv-serializer.md --solo   # só o build — revisão e commit ficam para você
 ```
 
 **Lê:** só o arquivo de tarefa nomeado (nunca o plano ou as outras tarefas
 — isso é proposital, para não se apoiar acidentalmente em contexto que um
 escritor de verdade não teria), `docs/map.md`,
 `knowledge/checklists/implementation.md` pelas partes que a superfície da
-tarefa realmente toca.
+tarefa realmente toca; depois, na cadeia, os corpos de `review` e
+`commit`.
 
-**Escreve:** o que o write set da tarefa nomear. Nunca faz stage nem
-commit — isso é uma skill separada, rodada separadamente.
+**Escreve:** o que o write set da tarefa nomear durante o build e o loop;
+depois, o(s) commit(s), pela fase de commit da cadeia — nunca inline, só
+pelos passos do próprio `commit` (escaneamento de segredos, stage
+explícito, verificação pós-commit, baixa da tarefa).
+
+**A trava, o loop e o limite:** o commit só acontece numa rodada de
+revisão sem nenhum achado `blocker` — e commita exatamente a árvore que
+essa rodada revisou: rodada verde nunca é seguida de mais edição, e os
+`major`s e `minor`s dela viram riscos em aberto na nota de encerramento,
+nunca uma correção silenciosa pós-revisão. Rodada com blocker volta pro
+build: corrige um por um sob a disciplina do `--fix` do `review`, e
+despacha uma rodada de revisão nova e completa — enquanto a rodada está
+vermelha, um `major` cuja correção cabe no write set da tarefa também
+pode ser corrigido, porque a rodada nova re-revisa tudo. Um blocker cuja
+correção está fora do write set para a cadeia na hora, vermelho e
+reportado — trabalho fora do write set é trabalho que ninguém pediu. Três
+rodadas é o limite — ainda vermelho na terceira, a cadeia para, reporta e
+não commita: um loop que não convergiu até aí está dizendo que o problema
+é a tarefa, não o código, e essa decisão é sua. Um `minor` é reportado,
+nunca perseguido. E a cadeia nunca começa a tarefa seguinte — ela nomeia
+a próxima e para.
 
 **Exemplo:**
 
@@ -286,19 +327,44 @@ uma linha, caracteres especiais que exigem aspas.
 
 Rodei: uv run pytest tests/exporters/test_csv.py — 4 passaram
 
-Changed: reports/exporters/csv.py, tests/exporters/test_csv.py (arquivos
-  novos, verificados contra git status --porcelain)
-Validated: uv run pytest tests/exporters/test_csv.py — 4 passed (checagem
-  de sanidade só, não substitui /my-plan:review)
-Open risks: none
-Suggested next skill: review, then
-  commit --tasks docs/tasks/01-csv-serializer.md — or the next task under
-  docs/tasks/, if more remain
+Despachando revisão independente (rodada 1)...
+
+Ran: uv run pytest — 141 passed, 1 failed
+Ran: pnpm test — 38 passed
+
+Findings:
+`uv run pytest` (exit 1)  blocker  executed  tests  test_reports_index
+  quebrou: to_csv consome o queryset que a view reutiliza. Materializar
+  com list() antes de iterar.
+
+Corrigindo o blocker... uv run pytest — 142 passed (exit 0).
+
+Despachando revisão independente (rodada 2)... 0 blocker, 1 minor.
+
+Verde. Seguindo para o commit.
+
+CHANGELOG.md existe — entrada rascunhada sem perguntar (--changelog):
+- Relatórios agora podem ser exportados para CSV.
+
+Staged: reports/exporters/csv.py, tests/exporters/test_csv.py, CHANGELOG.md
+Secret scan: clean
+Committed: a1b2c3d "Add CSV export serializer for reports"
+Deleted: docs/tasks/01-csv-serializer.md (trabalho verificado no histórico)
+
+Changed: reports/exporters/csv.py, tests/exporters/test_csv.py,
+  CHANGELOG.md — a1b2c3d "Add CSV export serializer for reports"
+Validated: rodada 1 — uv run pytest (exit 1), pnpm test (exit 0);
+  rodada 2 — uv run pytest (exit 0), pnpm test (exit 0). 2 rodadas.
+Open risks: 1 minor aceito no commit (número mágico em csv.py:18)
+Suggested next skill: implement docs/tasks/02-export-endpoint.md — a
+  cadeia nunca começa a próxima; o quadro e o push são seus
 ```
 
-O arquivo da tarefa fica onde está de propósito — é o `commit --tasks`
-quem apaga, quando o trabalho realmente entra no histórico.
-"Implementado mas nunca commitado" ainda não é feito.
+Com `--solo`, o exemplo para no "Rodei: ..." e a nota de encerramento
+volta a sugerir `review` e `commit --tasks` manuais — o arquivo da tarefa
+fica onde está, porque quem apaga é o `commit --tasks`, quando o trabalho
+realmente entra no histórico. "Implementado mas nunca commitado" ainda
+não é feito.
 
 ---
 
@@ -404,6 +470,7 @@ máquina", e para ali.
 /my-plan:commit reports/exporters/csv.py reports/views.py
 /my-plan:commit --spec docs/brief.md              # limitado pelo write set do brief
 /my-plan:commit --tasks docs/tasks/01-csv-serializer.md   # limitado por uma tarefa, apaga ela quando verificada
+/my-plan:commit --tasks docs/tasks/01-csv-serializer.md --changelog   # rascunha a entrada sem perguntar
 /my-plan:commit                                   # commita o que está sujo — pergunta antes
 ```
 
@@ -415,10 +482,13 @@ existir, para casar o formato da entrada nova com o que o arquivo já usa.
 
 **Escreve:** o(s) commit(s), mais a entrada de changelog quando aplicável
 (automática só quando `--spec` ou `--tasks` foi passado explicitamente e
-seu write set já previa a entrada; um brief encontrado implicitamente
-nunca autoriza sozinho — pergunta uma vez, mostrando a entrada, antes de
-incluir). Apaga o arquivo de tarefa nomeado assim que o trabalho dele é
-verificado dentro do(s) novo(s) commit(s), se `--tasks` foi dado.
+seu write set já previa a entrada, ou quando `--changelog` autorizou de
+antemão — é a flag que a cadeia do `implement` passa; um brief encontrado
+implicitamente nunca autoriza sozinho — pergunta uma vez, mostrando a
+entrada, antes de incluir). `--changelog` só dispensa a pergunta: um
+changelog que não existe continua não sendo criado. Apaga o arquivo de
+tarefa nomeado assim que o trabalho dele é verificado dentro do(s)
+novo(s) commit(s), se `--tasks` foi dado.
 
 **Exemplo:**
 
@@ -460,7 +530,7 @@ sozinho. Ele te diz o comando exato para desfazer você mesmo.
 dependências não usadas, resíduos de build e deriva entre documentação/
 config e a realidade do repositório** — usando as ferramentas do próprio
 stack quando existem (Knip, Vulture, staticcheck, cargo-machete...).
-Diferente das outras oito, não é um passo do arco de uma mudança: é uma
+Diferente das outras seis, não é um passo do arco de uma mudança: é uma
 faxina periódica, independente. Report-only por padrão; `--fix` remove
 achados de alta confiança um de cada vez e nunca reorganiza estrutura
 sozinha.
@@ -598,16 +668,16 @@ Adicionando exportação CSV do zero até o push:
 /my-plan:map                                          # uma vez por repo, ou quando desatualizar
 /my-plan:plan "adicionar exportação CSV na página de relatórios"   # entrevista → brief → plano → revisão independente
                                                         # corrija os achados, rode de novo até limpar
-/my-plan:implement docs/tasks/01-csv-serializer.md     # repita por tarefa
-/my-plan:implement docs/tasks/02-export-endpoint.md
+/my-plan:implement docs/tasks/01-csv-serializer.md     # cada invocação: build → review em loop → commit + baixa
+/my-plan:implement docs/tasks/02-export-endpoint.md    #   — a nota de encerramento aponta a próxima; você invoca
 /my-plan:implement docs/tasks/03-export-button.md
 /my-plan:implement docs/tasks/04-export-tests.md
-/my-plan:review --spec docs/brief.md                   # contra o diff atual, com execução real da validação
-/my-plan:commit --spec docs/brief.md                   # um commit ou vários, você decide
+/my-plan:review --spec docs/brief.md                   # opcional: a feature inteira contra o brief, de ponta a ponta
 git push origin feature/csv-export                     # sua decisão, sempre
 ```
 
-Um fix de uma linha não precisa da maior parte disso: `/my-plan:implement
-"corrigir o erro de digitação no rótulo do botão de exportar"` e depois
-`/my-plan:review`, `/my-plan:commit` já é um caminho completo e seguro
-sozinho.
+Um fix de uma linha é uma invocação só: `/my-plan:implement "corrigir o
+erro de digitação no rótulo do botão de exportar"` já constrói, revisa e
+commita — falta só o push, que continua seu. Prefere o fluxo em etapas?
+`--solo` no `implement` e depois `review` e `commit` manuais, como sempre
+foi.
