@@ -117,7 +117,9 @@ foreach ($s in $skills) {
     $dir = Split-Path -Parent $f
     [regex]::Matches((Get-Content -LiteralPath $f -Raw),
         '\.\./\.\./(knowledge|agents)/([A-Za-z0-9._/-]+)') | ForEach-Object {
-        $rel = ($_.Groups[1].Value + '/' + $_.Groups[2].Value) -replace '/', '\'
+        # Keep the ..\..\ prefix: skills sit two levels below the plugin root,
+        # and dropping it made this check test a path that never exists.
+        $rel = '..\..\' + (($_.Groups[1].Value + '/' + $_.Groups[2].Value) -replace '/', '\')
         if (-not (Test-Path -LiteralPath (Join-Path $dir $rel))) { $missing += "$s -> $rel" }
     }
 }
@@ -158,7 +160,8 @@ Get-ChildItem -LiteralPath (Join-Path $plugin 'agents') -Filter *.md | ForEach-O
         $missing += "$($_.Name) uses ../../ (agents sit one level shallower than skills)"
     }
     [regex]::Matches($text, '\.\./(knowledge|agents)/([A-Za-z0-9._/-]+)') | ForEach-Object {
-        $rel = ($_.Groups[1].Value + '/' + $_.Groups[2].Value) -replace '/', '\'
+        # Keep the ..\ prefix: agents sit one level below the plugin root.
+        $rel = '..\' + (($_.Groups[1].Value + '/' + $_.Groups[2].Value) -replace '/', '\')
         if (-not (Test-Path -LiteralPath (Join-Path $dir $rel))) { $missing += "$($_.Name): $rel" }
     }
 }
