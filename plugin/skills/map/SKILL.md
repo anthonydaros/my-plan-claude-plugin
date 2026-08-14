@@ -1,6 +1,6 @@
 ---
 name: map
-description: Write or refresh docs/map.md, a committed, user-editable repository navigator — stack, exact validation commands, module boundaries, non-obvious conventions, proven pitfalls. The planning, review, and validation skills read it first when it exists. Manual only.
+description: Write or refresh docs/map.md, a committed, user-editable repository navigator — stack, exact validation commands, module boundaries, non-obvious conventions, proven pitfalls. The planning, review, and validation skills read it first when it exists. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "[focus area] | refresh"
 disable-model-invocation: true
 ---
@@ -19,9 +19,18 @@ you keep the last word.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, treat the line above as literal and instead take the text typed
-after `$my-plan:map` in the user's message as your argument string.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, treat the line above as literal and instead take the text the
+user typed after this skill's invocation (`$my-plan:map` in Codex CLI;
+`/map` or the skill's name in Antigravity and Gemini CLI) as your argument
+string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Empty arguments or `refresh` means re-verify the whole document against the
 repository as it stands today. A focus area (a module name, a directory)

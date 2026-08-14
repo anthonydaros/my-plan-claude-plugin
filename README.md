@@ -50,9 +50,48 @@ codex plugin marketplace add anthonydaros/my-plan-claude-plugin
 codex plugin add my-plan@my-plan-codex
 ```
 
+### Antigravity / Gemini CLI (Google)
+
+Clone o repositório uma vez — cada skill referencia `knowledge/` por
+caminho relativo, então a árvore do plugin precisa continuar inteira no
+disco. Instalar por cópia de pasta isolada quebra essas referências
+(verificado com uma instalação real, não suposto); as formas abaixo
+preservam a árvore:
+
+```bash
+git clone https://github.com/anthonydaros/my-plan-claude-plugin.git
+cd my-plan-claude-plugin
+```
+
+**Antigravity CLI (`agy`)** — instala a árvore inteira como plugin:
+
+```bash
+agy plugin install ./plugin
+```
+
+**Gemini CLI (0.46+)** — linke cada skill; `gemini skills link` cria um
+symlink e as referências `../../knowledge/` resolvem através dele.
+(`gemini skills install` copia a pasta isolada e as quebra — não use):
+
+```bash
+for s in map plan implement review commit cleanup security; do
+  gemini skills link "./plugin/skills/$s" --consent
+done
+```
+
+**Antigravity IDE** — a mesma regra do symlink, no diretório global de
+skills que os produtos Antigravity leem:
+
+```bash
+mkdir -p ~/.gemini/config/skills
+for s in map plan implement review commit cleanup security; do
+  ln -s "$PWD/plugin/skills/$s" ~/.gemini/config/skills/"$s"
+done
+```
+
 Inicie uma nova sessão depois de instalar ou atualizar para as skills
-recarregarem. Uma única árvore de plugin atende os dois hosts — o corpo de
-cada skill é lido ao pé da letra por ambos; só os dois manifests mudam.
+recarregarem. Uma única árvore de plugin atende todos os hosts — o corpo
+de cada skill é lido ao pé da letra por todos; só os manifests mudam.
 
 ---
 
@@ -68,9 +107,11 @@ cada skill é lido ao pé da letra por ambos; só os dois manifests mudam.
 | `cleanup` | Varre o repositório inteiro (ou um caminho) atrás de código morto, dependências não usadas e deriva entre documentação/meta-config e a realidade do repositório, usando as ferramentas do próprio stack quando existem. Não é um passo do arco de uma mudança — é uma faxina periódica, independente. |
 | `security` | Audita o repositório atrás de segredos vazados (working tree *e* histórico do Git), dependências vulneráveis e risco de código/configuração categorizado por OWASP. Sempre só relatório — não existe `--fix` nesta skill, em nenhuma categoria. |
 
-Invoque com `/my-plan:<skill>` no Claude Code ou `$my-plan:<skill>` no
-Codex CLI — por exemplo `/my-plan:plan "adicionar modo escuro"` ou
-`$my-plan:review --repo`.
+Invoque com `/my-plan:<skill>` no Claude Code, `$my-plan:<skill>` no
+Codex CLI, ou `/<skill>` no Antigravity (as skills aparecem sem o prefixo
+`my-plan:` lá; no Gemini CLI, peça a skill pelo nome) — por exemplo
+`/my-plan:plan "adicionar modo escuro"`, `$my-plan:review --repo` ou
+`/review --repo`.
 
 **[Guia completo das skills](plugin/README.md)** — o que cada skill lê e
 escreve, exemplos de uso e um passo a passo completo do objetivo até o
@@ -140,7 +181,7 @@ sendo um comando que só você digita.
   `implement`, `review`, `commit`, `cleanup` e `security` despacham
   subagents novos e somente-leitura — a cadeia do `implement` despacha
   esses mesmos subagents, então a fronteira vale dentro dela também. No
-  Codex CLI, que não tem um mecanismo de subagent, a
+  Codex CLI e no Antigravity, que não têm um mecanismo de subagent, a
   skill diz claramente quando percebe que foi ela mesma quem escreveu o
   que está julgando, em vez de fingir uma independência que não tem —
   esse é o caso padrão para `plan` e para a cadeia do `implement` agora,
@@ -181,22 +222,32 @@ sendo um comando que só você digita.
 |------|----------|
 | Claude Code | Claude Code com suporte a plugins, Git 2.28+ |
 | Codex CLI | Codex CLI com `exec`, Git 2.28+ |
+| Antigravity / Gemini CLI | Antigravity com suporte a skills, ou Gemini CLI 0.46+, Git 2.28+ |
 
 Nada além disso. Nenhum servidor MCP, nenhum LSP, nenhum hook, nenhuma
 outra CLI é dependência — só Git e o próprio host.
 
-**Não suporta OpenCode.** O frontmatter de skill do OpenCode não tem
-equivalente a `disable-model-invocation`/`allow_implicit_invocation:
-false` — o próprio modelo pode invocar uma skill sozinho, sem o usuário
-pedir. "Manual only" é a garantia mais repetida deste plugin, checada
-pelo smoke test em todas as sete skills; sem um jeito de impor isso,
-distribuir para esse host quebraria a própria premissa do projeto.
+**Manual-only por host, em três níveis.** No Claude Code é imposto pelo
+host, via frontmatter (`disable-model-invocation: true`); no Codex CLI
+também, via sidecar (`allow_implicit_invocation: false`). O Antigravity e
+o Gemini CLI não têm campo equivalente — lá o nível cai para declaração:
+a descrição de cada skill avisa que ela só ativa por invocação explícita,
+e o próprio corpo carrega uma guarda que manda o modelo parar se a skill
+carregar sem você tê-la chamado. É a garantia mais fraca dos três níveis,
+aceita de propósito para alcançar esses hosts, e dita aqui em vez de
+escondida. O OpenCode segue sem suporte: tem a mesma lacuna, sem demanda
+que justificasse aceitar o mesmo rebaixamento por lá.
 
 ## Desinstalar
 
 ```bash
 /plugin uninstall my-plan@my-plan          # Claude Code
 codex plugin remove my-plan@my-plan-codex  # Codex CLI
+agy plugin uninstall my-plan               # Antigravity CLI
+for s in map plan implement review commit cleanup security; do
+  gemini skills uninstall "$s"             # Gemini CLI
+  rm -f ~/.gemini/config/skills/"$s"       # Antigravity IDE (remove os links)
+done
 ```
 
 ---

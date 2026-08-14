@@ -18,20 +18,26 @@ Para instruções de instalação, veja o [README do repositório](../README.md)
 |---|---|---|
 | Claude Code | `/my-plan:<skill> <args>` | `/my-plan:plan "adicionar exportação CSV na página de relatórios"` |
 | Codex CLI | `$my-plan:<skill> <args>` | `$my-plan:plan "adicionar exportação CSV na página de relatórios"` |
+| Antigravity | `/<skill> <args>` — sem prefixo de plugin | `/plan "adicionar exportação CSV na página de relatórios"` |
+| Gemini CLI | a skill, pelo nome, no prompt | `com a skill plan: "adicionar exportação CSV na página de relatórios"` |
 
-Toda skill é manual — digitar o comando é a única forma de iniciar uma; o
-modelo nunca invoca uma skill sozinho. A exceção deliberada é a cadeia do
-`implement`: depois de construir a tarefa, o próprio corpo da skill manda
-seguir os procedimentos de `review` e `commit` na mesma invocação — isso
-não é o modelo decidindo invocar algo; é o que a sua invocação manual de
-`implement` já pediu. Os dois hosts leem exatamente o mesmo corpo de
-skill; só o prefixo de invocação muda.
+Toda skill é manual — invocá-la é a única forma sancionada de iniciar
+uma; o modelo nunca deve invocar uma skill sozinho. No Claude Code e no
+Codex CLI o host impõe isso (`disable-model-invocation` no frontmatter,
+`allow_implicit_invocation: false` no sidecar). O Antigravity e o Gemini
+CLI não têm campo equivalente e podem oferecer a skill ao modelo por
+conta própria — por isso cada corpo carrega uma guarda que manda o
+modelo parar quando percebe que a skill carregou sem invocação explícita
+sua: nesses dois hosts a garantia é essa declaração, não uma trava do
+host, e este guia diz isso em vez de esconder. A exceção deliberada, em
+qualquer host, é a cadeia do `implement`: depois de construir a tarefa, o
+próprio corpo da skill manda seguir os procedimentos de `review` e
+`commit` na mesma invocação — isso não é o modelo decidindo invocar algo;
+é o que a sua invocação manual de `implement` já pediu. Todos os hosts
+leem exatamente o mesmo corpo de skill; só a forma de invocação muda.
 
-Não existe um terceiro host suportado. O OpenCode foi avaliado e
-descartado: seu frontmatter de skill não tem equivalente a
-`disable-model-invocation`, então nada impede o próprio modelo de invocar
-uma skill sem o usuário pedir — quebraria a garantia "manual only" que
-todo o resto deste guia assume.
+O OpenCode segue sem suporte: tem a mesma lacuna dos hosts Google, sem
+demanda que justificasse aceitar por lá o mesmo rebaixamento de garantia.
 
 ## Convenções que toda skill segue
 
@@ -57,7 +63,7 @@ vez de em cada seção abaixo:
   `agents/my-plan-committer.md`) que não tem nenhuma ferramenta de edição
   de arquivo e não viu o trabalho acontecer — a cadeia do `implement`
   despacha esses mesmos subagents, então a fronteira vale dentro dela
-  também. O Codex CLI não tem mecanismo
+  também. O Codex CLI e o Antigravity não têm mecanismo
   de subagent, então a skill diz claramente quando o próprio contexto dela
   mostra que foi ela quem escreveu o que está julgando, em vez de alegar
   uma independência que não tem — esse é o caso padrão para `plan` e para

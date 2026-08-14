@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Turn a goal into a decision-complete brief through a bounded, batched interview, then a task board sized for whoever builds each task, then an independent review before treating the plan as approved. Writes docs/brief.md, docs/plan.md, and docs/tasks/*.md. Manual only.
+description: Turn a goal into a decision-complete brief through a bounded, batched interview, then a task board sized for whoever builds each task, then an independent review before treating the plan as approved. Writes docs/brief.md, docs/plan.md, and docs/tasks/*.md. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "<goal> | [path to brief] | [path to plan, to re-review]"
 disable-model-invocation: true
 ---
@@ -15,18 +15,31 @@ guarantee that used to come from running them as three separate
 commands — an interview producing a brief, a planner turning it into
 tasks, a reviewer who isn't the planner checking it — still holds in
 Claude Code, where the review phase is a genuinely fresh dispatch; in
-Codex CLI it degrades further than it used to, since the same session now
-usually runs all three phases — see Independence below for exactly what
-that means and how to restore a real check when it matters.
+Codex CLI and Antigravity it degrades further than it used to, since the
+same session now usually runs all three phases — see Independence below
+for exactly what that means and how to restore a real check when it
+matters.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, take the text after `$my-plan:plan` in the user's message instead.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, take the text the user typed after this skill's invocation
+(`$my-plan:plan` in Codex CLI; `/plan` or the skill's name in Antigravity
+and Gemini CLI) as your argument string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Every `../../` path below resolves against the directory containing this
-SKILL.md, not your working directory — Codex told you that file's
-absolute path when it loaded this skill; use it.
+SKILL.md, not your working directory — the host told you that file's
+location when it loaded this skill; use it. Under a symlink install
+(`gemini skills link`), pass such paths to the filesystem as written or
+resolve the symlink first (`realpath`) — never simplify the `../../` away
+lexically, which points outside the plugin.
 
 ## Resolving the argument
 
@@ -249,13 +262,13 @@ phases above, the dispatch is still genuinely independent — but say so at
 the top of the report anyway: this session authored the plan and framed
 the dispatch, even though the subagent judging it didn't.
 
-**Codex CLI.** No subagent primitive exists here. If your own context
-shows you wrote or substantially shaped this plan — which, because the
-interview, the planning, and this review now run in one invocation, is
-the default outcome here, not an edge case — say that plainly at the top
-of the report instead of presenting the review as independent. Suggest a
-fresh Codex session, or handing the review to Claude Code, whenever
-independence actually matters for this change.
+**Codex CLI / Antigravity.** No subagent primitive exists in these hosts.
+If your own context shows you wrote or substantially shaped this plan —
+which, because the interview, the planning, and this review now run in
+one invocation, is the default outcome here, not an edge case — say that
+plainly at the top of the report instead of presenting the review as
+independent. Suggest a fresh session, or handing the review to Claude
+Code, whenever independence actually matters for this change.
 
 ## What the review checks
 
@@ -324,8 +337,9 @@ auto-replanning risks silently reinterpreting a decision the interview
 phase deliberately put in front of the user. Fix the findings — by hand,
 or by re-running this skill against the brief to replan — then re-run
 this skill against the plan (case 1, review-only) to get a genuinely
-fresh review, especially in Codex CLI, where looping again from an
-already self-declared non-independent review only compounds it.
+fresh review, especially in Codex CLI and Antigravity, where looping
+again from an already self-declared non-independent review only
+compounds it.
 
 ## Closing note
 

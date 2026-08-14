@@ -1,6 +1,6 @@
 ---
 name: cleanup
-description: Sweep the whole repository, or a path, for dead code, unused dependencies, build residue, and drift between meta-docs and reality — using the stack's own tooling where one exists. Report-only unless --fix is given, and even then never for a structural finding. Manual only.
+description: Sweep the whole repository, or a path, for dead code, unused dependencies, build residue, and drift between meta-docs and reality — using the stack's own tooling where one exists. Report-only unless --fix is given, and even then never for a structural finding. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "[path] [--fix] [--simplify <path>] [--rename <old> <new>] [--extract <file>:<lines>]"
 disable-model-invocation: true
 ---
@@ -34,13 +34,24 @@ vulnerable is this skill's removal, not `security`'s upgrade.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, take the text after `$my-plan:cleanup` in the user's message
-instead.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, take the text the user typed after this skill's invocation
+(`$my-plan:cleanup` in Codex CLI; `/cleanup` or the skill's name in
+Antigravity and Gemini CLI) as your argument string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Every `../../` path below resolves against the directory containing this
-SKILL.md, not your working directory — Codex told you that file's
-absolute path when it loaded this skill; use it.
+SKILL.md, not your working directory — the host told you that file's
+location when it loaded this skill; use it. Under a symlink install
+(`gemini skills link`), pass such paths to the filesystem as written or
+resolve the symlink first (`realpath`) — never simplify the `../../` away
+lexically, which points outside the plugin.
 
 No argument means the whole repository; a path narrows the sweep to that
 subtree. Unlike `review`, there is no diff-shaped default — an
@@ -67,11 +78,11 @@ default analysis mode, since none of them write anything without an
 explicit fix flag — tell it explicitly, in the dispatch, never to pass
 one.
 
-**Codex CLI.** No subagent primitive exists here. If your own context
-shows you already touched the code you're about to scan, say that plainly
-at the top of the report instead of presenting it as independent — or
-hand the sweep to the other host, which restores real independence
-instead of just declaring its absence.
+**Codex CLI / Antigravity.** No subagent primitive exists in these hosts.
+If your own context shows you already touched the code you're about to
+scan, say that plainly at the top of the report instead of presenting it
+as independent — or hand the sweep to another host, which restores real
+independence instead of just declaring its absence.
 
 ## Declared blindness
 
@@ -131,7 +142,8 @@ yes, text-only; structural mismatches, never.
 holds no write tool, by design. Apply the fixes yourself, in this
 session, from the findings list its report returned; never ask it to.
 
-**Codex CLI.** You are both finder and fixer here; say so in the report.
+**Codex CLI / Antigravity.** You are both finder and fixer here; say so
+in the report.
 
 ## Output
 

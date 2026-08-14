@@ -30,7 +30,8 @@ foreach ($m in @(
         (Join-Path $root '.claude-plugin\marketplace.json'),
         (Join-Path $plugin '.claude-plugin\plugin.json'),
         (Join-Path $root '.agents\plugins\marketplace.json'),
-        (Join-Path $plugin '.codex-plugin\plugin.json'))) {
+        (Join-Path $plugin '.codex-plugin\plugin.json'),
+        (Join-Path $plugin 'plugin.json'))) {
     $name = $m.Substring($root.Length + 1)
     if (-not (Test-Path -LiteralPath $m)) { Check $false "missing $name"; continue }
     try {
@@ -62,9 +63,15 @@ Check ($codexMarket.plugins[0].policy.installation -eq 'AVAILABLE') 'Codex marke
 Check ($codexMarket.plugins[0].policy.authentication -eq 'ON_INSTALL') 'Codex marketplace authentication policy is ON_INSTALL'
 Check ($codexMarket.plugins[0].category -eq 'Development') 'Codex marketplace category is Development'
 
-# Two manifests describing one artifact must agree, or one of them is stale
-# the moment a release bumps only the other.
-Check ($manifest.version -eq $codexManifest.version) "both manifests declare the same version (claude:$($manifest.version) codex:$($codexManifest.version))"
+# The Antigravity manifest sits at the plugin root — the location that
+# host's installer requires.
+$agyManifest = Get-Content -LiteralPath (Join-Path $plugin 'plugin.json') -Raw | ConvertFrom-Json
+Check ($agyManifest.name -eq 'my-plan') 'Antigravity plugin name is my-plan'
+Check ([bool]$agyManifest.description) 'Antigravity manifest has a description'
+
+# Three manifests describing one artifact must agree, or one of them is stale
+# the moment a release bumps only the others.
+Check (($manifest.version -eq $codexManifest.version) -and ($manifest.version -eq $agyManifest.version)) "all three manifests declare the same version (claude:$($manifest.version) codex:$($codexManifest.version) antigravity:$($agyManifest.version))"
 
 Write-Host '== the 7 skills are independent and manual-only'
 
@@ -82,6 +89,11 @@ foreach ($s in $skills) {
     $metaText = Get-Content -LiteralPath $meta -Raw
     Check ($metaText.Contains('allow_implicit_invocation: false')) "$s is manual only in Codex CLI"
     Check ($metaText.Contains("`$my-plan:$s")) "$s metadata names its invocation"
+    # The Google hosts have no enforcement field, so the guarantee there is
+    # these two sentences in the body.
+    $bodyText = Get-Content -LiteralPath $f -Raw
+    Check ($bodyText.Contains('Antigravity, and Gemini CLI do not substitute')) "$s tells the Google hosts how to read its arguments"
+    Check ($bodyText.Contains('the user explicitly invoking it')) "$s carries the manual-only guard for hosts with no enforcement switch"
 }
 
 Check (-not (Test-Path -LiteralPath (Join-Path $plugin 'skills\push'))) 'no push skill exists'
@@ -241,12 +253,12 @@ foreach ($s in @('review', 'commit')) {
     Check ($text.Contains('not evaluated')) "$s declares blindness plainly when nothing was supplied"
 }
 
-Write-Host '== independence is stated for both hosts'
+Write-Host '== independence is stated for every host'
 
 foreach ($s in @('plan', 'implement', 'review', 'commit', 'cleanup', 'security')) {
     $text = Get-Content -LiteralPath (Join-Path $plugin "skills\$s\SKILL.md") -Raw
     Check ($text.Contains('**Claude Code.**')) "$s states its Claude Code independence mechanism"
-    Check ($text.Contains('**Codex CLI.**')) "$s states its Codex CLI independence mechanism"
+    Check ($text.Contains('**Codex CLI / Antigravity.**')) "$s states its Codex CLI / Antigravity independence mechanism"
 }
 
 Write-Host '== commits stay the user''s'

@@ -1,6 +1,6 @@
 ---
 name: review
-description: Review a diff, a branch, a path, or the whole repository (--repo) against the eleven-lens checklist, and independently execute the repository's real validation commands — never trusts a claimed result. Every finding says whether it's executed or read. Read-only unless --fix is given. Manual only.
+description: Review a diff, a branch, a path, or the whole repository (--repo) against the eleven-lens checklist, and independently execute the repository's real validation commands — never trusts a claimed result. Every finding says whether it's executed or read. Read-only unless --fix is given. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "[diff | branch | path | --repo] [--spec docs/brief.md] [--fix]"
 disable-model-invocation: true
 ---
@@ -17,13 +17,24 @@ given explicitly.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, take the text after `$my-plan:review` in the user's message
-instead.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, take the text the user typed after this skill's invocation
+(`$my-plan:review` in Codex CLI; `/review` or the skill's name in
+Antigravity and Gemini CLI) as your argument string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Every `../../` path below resolves against the directory containing this
-SKILL.md, not your working directory — Codex told you that file's
-absolute path when it loaded this skill; use it.
+SKILL.md, not your working directory — the host told you that file's
+location when it loaded this skill; use it. Under a symlink install
+(`gemini skills link`), pass such paths to the filesystem as written or
+resolve the symlink first (`realpath`) — never simplify the `../../` away
+lexically, which points outside the plugin.
 
 No argument means the working diff: `git diff HEAD` — not bare `git diff`,
 which silently omits anything already staged — plus untracked files meant
@@ -50,12 +61,13 @@ the resolved validation commands (or where to resolve them — see Declared
 blindness), the paths to `docs/brief.md`/`docs/plan.md` if named or
 found, and `docs/map.md` if it exists.
 
-**Codex CLI.** No subagent primitive exists here. If your own context shows
-you wrote or substantially shaped what you're about to review, say that
-plainly at the top of the report instead of presenting either pass as
-independent — or better, hand the review to the other host (Codex
-reviewing what Claude wrote, or the reverse), which restores real
-independence instead of just declaring its absence.
+**Codex CLI / Antigravity.** No subagent primitive exists in these hosts.
+If your own context shows you wrote or substantially shaped what you're
+about to review, say that plainly at the top of the report instead of
+presenting either pass as independent — or better, hand the review to
+another host (Codex or Antigravity reviewing what Claude wrote, or the
+reverse), which restores real independence instead of just declaring its
+absence.
 
 ## Declared blindness
 
@@ -212,7 +224,8 @@ change.
 holds no write tool, by design. Apply the fixes yourself, in this session,
 from the findings list its report returned; never ask the reviewer to.
 
-**Codex CLI.** You are both reviewer and fixer here; say so in the report.
+**Codex CLI / Antigravity.** You are both reviewer and fixer here; say so
+in the report.
 
 ## Output
 

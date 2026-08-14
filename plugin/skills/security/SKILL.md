@@ -1,6 +1,6 @@
 ---
 name: security
-description: Audit the repository for leaked secrets (working tree and git history), dependency vulnerabilities, and OWASP-categorized code and configuration risk. Evidence-backed findings only, always report-only — this skill has no --fix. Manual only.
+description: Audit the repository for leaked secrets (working tree and git history), dependency vulnerabilities, and OWASP-categorized code and configuration risk. Evidence-backed findings only, always report-only — this skill has no --fix. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "[path]"
 disable-model-invocation: true
 ---
@@ -33,13 +33,24 @@ overlap.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, take the text after `$my-plan:security` in the user's message
-instead.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, take the text the user typed after this skill's invocation
+(`$my-plan:security` in Codex CLI; `/security` or the skill's name in
+Antigravity and Gemini CLI) as your argument string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Every `../../` path below resolves against the directory containing this
-SKILL.md, not your working directory — Codex told you that file's
-absolute path when it loaded this skill; use it.
+SKILL.md, not your working directory — the host told you that file's
+location when it loaded this skill; use it. Under a symlink install
+(`gemini skills link`), pass such paths to the filesystem as written or
+resolve the symlink first (`realpath`) — never simplify the `../../` away
+lexically, which points outside the plugin.
 
 No argument means the whole repository; a path narrows the sweep to that
 subtree. Like `cleanup`, there is no diff-shaped default — secrets,
@@ -58,11 +69,11 @@ the way back. Give it: the scope, and which of
 boundary already covers running the bare audit/check command, but tell it
 explicitly, in the dispatch, never to pass one.
 
-**Codex CLI.** No subagent primitive exists here. If your own context
-shows you already touched the code you're about to audit, say that
-plainly at the top of the report instead of presenting it as independent —
-or hand the sweep to the other host, which restores real independence
-instead of just declaring its absence.
+**Codex CLI / Antigravity.** No subagent primitive exists in these hosts.
+If your own context shows you already touched the code you're about to
+audit, say that plainly at the top of the report instead of presenting it
+as independent — or hand the sweep to another host, which restores real
+independence instead of just declaring its absence.
 
 ## Declared blindness
 

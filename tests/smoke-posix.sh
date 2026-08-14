@@ -39,7 +39,8 @@ for m in \
   "$ROOT/.claude-plugin/marketplace.json" \
   "$PLUGIN/.claude-plugin/plugin.json" \
   "$ROOT/.agents/plugins/marketplace.json" \
-  "$PLUGIN/.codex-plugin/plugin.json"; do
+  "$PLUGIN/.codex-plugin/plugin.json" \
+  "$PLUGIN/plugin.json"; do
   if [ ! -f "$m" ]; then fail "missing $m"; continue; fi
   # Any of these parsers is fine; the plugin ships none of them.
   if command -v python3 >/dev/null 2>&1; then
@@ -91,12 +92,22 @@ check $? "Codex marketplace authentication policy is ON_INSTALL"
 has "$ROOT/.agents/plugins/marketplace.json" '"category": "Development"'
 check $? "Codex marketplace category is Development"
 
-# Two manifests describing one artifact must agree, or one of them is
-# stale the moment a release bumps only the other.
+# The Antigravity manifest sits at the plugin root — the location that
+# host's installer requires — and mirrors the field shape Google's own
+# plugins ship.
+has "$PLUGIN/plugin.json" '"name": "my-plan"'
+check $? "Antigravity plugin name is my-plan"
+
+grep -q '"description"' "$PLUGIN/plugin.json"
+check $? "Antigravity manifest has a description"
+
+# Three manifests describing one artifact must agree, or one of them is
+# stale the moment a release bumps only the others.
 claude_version=$(sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' "$PLUGIN/.claude-plugin/plugin.json" | head -1)
 codex_version=$(sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' "$PLUGIN/.codex-plugin/plugin.json" | head -1)
-[ -n "$claude_version" ] && [ "$claude_version" = "$codex_version" ]
-check $? "both manifests declare the same version (claude:$claude_version codex:$codex_version)"
+agy_version=$(sed -n 's/.*"version": *"\([0-9][0-9.]*\)".*/\1/p' "$PLUGIN/plugin.json" | head -1)
+[ -n "$claude_version" ] && [ "$claude_version" = "$codex_version" ] && [ "$claude_version" = "$agy_version" ]
+check $? "all three manifests declare the same version (claude:$claude_version codex:$codex_version antigravity:$agy_version)"
 
 echo "== the 7 skills are independent and manual-only"
 
@@ -126,6 +137,15 @@ for s in $SKILLS; do
 
   has "$meta" "\$my-plan:$s"
   check $? "$s metadata names its invocation"
+
+  # The Google hosts have no enforcement field, so the guarantee there is
+  # these two sentences in the body — the argument fallback and the guard
+  # that stops an implicit activation.
+  has "$f" 'Antigravity, and Gemini CLI do not substitute'
+  check $? "$s tells the Google hosts how to read its arguments"
+
+  has "$f" 'the user explicitly invoking it'
+  check $? "$s carries the manual-only guard for hosts with no enforcement switch"
 done
 
 # No push skill exists, and nothing may reintroduce one under another name.
@@ -378,18 +398,18 @@ for s in review commit; do
   check $? "$s declares blindness plainly when nothing was supplied"
 done
 
-echo "== independence is stated for both hosts"
+echo "== independence is stated for every host"
 
 # The reviewer/committer subagent boundary is real in Claude Code and only a
-# self-declaration in Codex CLI. Both must be stated, and the asymmetry must
-# not be papered over. implement is in this list because its chain dispatches
-# the same reviewer and committer.
+# self-declaration in Codex CLI and Antigravity. Both must be stated, and the
+# asymmetry must not be papered over. implement is in this list because its
+# chain dispatches the same reviewer and committer.
 for s in plan implement review commit cleanup security; do
   f="$PLUGIN/skills/$s/SKILL.md"
   has "$f" '**Claude Code.**'
   check $? "$s states its Claude Code independence mechanism"
-  has "$f" '**Codex CLI.**'
-  check $? "$s states its Codex CLI independence mechanism"
+  has "$f" '**Codex CLI / Antigravity.**'
+  check $? "$s states its Codex CLI / Antigravity independence mechanism"
 done
 
 echo "== commits stay the user's"

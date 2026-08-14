@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Stage exactly the intended paths, scan for leaked secrets in code and prose, commit in the repository's own style, and draft a changelog entry when the repository already keeps one and the change is user-visible (--changelog authorizes the draft without the confirm ask). Never pushes, never forces, never --no-verify, never touches history. Prints the push command for you to run yourself. Manual only.
+description: Stage exactly the intended paths, scan for leaked secrets in code and prose, commit in the repository's own style, and draft a changelog entry when the repository already keeps one and the change is user-visible (--changelog authorizes the draft without the confirm ask). Never pushes, never forces, never --no-verify, never touches history. Prints the push command for you to run yourself. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "[path ... | --spec docs/brief.md | --tasks docs/tasks/<file>] [--changelog]"
 disable-model-invocation: true
 ---
@@ -14,13 +14,24 @@ after reading what this printed.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, take the text after `$my-plan:commit` in the user's message
-instead.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, take the text the user typed after this skill's invocation
+(`$my-plan:commit` in Codex CLI; `/commit` or the skill's name in
+Antigravity and Gemini CLI) as your argument string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Every `../../` path below resolves against the directory containing this
-SKILL.md, not your working directory — Codex told you that file's
-absolute path when it loaded this skill; use it.
+SKILL.md, not your working directory — the host told you that file's
+location when it loaded this skill; use it. Under a symlink install
+(`gemini skills link`), pass such paths to the filesystem as written or
+resolve the symlink first (`realpath`) — never simplify the `../../` away
+lexically, which points outside the plugin.
 
 Arguments are one of: a list of paths to commit, `--spec <path>` naming a
 brief whose write set bounds what may be staged, or `--tasks <path>` naming
@@ -164,13 +175,13 @@ path; one that isn't is where step 2 below asks before adding it.
    state is what actually catches a violation, not the tool list by
    itself.
 
-   **Codex CLI.** No subagent-dispatch primitive exists here. If you can
-   see in this session's own context that you produced the change being
-   committed, say so plainly in the closing note instead of claiming
-   independence — you're still the one running the commit, and the
-   guarantee here is the self-declaration, not a real tool boundary.
-   Recommend a fresh `$my-plan:commit` session when the stakes call for a
-   real one.
+   **Codex CLI / Antigravity.** No subagent-dispatch primitive exists in
+   these hosts. If you can see in this session's own context that you
+   produced the change being committed, say so plainly in the closing
+   note instead of claiming independence — you're still the one running
+   the commit, and the guarantee here is the self-declaration, not a real
+   tool boundary. Recommend a fresh session running `commit` when the
+   stakes call for a real one.
 
 6. **Write each message in the repository's existing style.** Read
    `git log --oneline -20` and match what you find. Say what changed and

@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Build one task from docs/tasks/, or a plain request when there's no task board, with the implementation defect catalogue loaded and a declared write set — then chain the rest of that task's arc in the same invocation, an independent review, a fix loop until it comes back green, and the secret-scanned commit that closes the task out. --solo stops after the build. Manual only.
+description: Build one task from docs/tasks/, or a plain request when there's no task board, with the implementation defect catalogue loaded and a declared write set — then chain the rest of that task's arc in the same invocation, an independent review, a fix loop until it comes back green, and the secret-scanned commit that closes the task out. --solo stops after the build. Manual only — runs solely on the user's explicit invocation, never from inferred intent.
 argument-hint: "<task file path, or a plain request> [--solo]"
 disable-model-invocation: true
 ---
@@ -12,18 +12,29 @@ rest of the way: an independent review, a fix loop that runs until the
 review comes back green, and the commit. One task in, one commit out,
 nothing to shepherd in between. The build phase still never judges its own
 work: the chained review is a fresh dispatch in Claude Code and an honest
-self-declaration in Codex CLI, exactly as `review` itself defines — see
-Independence below.
+self-declaration in Codex CLI and Antigravity, exactly as `review` itself
+defines — see Independence below.
 
 Arguments: $ARGUMENTS
 
-Codex CLI does not substitute `$ARGUMENTS`. If you are running as a Codex
-session, take the text after `$my-plan:implement` in the user's message
-instead.
+Codex CLI, Antigravity, and Gemini CLI do not substitute `$ARGUMENTS`. In
+those hosts, take the text the user typed after this skill's invocation
+(`$my-plan:implement` in Codex CLI; `/implement` or the skill's name in
+Antigravity and Gemini CLI) as your argument string.
+
+Manual-only is enforced by frontmatter in Claude Code and by this skill's
+sidecar in Codex CLI. Antigravity and Gemini CLI have no equivalent switch
+and may hand this file to the model unasked — if this skill loaded without
+the user explicitly invoking it, by slash command or by name, stop: say
+which skill loaded and that it runs only on explicit invocation, and do
+nothing else.
 
 Every `../../` path below resolves against the directory containing this
-SKILL.md, not your working directory — Codex told you that file's
-absolute path when it loaded this skill; use it. The same rule covers the
+SKILL.md, not your working directory — the host told you that file's
+location when it loaded this skill; use it. Under a symlink install
+(`gemini skills link`), pass such paths to the filesystem as written or
+resolve the symlink first (`realpath`) — never simplify the `../../` away
+lexically, which points outside the plugin. The same rule covers the
 `../review/SKILL.md` and `../commit/SKILL.md` references below: sibling
 skills, one directory up.
 
@@ -192,13 +203,13 @@ review. The fixes between rounds happen here, in this session, from the
 findings the reviewer returned — never by the reviewer. The commit goes
 to `my-plan-committer`, per `../commit/SKILL.md`'s own dispatch step.
 
-**Codex CLI.** No subagent primitive exists here, so every phase of the
-chain runs in this one context — the session that built the change is the
-one reviewing and committing it. Say that plainly at the top of each
-review report and in the commit's closing note, exactly as `review` and
-`commit` each instruct for this host. Chaining doesn't change the
-declaration; it makes it the default outcome for this skill, the same way
-it already is for `plan`.
+**Codex CLI / Antigravity.** No subagent primitive exists in these hosts,
+so every phase of the chain runs in this one context — the session that
+built the change is the one reviewing and committing it. Say that plainly
+at the top of each review report and in the commit's closing note,
+exactly as `review` and `commit` each instruct for these hosts. Chaining
+doesn't change the declaration; it makes it the default outcome for this
+skill, the same way it already is for `plan`.
 
 ## Closing note
 
