@@ -5,24 +5,24 @@ on:
     branches: [main]
   pull_request:
 
+# A superseded run proves nothing worth paying for — cancel it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Linux runners only, deliberately: macos-latest bills at 10× and
+# windows-latest at 2×, and together they produced a real GitHub charge.
+# smoke-windows.ps1 stays in the repository for running locally on a
+# Windows machine; reintroducing a non-Linux runner here must be the
+# explicit point of a change, never a side effect.
 jobs:
   smoke:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - name: Static checks (POSIX)
-        if: runner.os != 'Windows'
         run: sh tests/smoke-posix.sh
-
-      - name: Static checks (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./tests/smoke-windows.ps1
 
   manifests:
     # The host's own validator is the authority on manifest shape. Our checks can
@@ -76,6 +76,7 @@ jobs:
           result=$(codex plugin add my-plan@my-plan-codex --json)
           installed=$(printf '%s\n' "$result" | jq -r '.installedPath')
           test -f "$installed/.codex-plugin/plugin.json"
+          test -f "$installed/plugin.json"
           test -f "$installed/skills/map/SKILL.md"
           test -f "$installed/skills/map/agents/openai.yaml"
           test -f "$installed/skills/commit/SKILL.md"
@@ -87,3 +88,32 @@ jobs:
           test -f "$installed/knowledge/checklists/review.md"
           test -f "$installed/knowledge/checklists/cleanup.md"
           test -f "$installed/knowledge/checklists/security.md"
+
+  gemini-skills:
+    # Antigravity has no headless installer to exercise here; Gemini CLI shares
+    # Google's skill format and does. Linking is the sanctioned install (a copy
+    # severs the ../../knowledge references), so this proves the real ingestion
+    # path and that those references survive the symlink.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install Gemini CLI
+        run: npm install -g @google/gemini-cli
+
+      - name: Link every skill and prove the references resolve
+        run: |
+          for s in map plan implement review commit cleanup security; do
+            gemini skills link "./plugin/skills/$s" --consent
+          done
+          listing=$(gemini skills list)
+          for s in map plan implement review commit cleanup security; do
+            printf '%s\n' "$listing" | grep -q "$s \[Enabled\]"
+          done
+          test -L ~/.gemini/skills/review
+          test -f ~/.gemini/skills/review/../../knowledge/checklists/review.md
+          test -f ~/.gemini/skills/implement/../review/SKILL.md
